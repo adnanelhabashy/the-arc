@@ -15,6 +15,7 @@
     "test:provider-corpus": "vitest run --config vitest.config.ts test/provider-corpus"
   },
   "dependencies": {
+    "@bb/arc-domains": "workspace:*",
     "@bb/config": "workspace:*",
     "@bb/core-ui": "workspace:*",
     "@bb/db": "workspace:*",

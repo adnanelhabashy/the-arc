@@ -35,6 +35,7 @@ import type {
   ProviderRegistryService,
 } from "../providers/provider-registry.js";
 import { getSupportedReasoningLevelsForProvider } from "../threads/thread-reasoning-policy.js";
+import { filterArcExecutionProviders } from "./arc-agent-catalog.js";
 import { resolveSystemLookupHostId } from "./host-lookup.js";
 import { resolveBridgeLaunchForProviderId } from "./provider-bridge-launch.js";
 import { mapProviderMaintenanceRequests } from "./provider-maintenance-concurrency.js";
@@ -249,7 +250,7 @@ function resolveSystemProviderInfosPlan(
         deps,
         hostId,
         query.capability,
-      ),
+      ).then(filterArcExecutionProviders),
     };
   } catch (error) {
     if (!canOmitProviderDiscoveryForError(error)) {
@@ -265,7 +266,9 @@ function resolveSystemProviderInfosPlan(
       hostId: null,
       hostLookupError: error,
       providersPromise: Promise.resolve(
-        listConfiguredSystemProviderInfos(deps, query.capability),
+        filterArcExecutionProviders(
+          listConfiguredSystemProviderInfos(deps, query.capability),
+        ),
       ),
     };
   }

@@ -272,10 +272,10 @@ describe("builtin plugin reconciliation", () => {
     expect(OFFICIAL_PLUGINS.every((plugin) => !plugin.autoInstall)).toBe(true);
   });
 
-  it("enables the account pooler only when a parent bb server pool is present", () => {
-    expect(accountPoolDefaultEnabled({})).toBe(false);
+  it("enables the account pooler by default for Arc", () => {
+    expect(accountPoolDefaultEnabled({})).toBe(true);
     expect(accountPoolDefaultEnabled({ BB_ACCOUNT_POOL_PARENT_URL: "" })).toBe(
-      false,
+      true,
     );
     expect(
       accountPoolDefaultEnabled({
@@ -289,6 +289,7 @@ describe("builtin plugin reconciliation", () => {
     const expectedIcons = new Map([
       ["bb-guide", "Explore"],
       ["account-pool", "Layers"],
+      ["arc-core", "Layers"],
       ["ask-user-question", "MessageQuestion"],
       ["automations", "Repeat"],
       ["concurrency-limit", "Limitation"],

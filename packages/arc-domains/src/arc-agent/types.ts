@@ -38,6 +38,7 @@ export type ArcAgentOverallState =
   | "not-prepared"
   | "preparing"
   | "runtime-ready"
+  | "account-required"
   | "ready"
   | "broken"
   | "unsupported"

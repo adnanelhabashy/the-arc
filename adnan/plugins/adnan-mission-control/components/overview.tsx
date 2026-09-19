@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
 import type { MissionState, MissionValues, Probe, rpcContract } from "../server";
-import { useMission, useTree } from "@/lib/data";
+import { useMission, useTree, useArcAccounts, useArcAgents, useArcStatus, useArcUsage } from "@/lib/data";
 import {
   Chip,
   EmptyState,
@@ -218,6 +218,42 @@ function ProbeTable({ probe }: { probe: Probe }) {
   );
 }
 
+function ArcSummaryCard() {
+  const { status } = useArcStatus();
+  const { agents } = useArcAgents();
+  const { accounts } = useArcAccounts();
+  const { data: usage } = useArcUsage();
+
+  if (status !== null && status.arcAvailable === false) {
+    return (
+      <SectionCard title="Arc">
+        <p className="text-xs text-muted-foreground">Arc services unavailable on this server.</p>
+      </SectionCard>
+    );
+  }
+
+  const agentTotal = agents?.length ?? 0;
+  const readyCount = agents?.filter((agent) => agent.overallState === "ready").length ?? 0;
+  const setupRequiredCount = agents?.filter((agent) => agent.overallState === "not-prepared").length ?? 0;
+  const connectedAccounts = accounts?.filter((account) => account.authState === "connected" && account.enabled).length ?? 0;
+  const staleSources = usage?.resources.filter((resource) => resource.stale).length ?? 0;
+  const errorSources = usage?.resources.filter((resource) => resource.status === "error").length ?? 0;
+
+  return (
+    <SectionCard title="Arc">
+      <ul className="space-y-1 text-xs">
+        <li>
+          Agents {agentTotal} · Ready {readyCount} · Setup required {setupRequiredCount}
+        </li>
+        <li>Accounts {connectedAccounts} connected</li>
+        <li>
+          Usage {staleSources} stale · {errorSources} error
+        </li>
+      </ul>
+    </SectionCard>
+  );
+}
+
 export function OverviewPage() {
   const { data } = useTree();
   const { state, setState } = useMission();
@@ -260,6 +296,8 @@ export function OverviewPage() {
           ))}
         </div>
       ) : null}
+
+      <ArcSummaryCard />
 
       <SectionCard
         title="Mission"

@@ -296,210 +296,22 @@ const countersSchema = z.object({
   generatedAt: z.number(),
 });
 
-// -- Usage & Limits (Phase 6) -------------------------------------------------
+// -- Arc Core proxy (Phase 10) ------------------------------------------------
 //
-// One normalized presentation model over two real sources: direct provider
-// usage (bb.sdk.system.usageLimits, the same contract the thread popup
-// renders) and Account Pooler accounts (sibling-plugin RPC, presented
-// honestly as their own group). Nothing is estimated: a limit window only
-// carries values its source reported; missing data stays null and renders
-// as n/a. `scope` records the true scope of a limit (account vs model) so
-// account-wide quotas are never presented as model-specific.
+// The Arc product backend is a separate bundled plugin (arc-core). Mission
+// Control proxies its fixed, zod-validated methods over loopback HTTP so the
+// renderer only ever calls this plugin. Outputs are passed through
+// unvalidated (arc-core already enforces its own strict schemas); the
+// frontend types them via the plain interfaces in lib/arc-types.ts.
 
-const usageWindowSchema = z.object({
-  label: z.string().min(1),
-  usedPercent: z.number().min(0).max(100).nullable(),
-  resetsAt: z.number().int().nullable(),
-  status: z.enum(["ok", "warning", "blocked", "unknown"]).nullable(),
-  scope: z.enum(["provider", "account", "model", "session"]).nullable(),
-  cost: z
-    .object({ usedUsdCents: z.number().int(), limitUsdCents: z.number().int() })
-    .nullable(),
+/** arc_status output — the one Arc method with a local, first-class shape:
+ *  an unavailable Arc host degrades to `{ arcAvailable:false }` instead of
+ *  erroring the whole panel. */
+const arcStatusSchema = z.object({
+  arcAvailable: z.boolean(),
+  reason: z.string().nullable(),
 });
-export type UsageWindow = z.infer<typeof usageWindowSchema>;
-
-const usageEntryStateSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("ready"), updatedAt: z.number().nullable() }),
-  z.object({ kind: z.literal("loading") }),
-  z.object({ kind: z.literal("unauthenticated") }),
-  z.object({ kind: z.literal("not_installed") }),
-  z.object({ kind: z.literal("expired") }),
-  z.object({ kind: z.literal("error"), message: z.string().min(1) }),
-  z.object({ kind: z.literal("not_exposed") }),
-]);
-export type UsageEntryState = z.infer<typeof usageEntryStateSchema>;
-
-const usageEntrySchema = z.object({
-  source: z.enum(["direct", "pool"]),
-  providerId: z.string().min(1),
-  providerLabel: z.string().min(1),
-  accountLabel: z.string().nullable(),
-  planLabel: z.string().nullable(),
-  modelLabel: z.string().nullable(),
-  windows: z.array(usageWindowSchema),
-  state: usageEntryStateSchema,
-});
-export type UsageEntry = z.infer<typeof usageEntrySchema>;
-
-const usageDashboardSchema = z.object({
-  direct: z.array(usageEntrySchema),
-  pool: z.array(usageEntrySchema),
-  poolAvailable: z.boolean(),
-  generatedAt: z.number(),
-});
-export type UsageDashboard = z.infer<typeof usageDashboardSchema>;
-
-function mapLimitStatus(value: unknown): UsageWindow["status"] {
-  if (value === "allowed" || value === "ok") return "ok";
-  if (value === "warning") return "warning";
-  if (value === "blocked") return "blocked";
-  if (typeof value === "string" && value.length > 0) return "unknown";
-  return null;
-}
-
-function toEpochMs(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return Math.trunc(value);
-  if (typeof value === "string") {
-    const parsed = Date.parse(value);
-    return Number.isNaN(parsed) ? null : parsed;
-  }
-  return null;
-}
-
-function mapDirectUsage(providers: AnyRecord[], usageResponse: unknown): UsageEntry[] {
-  const usageRecord = asRecord(usageResponse) ?? {};
-  const entries: UsageEntry[] = [];
-  for (const [providerId, rawUsage] of Object.entries(usageRecord)) {
-    const provider = providers.find((row) => str(row.id) === providerId) ?? null;
-    const usage = asRecord(rawUsage);
-    const base: UsageEntry = {
-      source: "direct",
-      providerId,
-      providerLabel: str(provider?.displayName) ?? providerId,
-      accountLabel: null,
-      planLabel: null,
-      modelLabel: null,
-      windows: [],
-      state: { kind: "not_exposed" },
-    };
-    if (usage === null) {
-      entries.push(base);
-      continue;
-    }
-    base.accountLabel = str(usage.accountEmail);
-    base.planLabel = str(usage.planLabel);
-    const status = str(usage.status);
-    if (status === "ok") {
-      // The direct contract does not declare a window's scope; keep it
-      // null rather than guessing.
-      base.windows = (Array.isArray(usage.windows) ? usage.windows.map(asRecord) : [])
-        .filter((row): row is AnyRecord => row !== null)
-        .map((row) => {
-          const cost = asRecord(row.cost);
-          return {
-            label: str(row.label) ?? "Limit",
-            usedPercent: typeof row.usedPercent === "number" ? Math.round(row.usedPercent) : null,
-            resetsAt: toEpochMs(row.resetsAt),
-            status: null,
-            scope: null,
-            cost:
-              cost !== null &&
-              typeof cost.usedUsdCents === "number" &&
-              typeof cost.limitUsdCents === "number"
-                ? { usedUsdCents: cost.usedUsdCents, limitUsdCents: cost.limitUsdCents }
-                : null,
-          };
-        });
-      base.state = { kind: "ready", updatedAt: null };
-    } else if (status === "unauthenticated" || status === "not_installed" || status === "expired") {
-      base.state = { kind: status };
-    } else if (status === "error") {
-      base.state = { kind: "error", message: str(usage.message) ?? "Provider usage could not be loaded." };
-    }
-    entries.push(base);
-  }
-  return entries;
-}
-
-// Pool accounts are parsed defensively: the RPC shape is not contract-bound
-// across account-pool versions, so every field is optional and anything
-// unrecognized renders as n/a instead of failing the dashboard.
-const poolQuotaBucketSchema = z
-  .object({
-    utilization: z.number().nullable().optional(),
-    resetAt: z.number().nullable().optional(),
-    status: z.string().nullable().optional(),
-  })
-  .passthrough();
-
-const poolAccountSchema = z
-  .object({
-    id: z.string().optional(),
-    provider: z.string().optional(),
-    label: z.string().nullable().optional(),
-    email: z.string().nullable().optional(),
-    enabled: z.boolean().optional(),
-    quota: z
-      .object({
-        fiveHour: poolQuotaBucketSchema.nullable().optional(),
-        sevenDay: poolQuotaBucketSchema.nullable().optional(),
-        familyWeekly: z.record(z.string(), poolQuotaBucketSchema.nullable()).nullable().optional(),
-        limitWindows: z.array(z.unknown()).nullable().optional(),
-        observedAt: z.number().nullable().optional(),
-        error: z.string().nullable().optional(),
-      })
-      .nullable()
-      .optional(),
-  })
-  .passthrough();
-
-function mapPoolBucketWindow(label: string, bucket: z.infer<typeof poolQuotaBucketSchema>): UsageWindow {
-  return {
-    label,
-    usedPercent: typeof bucket.utilization === "number" ? Math.round(bucket.utilization * 100) : null,
-    resetsAt: toEpochMs(bucket.resetAt),
-    status: mapLimitStatus(bucket.status),
-    scope: "account",
-    cost: null,
-  };
-}
-
-function mapPoolAccount(rawAccount: unknown): UsageEntry {
-  const parsed = poolAccountSchema.safeParse(rawAccount);
-  const account = parsed.success ? parsed.data : {};
-  const quota = account.quota ?? undefined;
-  const windows: UsageWindow[] = [];
-  if (quota?.fiveHour != null) windows.push(mapPoolBucketWindow("5-hour", quota.fiveHour));
-  if (quota?.sevenDay != null) windows.push(mapPoolBucketWindow("7-day", quota.sevenDay));
-  if (quota?.familyWeekly != null) {
-    for (const [family, bucket] of Object.entries(quota.familyWeekly)) {
-      if (bucket == null) continue;
-      const capitalized = family.charAt(0).toUpperCase() + family.slice(1);
-      windows.push({ ...mapPoolBucketWindow(`Weekly · ${capitalized}`, bucket), scope: "model" });
-    }
-  }
-  if (Array.isArray(quota?.limitWindows)) {
-    for (const rawWindow of quota.limitWindows) {
-      const parsedWindow = usageWindowSchema.safeParse(rawWindow);
-      if (parsedWindow.success) windows.push(parsedWindow.data);
-    }
-  }
-  const error = str(quota?.error);
-  const providerId = account.provider ?? "pool";
-  return {
-    source: "pool",
-    providerId,
-    providerLabel: providerId,
-    accountLabel: account.label ?? account.email ?? account.id ?? null,
-    planLabel: null,
-    modelLabel: null,
-    windows,
-    state:
-      error !== null
-        ? { kind: "error", message: error }
-        : { kind: "ready", updatedAt: typeof quota?.observedAt === "number" ? quota.observedAt : null },
-  };
-}
+export type ArcStatus = z.infer<typeof arcStatusSchema>;
 
 export const rpcContract = defineRpcContract({
   mission_get: {
@@ -552,10 +364,6 @@ export const rpcContract = defineRpcContract({
     input: z.null(),
     output: z.object({ at: z.number().nullable(), evidence: z.array(verificationEvidenceSchema) }),
   },
-  usage_dashboard_get: {
-    input: z.null(),
-    output: usageDashboardSchema,
-  },
   verification_attach_evidence: {
     input: z.object({ label: z.string().max(80), evidence: verificationEvidenceSchema }),
     output: z.object({ state: missionStateSchema }),
@@ -580,6 +388,31 @@ export const rpcContract = defineRpcContract({
     input: z.object({ threadId: z.string(), roleId: z.string(), prompt: z.string().min(1).max(4000) }),
     output: z.object({ childThreadId: z.string() }),
   },
+  // Arc proxy surface (Phase 10). Inputs are validated here; outputs are
+  // passed through unvalidated (typed by the frontend via lib/arc-types.ts).
+  arc_status: { input: z.null(), output: arcStatusSchema },
+  arc_agents_list: { input: z.null(), output: z.unknown() },
+  arc_agents_prepare: { input: z.object({ id: z.string() }), output: z.unknown() },
+  arc_agents_repair: { input: z.object({ id: z.string() }), output: z.unknown() },
+  arc_accounts_list: { input: z.null(), output: z.unknown() },
+  arc_accounts_set_enabled: { input: z.object({ id: z.string(), enabled: z.boolean() }), output: z.unknown() },
+  arc_accounts_remove: { input: z.object({ id: z.string() }), output: z.unknown() },
+  arc_accounts_reorder: {
+    input: z.object({ family: z.string(), orderedIds: z.array(z.string()) }),
+    output: z.unknown(),
+  },
+  arc_login_openai_start: { input: z.null(), output: z.unknown() },
+  arc_login_openai_poll: { input: z.object({ sessionId: z.string() }), output: z.unknown() },
+  arc_login_openai_cancel: { input: z.object({ sessionId: z.string() }), output: z.unknown() },
+  arc_login_claude_start: { input: z.null(), output: z.unknown() },
+  arc_login_claude_complete: { input: z.object({ sessionId: z.string(), pasted: z.string() }), output: z.unknown() },
+  arc_omp_providers: { input: z.null(), output: z.unknown() },
+  arc_omp_login_start: { input: z.object({ provider: z.string() }), output: z.unknown() },
+  arc_omp_login_poll: { input: z.object({ sessionId: z.string() }), output: z.unknown() },
+  arc_omp_login_cancel: { input: z.object({ sessionId: z.string() }), output: z.unknown() },
+  arc_omp_login_submit_key: { input: z.object({ sessionId: z.string(), key: z.string() }), output: z.unknown() },
+  arc_usage_snapshot: { input: z.null(), output: z.unknown() },
+  arc_usage_refresh: { input: z.object({ resourceId: z.string().optional() }), output: z.unknown() },
 });
 
 /** Realtime channel the app listens on; payload is an invalidation hint. */
@@ -674,8 +507,39 @@ function str(value: unknown): string | null {
   return typeof value === "string" && value !== "" ? value : null;
 }
 
+// -- Arc proxy helpers ---------------------------------------------------------
+
+/** Raised when arc-core reports the server was not started by the Arc app.
+ *  Carries a clean, user-facing message; arc_status catches it and degrades
+ *  to `{ arcAvailable:false }` while every other method lets it propagate. */
+class ArcUnavailableError extends Error {
+  constructor(readonly reason: string) {
+    super(reason || "Arc services are unavailable on this server.");
+    this.name = "ArcUnavailableError";
+  }
+}
+
+const ARC_UNAVAILABLE_PREFIX = "arc-unavailable";
+
+/** The plugin RPC HTTP layer returns errors as `{ ok:false, error: string |
+ *  { code, message } }`. Extract the human message from either shape. */
+function arcErrorMessage(payload: AnyRecord): string | null {
+  const error = payload.error;
+  if (typeof error === "string") return error;
+  const record = asRecord(error);
+  if (record === null) return null;
+  return str(record.message) ?? str(record.code) ?? null;
+}
+
+/** Strips the "arc-unavailable: " prefix off an arc-core error message. */
+function arcUnavailableReason(message: string): string | null {
+  if (!message.startsWith(ARC_UNAVAILABLE_PREFIX)) return null;
+  const rest = message.slice(ARC_UNAVAILABLE_PREFIX.length).trim();
+  return rest.length > 0 ? rest : null;
+}
+
 export default async function plugin(bb: BbPluginApi) {
-  bb.log.info("loaded (phase 6: usage & limits)");
+  bb.log.info("loaded (phase 10: arc agents, accounts, usage & limits)");
 
   // -- Mission state --------------------------------------------------------
 
@@ -856,56 +720,36 @@ export default async function plugin(bb: BbPluginApi) {
     }
   }
 
-  /** Usage & Limits (Phase 6): normalize direct provider usage (the same
-   *  bb.sdk.system.usageLimits contract the thread popup renders) and
-   *  Account Pooler accounts (sibling-plugin RPC, honest separate group)
-   *  into one presentation model. Missing values stay null; nothing is
-   *  estimated and account-wide quotas keep scope "account". */
-  async function buildUsageDashboard(): Promise<UsageDashboard> {
-    const [providerRows, usageResponse, pool] = await Promise.all([
-      bb.sdk.providers
-        .list()
-        .then((rows) =>
-          Array.isArray(rows)
-            ? rows
-                .map(asRecord)
-                .filter((row): row is AnyRecord => row !== null)
-            : [],
-        )
-        .catch(() => [] as AnyRecord[]),
-      bb.sdk.system.usageLimits().catch((error: unknown) => {
-        bb.log.warn(`usage limits fetch failed: ${error instanceof Error ? error.message : String(error)}`);
-        return null;
-      }),
-      fetchPoolAccounts(),
-    ]);
-    return {
-      direct: mapDirectUsage(providerRows, usageResponse),
-      pool: pool.accounts.map(mapPoolAccount),
-      poolAvailable: pool.available,
-      generatedAt: Date.now(),
-    };
-  }
-
-  async function fetchPoolAccounts(): Promise<{ available: boolean; accounts: AnyRecord[] }> {
+  /** Proxy one arc-core RPC over loopback HTTP, mirroring the account-pool
+   *  pattern. Transport failures and non-arc errors surface as descriptive
+   *  Errors; an "arc-unavailable" error surfaces as ArcUnavailableError so
+   *  arc_status can degrade gracefully while other methods propagate it. */
+  async function proxyArc(method: string, input: unknown): Promise<unknown> {
+    let response: Response;
     try {
-      const response = await fetch(`${bb.server.loopbackBaseUrl}/api/v1/plugins/account-pool/rpc/account.list`, {
+      response = await fetch(`${bb.server.loopbackBaseUrl}/api/v1/plugins/arc-core/rpc/${method}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: "null",
+        body: JSON.stringify(input ?? null),
       });
-      if (!response.ok) return { available: false, accounts: [] };
-      const payload = asRecord(await response.json());
-      if (payload?.ok !== true || !Array.isArray(payload.result)) {
-        return { available: false, accounts: [] };
-      }
-      return {
-        available: true,
-        accounts: payload.result.map(asRecord).filter((row): row is AnyRecord => row !== null),
-      };
-    } catch {
-      return { available: false, accounts: [] };
+    } catch (error) {
+      throw new Error(`Arc Core is unreachable: ${error instanceof Error ? error.message : String(error)}`);
     }
+    if (!response.ok) {
+      throw new Error(`Arc Core request failed (HTTP ${response.status}).`);
+    }
+    let payload: AnyRecord | null = null;
+    try {
+      payload = asRecord(await response.json());
+    } catch {
+      throw new Error("Arc Core returned a non-JSON response.");
+    }
+    if (payload === null) throw new Error("Arc Core returned an invalid response.");
+    if (payload.ok === true) return payload.result;
+    const raw = arcErrorMessage(payload) ?? "Arc Core request failed.";
+    const unavailableReason = arcUnavailableReason(raw);
+    if (unavailableReason !== null) throw new ArcUnavailableError(unavailableReason);
+    throw new Error(raw);
   }
 
   /** Advisory checks: a mapping pointing at an unavailable provider or a
@@ -1444,7 +1288,6 @@ export default async function plugin(bb: BbPluginApi) {
     }),
     approvals_set: async ({ approvals }) => ({ state: await writeApprovals(approvals, "ui") }),
     evidence_get: async () => ({ at: Date.now(), evidence: await fetchCommandEvidence() }),
-    usage_dashboard_get: async () => buildUsageDashboard(),
     verification_attach_evidence: async ({ label, evidence }) => ({ state: await setVerificationEvidence(label, evidence) }),
     verification_clear_evidence: async ({ label }) => ({ state: await setVerificationEvidence(label, null) }),
     // Every one of these is fired by a deliberate button click in the panel
@@ -1488,6 +1331,38 @@ export default async function plugin(bb: BbPluginApi) {
       if (childId === null) throw new Error("Delegate: BB did not return a new thread id.");
       return { childThreadId: childId };
     },
+    // Arc proxy (Phase 10): every call here is a pass-through to arc-core.
+    arc_status: async () => {
+      try {
+        await proxyArc("arc.status", null);
+        return { arcAvailable: true, reason: null };
+      } catch (error) {
+        if (error instanceof ArcUnavailableError) {
+          return { arcAvailable: false, reason: error.reason };
+        }
+        throw error;
+      }
+    },
+    arc_agents_list: async () => proxyArc("arc.agents.list", null),
+    arc_agents_prepare: async ({ id }) => proxyArc("arc.agents.prepare", { id }),
+    arc_agents_repair: async ({ id }) => proxyArc("arc.agents.repair", { id }),
+    arc_accounts_list: async () => proxyArc("arc.accounts.list", null),
+    arc_accounts_set_enabled: async ({ id, enabled }) => proxyArc("arc.accounts.setEnabled", { id, enabled }),
+    arc_accounts_remove: async ({ id }) => proxyArc("arc.accounts.remove", { id }),
+    arc_accounts_reorder: async ({ family, orderedIds }) => proxyArc("arc.accounts.reorder", { family, orderedIds }),
+    arc_login_openai_start: async () => proxyArc("arc.login.openai.start", null),
+    arc_login_openai_poll: async ({ sessionId }) => proxyArc("arc.login.openai.poll", { sessionId }),
+    arc_login_openai_cancel: async ({ sessionId }) => proxyArc("arc.login.openai.cancel", { sessionId }),
+    arc_login_claude_start: async () => proxyArc("arc.login.claude.start", null),
+    arc_login_claude_complete: async ({ sessionId, pasted }) => proxyArc("arc.login.claude.complete", { sessionId, pasted }),
+    arc_omp_providers: async () => proxyArc("arc.omp.providers", null),
+    arc_omp_login_start: async ({ provider }) => proxyArc("arc.omp.login.start", { provider }),
+    arc_omp_login_poll: async ({ sessionId }) => proxyArc("arc.omp.login.poll", { sessionId }),
+    arc_omp_login_cancel: async ({ sessionId }) => proxyArc("arc.omp.login.cancel", { sessionId }),
+    arc_omp_login_submit_key: async ({ sessionId, key }) => proxyArc("arc.omp.login.submitKey", { sessionId, key }),
+    arc_usage_snapshot: async () => proxyArc("arc.usage.snapshot", null),
+    arc_usage_refresh: async ({ resourceId }) =>
+      proxyArc("arc.usage.refresh", resourceId === undefined ? {} : { resourceId }),
   });
 
   // Advertise the reporting tool to every provider session. Reporting never

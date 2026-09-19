@@ -1,0 +1,71 @@
+{
+  "name": "@bb/arc-domains",
+  "version": "0.0.1",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./arc-runtime": {
+      "source": "./src/arc-runtime/index.ts",
+      "types": "./src/arc-runtime/index.ts",
+      "default": "./src/arc-runtime/index.ts"
+    },
+    "./arc-runtime/*": {
+      "source": "./src/arc-runtime/*",
+      "types": "./src/arc-runtime/*",
+      "default": "./src/arc-runtime/*"
+    },
+    "./arc-agent": {
+      "source": "./src/arc-agent/index.ts",
+      "types": "./src/arc-agent/index.ts",
+      "default": "./src/arc-agent/index.ts"
+    },
+    "./arc-agent/*": {
+      "source": "./src/arc-agent/*",
+      "types": "./src/arc-agent/*",
+      "default": "./src/arc-agent/*"
+    },
+    "./arc-account": {
+      "source": "./src/arc-account/index.ts",
+      "types": "./src/arc-account/index.ts",
+      "default": "./src/arc-account/index.ts"
+    },
+    "./arc-account/*": {
+      "source": "./src/arc-account/*",
+      "types": "./src/arc-account/*",
+      "default": "./src/arc-account/*"
+    },
+    "./arc-usage": {
+      "source": "./src/arc-usage/index.ts",
+      "types": "./src/arc-usage/index.ts",
+      "default": "./src/arc-usage/index.ts"
+    },
+    "./arc-usage/*": {
+      "source": "./src/arc-usage/*",
+      "types": "./src/arc-usage/*",
+      "default": "./src/arc-usage/*"
+    }
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "semver": "^7.7.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@bb/test-helpers": "workspace:*",
+    "@bb/tsconfig": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@types/semver": "^7.7.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^4.1.1"
+  }
+}

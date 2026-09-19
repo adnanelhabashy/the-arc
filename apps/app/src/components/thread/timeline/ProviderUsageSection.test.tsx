@@ -1,180 +1,270 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import type { ProviderInfo } from "@bb/domain";
-import type { ProviderUsage } from "@bb/host-daemon-contract";
-import { makeProviderInfo } from "@bb/test-helpers/domain-fixtures";
-import { afterEach, expect, it, vi } from "vitest";
-import { ProviderUsagePanel } from "./ProviderUsageSection";
+import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
+import { afterEach, beforeEach, expect, it, vi, type Mock } from "vitest";
+import {
+  useArcCurrentAgentUsage,
+  useArcUsageRefresh,
+} from "@/hooks/queries/arc-queries";
+import type {
+  ArcCurrentAgentUsage,
+  ArcUsageResource,
+  ArcUsageSnapshot,
+  ArcUsageWindow,
+} from "@/hooks/queries/arc-queries";
+import { ProviderUsageSection } from "./ProviderUsageSection";
 
-afterEach(cleanup);
+vi.mock("@/hooks/queries/arc-queries", () => ({
+  useArcCurrentAgentUsage: vi.fn(),
+  useArcUsageRefresh: vi.fn(),
+}));
+
+const mockUseArcCurrentAgentUsage = vi.mocked(useArcCurrentAgentUsage);
+const mockUseArcUsageRefresh = vi.mocked(useArcUsageRefresh);
 
 const NOW = Date.parse("2026-09-17T12:00:00.000Z");
+const TWO_HOURS_EIGHTEEN_MINUTES = (2 * 60 + 18) * 60_000;
 
-function provider(
-  id: string,
-  overrides: Partial<ProviderInfo> = {},
-): ProviderInfo {
-  return makeProviderInfo({
-    id,
-    displayName: id,
-    logoUrl: null,
-    maintenance: { health: true, usage: true, installation: false },
-    capabilities: { permissionModes: ["full"] },
+function makeWindow(
+  overrides: Partial<ArcUsageWindow> = {},
+): ArcUsageWindow {
+  return {
+    id: "w1",
+    label: "5-hour",
+    kind: "five-hour",
+    status: "ok",
+    usedPercent: 37,
+    remainingPercent: 63,
+    usedAmount: null,
+    limitAmount: null,
+    remainingAmount: null,
+    unit: null,
+    resetsAt: NOW + TWO_HOURS_EIGHTEEN_MINUTES,
+    observedAt: null,
+    source: "pool",
     ...overrides,
-  });
+  };
 }
 
-function renderPanel(args: {
-  provider: ProviderInfo | null | undefined;
-  usage?: ProviderUsage;
-  queryState?: { isError: boolean; isLoading: boolean };
-  isFetching?: boolean;
-  onRefresh?: () => void;
-  updatedAt?: number;
-  modelLabel?: string;
-}) {
+function makeResource(
+  overrides: Partial<ArcUsageResource> = {},
+): ArcUsageResource {
+  return {
+    id: "r1",
+    sourceKind: "pool",
+    accountKey: null,
+    accountSourceId: null,
+    providerFamily: "openai",
+    providerLabel: "ChatGPT",
+    accountEmail: "adnan@example.com",
+    planLabel: "Pro",
+    modelLabel: null,
+    agentIds: ["codex"],
+    windows: [makeWindow()],
+    observedAt: null,
+    fetchedAt: NOW - 24_000,
+    stale: false,
+    status: "available",
+    unavailableReason: null,
+    credentialDisabled: false,
+    message: null,
+    sources: ["pool"],
+    ...overrides,
+  };
+}
+
+function makeUsage(
+  overrides: Partial<ArcCurrentAgentUsage> = {},
+): ArcCurrentAgentUsage {
+  return {
+    agentId: "codex",
+    thread: null,
+    resources: [makeResource()],
+    activeAccountUnknown: false,
+    ...overrides,
+  };
+}
+
+function setCurrentAgentUsage(
+  data: ArcCurrentAgentUsage | undefined,
+  error: unknown = null,
+): void {
+  mockUseArcCurrentAgentUsage.mockReturnValue({
+    data,
+    error,
+    isError: error !== null,
+    isFetching: false,
+  } as unknown as UseQueryResult<ArcCurrentAgentUsage, Error>);
+}
+
+let refreshMutate: Mock;
+
+function renderSection(providerId: string, modelLabel?: string) {
+  refreshMutate = vi.fn();
+  mockUseArcUsageRefresh.mockReturnValue({
+    mutate: refreshMutate,
+    isPending: false,
+  } as unknown as UseMutationResult<ArcUsageSnapshot, Error, void, unknown>);
   return render(
-    <ProviderUsagePanel
-      provider={args.provider}
-      usage={args.usage}
-      queryState={args.queryState}
-      isFetching={args.isFetching ?? false}
-      onRefresh={args.onRefresh ?? (() => undefined)}
-      updatedAt={args.updatedAt ?? 0}
-      now={NOW}
-      modelLabel={args.modelLabel}
+    <ProviderUsageSection
+      active
+      providerId={providerId}
+      modelLabel={modelLabel}
     />,
   );
 }
 
-it("shows provider, model, plan, account, window percentages, and reset countdown", () => {
-  renderPanel({
-    provider: provider("claude-code"),
-    modelLabel: "Claude Sonnet",
-    usage: {
-      status: "ok",
-      accountEmail: "adnan@example.com",
-      planLabel: "Pro",
-      windows: [
-        {
-          label: "5-hour",
-          usedPercent: 37,
-          resetsAt: "2026-09-17T14:18:00.000Z",
-        },
-        {
-          label: "Weekly",
-          usedPercent: 81,
-          resetsAt: "2026-09-21T12:00:00.000Z",
-        },
-      ],
-    },
-    queryState: { isError: false, isLoading: false },
-    updatedAt: NOW - 24_000,
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+  vi.clearAllMocks();
+});
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
+
+it("maps codex and renders percent windows with a reset line", () => {
+  setCurrentAgentUsage(makeUsage());
+  renderSection("codex", "Claude Sonnet");
+
+  expect(mockUseArcCurrentAgentUsage).toHaveBeenCalledWith({
+    agentId: "codex",
+    enabled: true,
   });
-  expect(screen.getByText("claude-code")).toBeTruthy();
+  expect(screen.getByText("ChatGPT")).toBeTruthy();
   expect(screen.getByText("Pro · adnan@example.com")).toBeTruthy();
-  expect(screen.getByText("Model: Claude Sonnet")).toBeTruthy();
   expect(screen.getByText("5-hour")).toBeTruthy();
   expect(screen.getByText("37% used")).toBeTruthy();
   expect(screen.getByText("63% left")).toBeTruthy();
   expect(screen.getByText("resets in 2h 18m")).toBeTruthy();
-  expect(screen.getByText("Weekly")).toBeTruthy();
-  expect(screen.getByText("resets Sep 21")).toBeTruthy();
+  expect(screen.getByText("Model: Claude Sonnet")).toBeTruthy();
   expect(screen.getByText("Updated 24s ago")).toBeTruthy();
 });
 
-it("marks low remaining quota with warning and exhausted with error tones", () => {
-  renderPanel({
-    provider: provider("codex"),
-    usage: {
-      status: "ok",
-      accountEmail: null,
-      planLabel: null,
-      windows: [
-        {
-          label: "Session",
-          usedPercent: 58,
-          resetsAt: "2026-09-17T13:07:00.000Z",
-        },
-        {
-          label: "Daily",
-          usedPercent: 85,
-          resetsAt: null,
-        },
-        {
-          label: "Weekly",
-          usedPercent: 100,
-          resetsAt: null,
-        },
+it("renders amount-only windows as a remaining amount with no percent", () => {
+  setCurrentAgentUsage(
+    makeUsage({
+      resources: [
+        makeResource({
+          windows: [
+            makeWindow({
+              label: "Monthly spend",
+              usedPercent: null,
+              remainingPercent: null,
+              remainingAmount: 7.32,
+              unit: "usd",
+              resetsAt: null,
+            }),
+          ],
+        }),
       ],
-    },
-    queryState: { isError: false, isLoading: false },
-  });
-  const sessionUsed = screen.getByText("58% used");
-  expect(sessionUsed.className).toContain("text-warning-text");
-  const dailyUsed = screen.getByText("85% used");
-  expect(dailyUsed.className).toContain("text-destructive");
-  expect(screen.getByText("0% left")).toBeTruthy();
-  expect(screen.getAllByText("reset n/a").length).toBe(2);
+    }),
+  );
+  renderSection("codex");
+
+  expect(screen.getByText("Monthly spend")).toBeTruthy();
+  expect(screen.getByText("$7.32 remaining")).toBeTruthy();
+  expect(screen.queryByText(/% used/)).toBeNull();
 });
 
-it("shows the provider error message when usage fails to load", () => {
-  renderPanel({
-    provider: provider("claude-code"),
-    usage: {
-      status: "error",
-      message: "Provider usage could not be loaded.",
-      planLabel: null,
-      accountEmail: null,
-    },
-    queryState: { isError: true, isLoading: false },
-  });
+it("shows not-exposed as a status line and never a fabricated zero", () => {
+  setCurrentAgentUsage(
+    makeUsage({
+      resources: [
+        makeResource({
+          status: "unavailable",
+          unavailableReason: "not-exposed",
+          windows: [],
+        }),
+      ],
+    }),
+  );
+  renderSection("codex");
+
+  expect(screen.getByText(/not exposed by provider/i)).toBeTruthy();
+  expect(screen.queryByText(/0%/)).toBeNull();
+});
+
+it("keeps last-good values and notes a failed refresh when stale", () => {
+  setCurrentAgentUsage(
+    makeUsage({
+      resources: [
+        makeResource({
+          stale: true,
+          fetchedAt: NOW - 60_000,
+          windows: [makeWindow({ usedPercent: 40, remainingPercent: 60 })],
+        }),
+      ],
+    }),
+  );
+  renderSection("codex");
+
+  expect(screen.getByText("40% used")).toBeTruthy();
+  expect(screen.getByText(/could not refresh/)).toBeTruthy();
+});
+
+it("renders a retry line without fabricated zeros when usage errors without data", () => {
+  setCurrentAgentUsage(
+    makeUsage({
+      resources: [makeResource({ status: "error", windows: [] })],
+    }),
+  );
+  renderSection("codex");
+
+  expect(screen.getByText("Usage temporarily unavailable")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
+  expect(screen.queryByText(/0%/)).toBeNull();
+});
+
+it("reports when the active account is unknown across multiple accounts", () => {
+  setCurrentAgentUsage(
+    makeUsage({
+      activeAccountUnknown: true,
+      resources: [makeResource({ id: "r1" }), makeResource({ id: "r2" })],
+    }),
+  );
+  renderSection("codex");
+
   expect(
-    screen.getByText("Provider usage could not be loaded."),
+    screen.getByText("2 connected accounts · Active account not reported"),
   ).toBeTruthy();
 });
 
-it("marks providers without a usage capability as not exposed", () => {
-  renderPanel({
-    provider: provider("pi", {
-      maintenance: { health: true, usage: false, installation: false },
-    }),
+it("maps acp-omp to the omp agent", () => {
+  setCurrentAgentUsage(makeUsage());
+  renderSection("acp-omp");
+
+  expect(mockUseArcCurrentAgentUsage).toHaveBeenCalledWith({
+    agentId: "omp",
+    enabled: true,
   });
-  expect(screen.getByText("Not exposed by provider")).toBeTruthy();
 });
 
-it("shows unauthenticated and missing usage as distinct states", () => {
-  renderPanel({
-    provider: provider("acp-cursor"),
-    usage: { status: "unauthenticated" },
-    queryState: { isError: false, isLoading: false },
-  });
-  expect(screen.getByText("Not signed in")).toBeTruthy();
-  renderPanel({
-    provider: provider("codex"),
-    queryState: { isError: false, isLoading: false },
-  });
-  expect(screen.getByText("n/a")).toBeTruthy();
+it("renders nothing for an unknown provider", () => {
+  setCurrentAgentUsage(makeUsage());
+  const { container } = renderSection("pi");
+
+  expect(container.firstChild).toBeNull();
 });
 
-it("shows a loading line while usage is being fetched", () => {
-  renderPanel({
-    provider: provider("codex"),
-    queryState: { isError: false, isLoading: true },
-  });
-  expect(screen.getByText("Loading…")).toBeTruthy();
+it("renders nothing when arc is unavailable", () => {
+  setCurrentAgentUsage(
+    undefined,
+    new Error("arc-unavailable: not an Arc server"),
+  );
+  const { container } = renderSection("codex");
+
+  expect(container.firstChild).toBeNull();
 });
 
-it("shows a loading line while the provider info is resolving", () => {
-  renderPanel({ provider: undefined });
-  expect(screen.getByText("Loading provider…")).toBeTruthy();
-});
+it("refreshes through the arc mutation", () => {
+  setCurrentAgentUsage(makeUsage());
+  renderSection("codex");
 
-it("calls onRefresh when the refresh button is activated", () => {
-  const onRefresh = vi.fn();
-  renderPanel({ provider: provider("codex"), onRefresh });
   fireEvent.click(
     screen.getByRole("button", { name: "Refresh provider usage" }),
   );
-  expect(onRefresh).toHaveBeenCalledTimes(1);
+  expect(refreshMutate).toHaveBeenCalledTimes(1);
 });

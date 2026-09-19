@@ -4,15 +4,15 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
-import { sha256File } from "../src/arc-runtime/digest.js";
-import { resolveArcPlatformIdentity } from "../src/arc-runtime/manifest.js";
-import { arcRuntimeExecutableName } from "../src/arc-runtime/paths.js";
-import { stageReleaseExecutable } from "../src/arc-runtime/acquire.js";
+import { sha256File } from "@bb/arc-domains/arc-runtime/digest.js";
+import { resolveArcPlatformIdentity } from "@bb/arc-domains/arc-runtime/manifest.js";
+import { arcRuntimeExecutableName } from "@bb/arc-domains/arc-runtime/paths.js";
+import { stageReleaseExecutable } from "@bb/arc-domains/arc-runtime/acquire.js";
 import {
   ARC_RUNTIME_RELEASES,
   validateArcRuntimeRelease,
   type ArcRuntimeRelease,
-} from "../src/arc-runtime/releases.js";
+} from "@bb/arc-domains/arc-runtime/releases.js";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const desktopPackageRoot = resolve(scriptDirectory, "..");

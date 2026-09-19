@@ -32,6 +32,7 @@
     "smoke:browser-broker": "node scripts/smoke-browser-broker.mjs"
   },
   "dependencies": {
+    "@bb/arc-domains": "workspace:*",
     "@bb/connect-client": "workspace:*",
     "@bb/host-daemon-contract": "workspace:*",
     "bb-app": "workspace:*",

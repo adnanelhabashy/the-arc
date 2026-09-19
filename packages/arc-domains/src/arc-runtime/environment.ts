@@ -12,6 +12,13 @@ import {
 
 export const BB_CLAUDE_CODE_EXECUTABLE_ENV = "BB_CLAUDE_CODE_EXECUTABLE";
 
+// Arc-mode declaration for the spawned bb server: the arc-core plugin reads
+// these to host the Arc agents/accounts/usage services. Set only on the
+// Arc-owned child environment; standalone bb servers never see them.
+export const BB_ARC_RUNTIME_ROOT_ENV = "BB_ARC_RUNTIME_ROOT";
+export const BB_ARC_APP_VERSION_ENV = "BB_ARC_APP_VERSION";
+export const BB_ARC_SEED_ROOT_ENV = "BB_ARC_SEED_ROOT";
+
 // Verified against oh-my-pi v18.2.6 packages/utils/src/dirs.ts:
 // PI_CONFIG_DIR relocates the OMP user config root (joined under the process
 // home directory); PI_CODING_AGENT_DIR absolutely overrides the OMP agent dir
@@ -46,6 +53,10 @@ export interface BuildArcManagedRuntimeEnvironmentArgs {
   platform: NodeJS.Platform;
   runtimePaths: ArcRuntimePaths;
   activeRuntimes: readonly ArcActiveRuntime[];
+  // Arc-mode declaration for the spawned server (arc-core plugin). Omit for
+  // non-Arc consumers of the managed runtime environment.
+  arcAppVersion?: string;
+  arcSeedRoot?: string;
 }
 
 async function isRunnableExecutable(
@@ -181,6 +192,17 @@ export function buildArcManagedRuntimeEnvironment(
       homeDirectory: args.homeDirectory ?? homedir(),
       userDataPath: dirname(args.runtimePaths.root),
     });
+  }
+
+  // Arc-mode declaration for the spawned server. runtimePaths.root is
+  // <userData>/arc-runtime, so its parent is the Arc runtime root the
+  // arc-core plugin resolves managed runtimes from.
+  nextEnv[BB_ARC_RUNTIME_ROOT_ENV] = dirname(args.runtimePaths.root);
+  if (args.arcAppVersion !== undefined) {
+    nextEnv[BB_ARC_APP_VERSION_ENV] = args.arcAppVersion;
+  }
+  if (args.arcSeedRoot !== undefined) {
+    nextEnv[BB_ARC_SEED_ROOT_ENV] = args.arcSeedRoot;
   }
 
   return nextEnv;

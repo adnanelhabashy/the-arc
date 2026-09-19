@@ -20,13 +20,14 @@ interface ResolveBuiltinPluginRootPathArgs {
 
 export const BUILTIN_PLUGINS_DIRECTORY_NAME = "builtin-plugins";
 
-const ACCOUNT_POOL_PARENT_URL_ENV = "BB_ACCOUNT_POOL_PARENT_URL";
-
 export function accountPoolDefaultEnabled(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
-  const value = env[ACCOUNT_POOL_PARENT_URL_ENV];
-  return typeof value === "string" && value.length > 0;
+  // Arc product decision: the account pool is core product infrastructure
+  // (Arc Accounts), so it defaults to enabled. The parent-pool env vars
+  // remain optional proxy configuration, not an enable gate.
+  void env;
+  return true;
 }
 
 const REPO_PLUGINS_DIRECTORY_NAME = "plugins";
@@ -41,6 +42,13 @@ export const BUILTIN_PLUGINS = [
     name: "account-pool",
     pluginId: "account-pool",
     defaultEnabled: accountPoolDefaultEnabled(),
+  },
+  {
+    // Arc product decision: arc-core hosts the Arc agents/accounts/usage
+    // service boundary for the Arc app shell. Inert without the Arc env.
+    name: "arc-core",
+    pluginId: "arc-core",
+    defaultEnabled: true,
   },
   {
     name: "ask-user-question",

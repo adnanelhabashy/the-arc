@@ -5,7 +5,7 @@
   "pluginId": "adnan-mission-control",
   "pluginVersion": "0.2.0",
   "builtWith": {
-    "bbVersion": "0.43.1",
+    "bbVersion": "0.0.0-dev",
     "pluginSdkVersion": "0.4.99"
   }
 }

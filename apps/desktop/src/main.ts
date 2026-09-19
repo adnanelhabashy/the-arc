@@ -44,14 +44,14 @@ import {
   resolveDesktopIconPath,
   type DesktopPathContext,
 } from "./app-paths.js";
-import { prepareArcManagedRuntimes } from "./arc-runtime/bootstrap.js";
-import { prepareManagedClaudeCode } from "./arc-runtime/claude-setup.js";
+import { prepareArcManagedRuntimes } from "@bb/arc-domains/arc-runtime/bootstrap.js";
+import { prepareManagedClaudeCode } from "@bb/arc-domains/arc-runtime/claude-setup.js";
 import {
   buildArcManagedRuntimeEnvironment,
   resolveActiveArcRuntimes,
-} from "./arc-runtime/environment.js";
-import { resolveArcPlatformIdentity } from "./arc-runtime/manifest.js";
-import { createArcRuntimePaths } from "./arc-runtime/paths.js";
+} from "@bb/arc-domains/arc-runtime/environment.js";
+import { resolveArcPlatformIdentity } from "@bb/arc-domains/arc-runtime/manifest.js";
+import { createArcRuntimePaths } from "@bb/arc-domains/arc-runtime/paths.js";
 import {
   resolveBbAppProcessRuntime,
   type BbAppProcess,
@@ -2036,6 +2036,10 @@ async function spawnOwnedRuntime(
     env: {
       ...buildArcManagedRuntimeEnvironment({
         activeRuntimes: activeArcRuntimes,
+        arcAppVersion: app.getVersion(),
+        arcSeedRoot: resolveArcRuntimeSeedRoot({
+          paths: createDesktopPathContext(),
+        }),
         env: process.env,
         platform: process.platform,
         runtimePaths: arcRuntimePaths,

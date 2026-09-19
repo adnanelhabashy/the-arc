@@ -47,8 +47,8 @@ Arc gets an `OmpAccountAdapter`, not per-vendor services. OMP owns provider auth
 
 ## ADR-009 Usage becomes source-agnostic
 
-Status: **Pending verification** (port required)
-The generic `provider-usage.v1.listResources` / `getResource` contract exists ONLY upstream (`plugins/provider-usage/*`, implementers: codex, claude-code, acp, account-pool). Local checkout and installed app use the old per-provider `provider.usage` host RPC; Mission Control uses its own direct+pool dashboard. Port/adopt the upstream contract (Phase 9), then migrate Mission Control incrementally (plan §34).
+Status: **Accepted** (resolved in Phase 9)
+The generic `provider-usage.v1.listResources` / `getResource` contract arrived locally with the Phase 7 Account Pool import (`plugins/account-pool/src/usage-contract.ts`) and is consumed as-is by the Arc usage service (ADR-052); Mission Control's old direct+pool dashboard stays untouched until Phase 10 migrates it onto `ArcUsageService`.
 
 ## ADR-010 Accounts are deduplicated only using trustworthy canonical identity, never by email alone
 
@@ -190,3 +190,118 @@ Runtime changes happen only through explicit `prepareAgent`/`repairAgent` calls;
 
 Status: **Accepted** (implemented in Phase 6)
 Atomic tmp+rename protected the manifest from torn writes but not from lost updates: two services reading then writing disjoint runtime entries would drop one change. All manifest read-modify-write cycles (Codex/OMP bootstrap, Claude activation commit, digest backfill) route through `mutateArcRuntimeManifest`, an in-process serialized mutation chain per manifest path. The Claude commit re-validates manifest state inside the lock after its download so a concurrent activation is never clobbered. No-op decisions skip the write (no manifest is created by a no-op). Desktop v1 needs no distributed locking; the chain entry is retained per path for the process lifetime.
+
+## ADR-038 The Arc account model is source-agnostic and credentials never cross into Arc
+
+Status: **Accepted** (implemented in Phase 7)
+Arc accounts are modeled in `apps/desktop/src/arc-account/` behind an `ArcAccountSource` interface: `AccountPoolSource` ships now and Phase 8 adds an OMP source without rewriting the service. ArcAccount carries metadata only (identity, email, plan label, auth state, availability); access/refresh tokens, OAuth codes, API keys, and credential JSON remain owned by the underlying system (Account Pool's own 0700/0600 atomic secret store). Nothing is copied into the runtime manifest, Mission Control KV, desktop-store, logs, or Arc userData, and a permanent test scans every serialized account and login challenge for credential material.
+
+## ADR-039 Canonical account identity is provider-issued; email is never identity; unknown stays unknown
+
+Status: **Accepted** (implemented in Phase 7)
+`accountKey` is built only from provider-issued identifiers: `openai:chatgpt:<account_id>` for ChatGPT (from the JWT `https://api.openai.com/auth` claim) and `anthropic:account:<uuid>` for Claude (Anthropic account uuid). Email is display metadata only — never used for identity, dedup, or join. Accounts lacking a trustworthy canonical id keep `accountKey = null` and remain distinct; cross-source dedup (Phase 9) may key only on canonical accountKey, never on email, plan, or provider name. UNKNOWN plan is represented as `null`, never as "free".
+
+## ADR-040 Account Pool backs Arc's ChatGPT and Claude account handling; it is imported server-only and default-enabled for Arc
+
+Status: **Accepted** (implemented in Phase 7)
+Arc reuses Account Pool's existing backend (device login, OAuth/PKCE, credential storage, multi-account, priority/reorder, usage refresh) instead of rebuilding authentication. The plugin source is imported server-only from pinned upstream commit `93344e0` with documented Arc modifications: no pool React UI (Arc builds its own Accounts UI in Phase 10 against the ArcAccount model; `@bb/shared-ui` does not exist in this fork), no `bb pool` CLI (requires plugin-sdk ≥0.4.102 CLI APIs absent from the fork's 0.4.99 SDK), and the CLI-coupled upstream server test suite is dropped with it. The enable gate on `BB_ACCOUNT_POOL_PARENT_URL` is removed: that variable configures optional parent-pool proxying, it is not an enable condition, and Arc Accounts require the pool as default-enabled builtin infrastructure. Account Pool remains infrastructure — it never appears in the ArcAgentManager catalog (still exactly OMP, Codex, Claude Code).
+
+## ADR-041 Multi-account support is preserved and no quota-driven silent account rotation is added
+
+Status: **Accepted** (implemented in Phase 7)
+Arc assumes and preserves multiple accounts per provider family (ChatGPT Personal/Work, Claude Personal/Team). Enable/disable are distinct from remove (disabling never deletes credentials). Priority and ordering delegate to Account Pool's existing semantics (`account.setPriority`/`account.reorder`); Arc invents no routing algorithm. Quota states (held/exhausted) affect neither auth state (accounts stay `connected`) nor agent readiness, and Arc performs no automatic account switching to evade limits — routing behavior remains exactly the pool's explicit configuration.
+
+## ADR-042 Login is initiated by Arc but authentication occurs on official provider surfaces
+
+Status: **Accepted** (implemented in Phase 7)
+Connect ChatGPT starts the pool's official OpenAI device flow (`verificationUri` + `userCode`, polled to completion, cancellable); Connect Claude starts the pool's official Anthropic OAuth/PKCE flow (browser opens the `authorizeUrl`; the paste callback completes the session — the pool does not expose its session TTL, so Arc reports `expiresAt: null` rather than inventing one). Arc never presents an email/password form, never captures provider passwords, and login challenges expose presentation data only. Duplicate starts are per-provider single-flight (joined, not raced), terminal poll/complete/cancel clears local pending state, and failed or expired sessions never block a retry.
+
+## ADR-043 Agent account readiness is real for Codex and Claude Code; OMP stays account-unknown
+
+Status: **Accepted** (implemented in Phase 7)
+`ArcAgentManager` gains an injectable `ArcAgentAccountStatusSource`: ≥1 enabled, connected ChatGPT account makes Codex `connected`; ≥1 enabled, connected Claude account makes Claude Code `connected`; zero accounts is honestly `not-connected`; source failure is `unknown`. Pool accounts never make OMP connected — OMP remains `unknown` until Phase 8. Overall state gains `account-required` (runtime ready + definitively no account); expired/error/unknown accounts stay conservative `runtime-ready`, and provider health remains a separate axis (still honestly `unknown`). `connect-account` is advertised exactly when the runtime is ready and the account is not-connected/expired/error for Codex/Claude Code only.
+
+## ADR-044 OMP providers never become Arc agents
+
+Status: **Accepted** (implemented in Phase 8)
+The Arc agent catalog stays closed at exactly OMP, Codex, Claude Code. OMP's 75 supported providers (Kimi, Gemini, DeepSeek, OpenRouter, Anthropic, ...) are OMP-internal provider/account dimensions surfaced through the single OMP agent (`availableThrough: ["omp"]` only). A permanent regression test pins the catalog; upstream provider drift cannot create Arc agents.
+
+## ADR-045 Supported provider definitions and authenticated accounts are distinct
+
+Status: **Accepted** (implemented in Phase 8)
+`omp auth-broker list` is the static OAuth provider registry (75 entries in 18.2.6) and is never rendered as accounts; connected accounts come exclusively from observed stored credentials (broker `/v1/snapshot`). Arc's `ArcOmpProvider.connectionState` is derived from stored credentials only, and a permanent test proves registry entries with an empty credential store produce zero accounts. UNKNOWN != EMPTY.
+
+## ADR-046 Arc uses OMP's official auth interfaces; OMP owns its provider credentials
+
+Status: **Accepted** (implemented in Phase 8)
+Arc drives `omp auth-broker login/logout/serve/token/list` and the broker's `/v1/snapshot` — never the SQLite store directly, never a reimplemented OAuth flow. Credentials live in OMP's `agent.db`; Arc's snapshot mapping reads an explicit metadata allowlist and discards everything else. API keys pass only through the OMP child's stdin on key-style logins. Arc models the exact 18.2.6 capability surface and invents nothing: no enable/disable, no priority/reorder, provider-wide logout only.
+
+## ADR-047 The OMP account source is lazy and creates no permanent background process
+
+Status: **Accepted** (implemented in Phase 8)
+Inventory uses a loopback auth broker started lazily on the first account operation, bound to an ephemeral `127.0.0.1` port, and idle-stopped after 60 seconds. Account/status reads never launch `omp acp` and never leave an OMP process running; a permanent test proves idle shutdown kills the broker and that a cold read can start a fresh one. Snapshot reads are cached in-process for 5 seconds to keep status sweeps cheap.
+
+## ADR-048 Broker bearer token and snapshot secrets stay backend-only
+
+Status: **Accepted** (implemented in Phase 8)
+The broker token is obtained via `omp auth-broker token` and used only in `Authorization` headers against the loopback address Arc bound itself; a broker-reported non-loopback address fails closed before the token is used. Snapshot access/refresh tokens and api keys never enter `ArcAccount`, logs, or any UI surface — a permanent test scans serialized accounts for planted secrets, and a non-loopback test proves no HTTP call happens when the bind check fails.
+
+## ADR-049 OMP account records are available through OMP only; pool and OMP accounts are never merged
+
+Status: **Accepted** (implemented in Phase 8)
+OMP-owned accounts report `sourceKind: "omp"` and `availableThrough: ["omp"]` exclusively — never Codex or Claude Code availability. Pool and OMP records remain separate even with identical emails; only a trustworthy provider-issued canonical `accountKey` may later (Phase 9) correlate resources, and records without one stay distinct.
+
+## ADR-050 Arc OMP operations run only against the Arc-managed runtime; standalone ~/.omp stays isolated
+
+Status: **Accepted** (implemented in Phase 8)
+Every OMP child resolves through the runtime manifest and the Phase 4 environment builder (`PI_CODING_AGENT_DIR` absolute under Arc userData, `PI_CONFIG_DIR` relative under the user home), so a global `omp` on PATH can never win and Arc operations never read or write the user's standalone `~/.omp`. A permanent resolver test pins the managed executable path and the private state root.
+
+## ADR-051 OMP capability gaps are reported honestly, never papered over
+
+Status: **Accepted** (implemented in Phase 8)
+Where 18.2.6 has no equivalent of a pool capability, Arc reports a typed error instead of inventing semantics: enable/disable and priority/reorder throw `unsupported-provider`; per-account removal on a multi-account provider throws `disconnect-failed` rather than silently dropping the provider's other accounts. Auth method is reported as `oauth`/`api-key` only when evidenced (registry membership + stored credential type); OMP exposes no richer machine-readable auth-method field and Arc invents none.
+
+## ADR-052 Usage is modeled as provider/account resources over a generic source contract
+
+Status: **Accepted** (implemented in Phase 9)
+Arc's "Usage & Limits" backend is `apps/desktop/src/arc-usage/`: one `ArcUsageService` over pluggable `ArcUsageSource`s (Account Pool, OMP, thread context) with a generic resource/window model. The Account Pool adapter consumes the already-bundled upstream `provider-usage.v1.listResources`/`getResource` contract over the existing HTTP RPC seam — the upstream generic pattern is adopted where it already exists locally instead of inventing a second protocol, and no pool code is rewritten. Provider plugins whose sources are absent from this fork (direct codex/claude-code) contribute nothing; their accounts are covered through the pool.
+
+## ADR-053 UNKNOWN usage is never represented as zero; last-good data survives refresh failure as stale
+
+Status: **Accepted** (implemented in Phase 9)
+A provider without a usage endpoint reports `status: "unavailable"` + `unavailableReason: "not-exposed"` with empty windows — never 0%. Auth/install states are `not-connected`, fetch failures are `error`, and provider-side credential blocks are `disabled` (distinct from both). A failed refresh keeps the previous successful reading marked `stale: true`; nothing is erased and replaced with zeros. Percentages are derived only from true fractions (explicit fraction or used/limit with a real denominator); unbounded amounts (credits, dollars) stay amount-only. Reset timestamps pass through or stay null — never guessed.
+
+## ADR-054 Context-window occupancy is a separate usage domain from provider quota
+
+Status: **Accepted** (implemented in Phase 9)
+Thread context usage (`usedTokens`/`modelContextWindow`, BB's own signal) is modeled as `sourceKind: "thread"` with its own resource, computed from a real denominator, and can never merge into provider/account quota resources. Provider quota informs the user; it never makes routing or model decisions — no automatic account rotation, no model switching (ADR-013/041 unchanged).
+
+## ADR-055 Usage reads are observational and the OMP broker stays lazy
+
+Status: **Accepted** (implemented in Phase 9)
+Listing or refreshing usage never logs in, switches accounts, changes routing, enables/disables credentials, modifies the runtime manifest, or starts `omp acp`. OMP usage rides the Phase 8 lazy loopback broker (started on demand, idle-stopped after 60s; live-verified clean exit); the broker has no force-refresh parameter, so a refresh is an attempt bounded by OMP's five-minute server cache — stated, not hidden. Usage history and capacity aggregates are deliberately out of scope (plan §48).
+
+## ADR-056 Cross-source usage association requires identical canonical identity and equivalent semantics
+
+Status: **Accepted** (implemented in Phase 9)
+Resources merge only on identical non-null canonical `accountKey` (issuer namespace + account id). Email is never identity; null accountKeys are always source-local. Because pool and OMP issue different namespaces (`openai:chatgpt:<id>` vs `omp:openai-codex:<id>`), pool↔OMP duplicates stay separate until a trustworthy mapping is proven — never assumed from email or provider name. Merged resources retain provenance (`sources`, per-window `source`, agentIds union); same-semantics window conflicts resolve to the newer `observedAt`, distinct semantics stay side by side; values are never averaged.
+
+## ADR-057 Arc domains live in a shared package; the server hosts the Arc services through a fixed RPC contract
+
+Status: **Accepted** (implemented in Phase 10)
+`arc-runtime/arc-agent/arc-account/arc-usage` moved from the desktop package to `packages/arc-domains`, consumed by both the desktop and the bundled `arc-core` server plugin. All renderer access goes through a fixed 22-method `bb.rpc` contract with strict zod schemas (unknown fields rejected, secret-shaped values rejected by permanent tests). Arc mode is env-declared by the desktop shell; a standalone server reports `arc-unavailable` instead of fabricating state. No arbitrary command/path/env RPC exists.
+
+## ADR-058 The normal agent picker exposes exactly the three Arc agents
+
+Status: **Accepted** (implemented in Phase 10)
+In Arc mode the server filters execution options to OMP, Codex, and Claude Code. Pi/OpenCode/Cursor/Grok/Hermes and other non-Arc providers are hidden from normal selection; historical threads remain readable because the filter applies to options, not thread rendering. BB provider IDs are unchanged and non-Arc plugin sources are not deleted — the Arc catalog is a product abstraction over the unchanged provider layer.
+
+## ADR-059 Renderer-facing wire values must be JSON-clean; optional fields are omitted, never explicit-undefined
+
+Status: **Accepted** (implemented in Phase 10)
+Domain objects crossing the RPC boundary are validated as strict JSON: an absent optional field is omitted from the object, not present with value `undefined` (which the wire validator rejects and which `JSON.stringify` would drop silently). Agent action `reason` is the first application; the rule applies to all future contract fields.
+
+## ADR-060 OMP child processes in the server are spawned only against the manifest-pinned managed runtime
+
+Status: **Accepted** (implemented in Phase 10)
+The `OmpSpawn` seam injected by `arc-core` is backed by `node:child_process` and is only ever invoked with the executable resolved from the Arc runtime manifest (`createArcOmpRuntimeResolver`). The spawn function is not reachable with caller-supplied paths, so it is not an arbitrary-command surface. Process lifecycle follows ADR-047: lazy start, 60-second idle stop, verified live.

@@ -107,6 +107,36 @@ describe("Arc-managed Codex environment resolution", () => {
     });
     expect(env.PATH).toBe("/usr/bin:/bin");
   });
+
+  it("declares Arc mode for the spawned server", async () => {
+    const userDataPath = join(await tempDir(), "userData");
+    const runtimePaths = createArcRuntimePaths({ userDataPath });
+    const env = buildArcManagedRuntimeEnvironment({
+      activeRuntimes: [],
+      arcAppVersion: "1.2.3",
+      arcSeedRoot: "/opt/arc/resources/arc-runtimes",
+      env: { PATH: "/usr/bin:/bin" },
+      platform: "darwin",
+      runtimePaths,
+    });
+    expect(env.BB_ARC_RUNTIME_ROOT).toBe(userDataPath);
+    expect(env.BB_ARC_APP_VERSION).toBe("1.2.3");
+    expect(env.BB_ARC_SEED_ROOT).toBe("/opt/arc/resources/arc-runtimes");
+  });
+
+  it("omits Arc version and seed when not provided", async () => {
+    const userDataPath = join(await tempDir(), "userData");
+    const runtimePaths = createArcRuntimePaths({ userDataPath });
+    const env = buildArcManagedRuntimeEnvironment({
+      activeRuntimes: [],
+      env: { PATH: "/usr/bin:/bin" },
+      platform: "darwin",
+      runtimePaths,
+    });
+    expect(env.BB_ARC_RUNTIME_ROOT).toBe(userDataPath);
+    expect(env.BB_ARC_APP_VERSION).toBeUndefined();
+    expect(env.BB_ARC_SEED_ROOT).toBeUndefined();
+  });
 });
 
 async function fakeOmp(dir: string, identity: string): Promise<string> {

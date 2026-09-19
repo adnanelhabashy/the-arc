@@ -47,12 +47,28 @@ export class UnknownArcProviderStatusSource implements ArcProviderStatusSource {
   }
 }
 
+// Account readiness per agent. Phase 7 injects a source backed by the Arc
+// account service (Account Pool for Codex/Claude accounts); the default
+// reports "unknown", which keeps overall state conservative.
+export interface ArcAgentAccountStatusSource {
+  getAccountState(agentId: ArcAgentId): Promise<ArcAgentAccountState>;
+}
+
+export class UnknownArcAccountStatusSource
+  implements ArcAgentAccountStatusSource
+{
+  async getAccountState(): Promise<ArcAgentAccountState> {
+    return "unknown";
+  }
+}
+
 export interface ArcAgentManagerArgs {
   createdByArcVersion: string;
   platform: string;
   runtimePaths: ArcRuntimePaths;
   seedRoot?: string;
   providerStatusSource?: ArcProviderStatusSource;
+  accountStatusSource?: ArcAgentAccountStatusSource;
   onDiagnostic?: (message: string) => void;
   now?: () => number;
   // Test seams forwarded to the lower-level runtime services.
@@ -68,6 +84,7 @@ export class ArcAgentManager {
   private readonly runtimePaths: ArcRuntimePaths;
   private readonly seedRoot: string | undefined;
   private readonly providerStatusSource: ArcProviderStatusSource;
+  private readonly accountStatusSource: ArcAgentAccountStatusSource;
   private readonly onDiagnostic: ((message: string) => void) | undefined;
   private readonly now: () => number;
   private readonly releases:
@@ -85,6 +102,8 @@ export class ArcAgentManager {
     this.seedRoot = args.seedRoot;
     this.providerStatusSource =
       args.providerStatusSource ?? new UnknownArcProviderStatusSource();
+    this.accountStatusSource =
+      args.accountStatusSource ?? new UnknownArcAccountStatusSource();
     this.onDiagnostic = args.onDiagnostic;
     this.now = args.now ?? Date.now;
     this.releases = args.releases;
@@ -116,7 +135,9 @@ export class ArcAgentManager {
     const providerState = await this.providerStatusSource.getProviderStatus(
       descriptor.providerId,
     );
-    const accountState: ArcAgentAccountState = "unknown";
+    const accountState = await this.accountStatusSource.getAccountState(
+      descriptor.id,
+    );
     const overallState = resolveOverallState(
       runtime.state,
       accountState,
@@ -131,7 +152,7 @@ export class ArcAgentManager {
       provider: { state: providerState },
       account: { state: accountState },
       overallState,
-      actions: resolveActions(runtime.state),
+      actions: resolveActions(descriptor.id, runtime.state, accountState),
       observedAt: this.now(),
     };
   }
@@ -350,40 +371,73 @@ function resolveOverallState(
     case "ready":
     case "ready-with-warning":
       // A runtime can execute; whether a real coding turn can run depends on
-      // the account, which Phase 6 does not inspect. Account "connected" is
-      // the only honest "ready" today; anything else is runtime-ready.
-      return accountState === "connected" ? "ready" : "runtime-ready";
+      // the account. Account "connected" is the only honest "ready"; a
+      // definitively missing account is "account-required"; anything else
+      // (unknown source, expired/error credentials) stays conservative.
+      if (accountState === "connected") return "ready";
+      if (accountState === "not-connected") return "account-required";
+      return "runtime-ready";
   }
 }
 
-function resolveActions(runtimeState: ArcAgentRuntimeState): ArcAgentAction[] {
+function resolveActions(
+  agentId: ArcAgentId,
+  runtimeState: ArcAgentRuntimeState,
+  accountState: ArcAgentAccountState,
+): ArcAgentAction[] {
   const prepareAvailable = runtimeState === "not-prepared";
   const repairAvailable = runtimeState === "broken";
+  const runtimeReady =
+    runtimeState === "ready" || runtimeState === "ready-with-warning";
+  // All three Arc agents have account backends after Phase 8 (pool for
+  // Codex/Claude Code, OMP's own providers for OMP).
+  const supportsAccount = true;
+  const accountActionable =
+    accountState === "not-connected" ||
+    accountState === "expired" ||
+    accountState === "error";
+  const connectAvailable = supportsAccount && runtimeReady && accountActionable;
   return [
     {
       id: "prepare",
       available: prepareAvailable,
-      reason: prepareAvailable
-        ? undefined
-        : runtimeState === "broken"
-          ? "runtime is prepared but broken; use repair"
-          : "runtime is already prepared",
+      ...(prepareAvailable
+        ? {}
+        : {
+            reason:
+              runtimeState === "broken"
+                ? "runtime is prepared but broken; use repair"
+                : "runtime is already prepared",
+          }),
     },
     {
       id: "repair",
       available: repairAvailable,
-      reason: repairAvailable
-        ? undefined
-        : runtimeState === "not-prepared"
-          ? "nothing recorded to repair; use prepare"
-          : runtimeState === "unsupported"
-            ? "compatibility is blocked; repair cannot change the version"
-            : "runtime is not broken",
+      ...(repairAvailable
+        ? {}
+        : {
+            reason:
+              runtimeState === "not-prepared"
+                ? "nothing recorded to repair; use prepare"
+                : runtimeState === "unsupported"
+                  ? "compatibility is blocked; repair cannot change the version"
+                  : "runtime is not broken",
+          }),
     },
     {
       id: "connect-account",
-      available: false,
-      reason: "Account connection arrives in a later Arc release",
+      available: connectAvailable,
+      ...(connectAvailable
+        ? {}
+        : {
+            reason: !supportsAccount
+              ? "agent does not support account connection yet"
+              : !runtimeReady
+                ? "runtime is not ready"
+                : accountState === "connected"
+                  ? "an account is already connected"
+                  : "account state is unknown",
+          }),
     },
     {
       id: "update",

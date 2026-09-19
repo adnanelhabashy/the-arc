@@ -459,3 +459,315 @@ Real BB provider health is not cleanly queryable from the desktop layer without 
 ### Gate
 
 PASS.
+
+---
+
+## Phase 7 — Account Pool Integration for Codex / ChatGPT and Claude Accounts
+
+Date: 2026-09-19. Same checkout, Phase 6 state verified before editing (commit `58dc272e6` = Phases 5–6).
+
+### Account Pool availability (plan §39–41)
+
+- Phase 0 finding confirmed: provider/plugin sources are absent locally and `packages/bundled-plugins/dist` shipped only `bb-guide` — the Arc product had NO account pool. The pool's RPC wire contract, however, exists and was verified live (below), so the source was imported rather than reinvented.
+- Imported `plugins/account-pool` **server source only** from pinned upstream commit `93344e0ea1b844c447e010e1dc1b100bb0f1c021` (2026-09-19 upstream/main). Arc modifications, all documented:
+  - Dropped `app.tsx`/`app.test.tsx` and the `bb.app` manifest entry — `@bb/shared-ui` and the dnd-kit/radix UI stack do not exist in this fork, and Arc builds its own Accounts UI (Phase 10) against the ArcAccount model instead of the pool's React UI.
+  - Dropped `src/cli.ts` (`registerPoolCli`) — it requires plugin-sdk ≥0.4.102 CLI APIs (`defineCli`, `cliCommand`); the fork SDK is 0.4.99. Arc consumes the pool exclusively through its typed RPC contract; `bb pool` CLI diagnostics remain available from the separately installed upstream bb CLI.
+  - Dropped `src/server.test.ts` — 34 of its 66 tests exercise the removed CLI through `runCli`. All retained unit suites pass: **128/128** (store, credentials, codex/claude adapters, device/OAuth login, parent-pool, upstream-transport, usage-source, provider-adapter, request-body).
+  - Pruned package.json/tsconfig/vitest config to the server surface; lockfile importer patched by hand (pnpm re-resolution is impossible in this fork — `apps/app` references workspace plugins that do not exist locally; the frozen lockfile is load-bearing).
+- Built the bundled runtime (`prepare:bundled`) → `packages/bundled-plugins/dist/account-pool` now ships with the product.
+- `accountPoolDefaultEnabled` no longer env-gated on `BB_ACCOUNT_POOL_PARENT_URL` (that var is optional parent-proxy configuration, not an enable gate): **the account pool is now a default-enabled builtin for Arc**. Registry test updated; the other 6 failures in `builtin-plugins.test.ts` are pre-existing fork state (verified identical with my changes stashed).
+- Live non-destructive contract check against the RUNNING Arc desktop server (`http://127.0.0.1:38886`): `POST /api/v1/plugins/account-pool/rpc/account.list` → `{ok:true,result:[]}`; `status.get` → full status shape with `routing {claude:true,codex:true}`. No login performed.
+
+### Arc account domain (`apps/desktop/src/arc-account/`)
+
+- `types.ts` — `ArcAccount` (source-agnostic: id `pool:<uuid>`, sourceId, sourceKind, providerFamily openai|anthropic, providerLabel ChatGPT|Claude, `accountKey`, email, planLabel, authState connected|expired|disabled|error|unknown, enabled, `availableThrough`, observedAt), login challenge/poll models, typed `ArcAccountError` (account-source-unavailable, account-not-found, login-cancelled/expired/failed, unsupported-provider), and the `ArcAccountSource` interface Phase 8 will extend with an OMP implementation.
+- `account-pool-source.ts` — `AccountPoolSource` adapter over the pool RPC contract via `POST {serverUrl}/api/v1/plugins/account-pool/rpc/:method` (local-auth route; JSON content-type; `{ok,result}` envelope). 404/503 and transport failures → `account-source-unavailable`; a 400 on `codexLogin.poll` (unknown session) → `login-expired`. Provider mapping: **ChatGPT/OpenAI account → Codex; Claude/Anthropic account → Claude Code; never OMP.**
+- `service.ts` — `ArcAccountService`: cross-source inventory with no cross-source dedup (Phase 9, keyed on canonical accountKey only), id-prefix operation routing (`pool:<id>`), `hasConnectedAccount(agentId)` readiness, and per-provider login single-flight: duplicate starts join the in-flight/pending challenge (5 clicks = 1 provider login attempt), terminal poll/complete/cancel clears the pending session, failed starts clear immediately, and expired pending sessions (pool TTL is 10 min) stop blocking fresh starts.
+- `agent-status-source.ts` — `ServiceArcAccountStatusSource` bridges the service into `ArcAgentManager` via the new injectable `ArcAgentAccountStatusSource`; OMP short-circuits to `unknown` without touching the pool.
+
+### Identity rules (plan §9–10, 29–30, 37)
+
+- Canonical `accountKey` is provider-issued only: `openai:chatgpt:<codexAccountId>` (ChatGPT `account_id` claim) and `anthropic:account:<accountUuid>`. Email is presentation metadata and NEVER identity; same-email accounts with different canonical ids remain distinct accounts; accounts without a trustworthy canonical id keep `accountKey = null` and stay distinct (no email-based, plan-based, or position-based identity, no unsafe dedup).
+- `planLabel` = pool `subscriptionType` (Plus/Pro/Team/Max), `null` when unknown — UNKNOWN ≠ FREE.
+- Multi-account preserved end to end: priority/reorder delegate to the pool's existing semantics (`account.setPriority`, `account.reorder`); enable/disable are distinct from remove (disable keeps credentials); **no quota-driven silent account rotation was added** — held/exhausted quota states still report `authState: connected` and Arc never switches accounts on its own.
+
+### Login flows (plan §19–26)
+
+- **ChatGPT/Codex**: `codexLogin.start` → `{sessionId, verificationUri, userCode, expiresAt, intervalMs}` (presentation data only, no tokens) → Arc polls `codexLogin.poll` (pending → waiting-for-user; complete → connected account; error → failed with sanitized message) → `codexLogin.cancel` supported and exposed.
+- **Claude**: `login.start` → `{sessionId, authorizeUrl}` (official PKCE authorize URL; Arc opens the user's browser; the pool's session TTL is not exposed so Arc reports `expiresAt: null` rather than inventing one) → user pastes the provider callback → `login.complete`. Arc never presents an email/password form and never sees provider passwords.
+- Per-provider single-flight + local pending-state expiry; cancellation forgets local pending state safely.
+
+### Credential ownership and security (plan §11, 42–44)
+
+- Credentials stay in the pool's own secret store (`<serverData>/plugins/account-pool/secrets/accounts`, dir 0700, files 0600, atomic tmp+rename — verified in imported `store.ts`). ArcAccount carries metadata only; nothing is copied into the runtime manifest, Mission Control KV, desktop-store, or Arc userData.
+- Permanent no-secrets regression test: serialized accounts + login challenges scanned for access/refresh tokens, authorization, id tokens, api keys, passwords, secrets, PKCE verifiers, cookies, bearer — none present.
+- Arc account logs: provider, operation, status, sanitized error only. No OAuth payloads, codes, or tokens are logged by the new Arc code; the imported pool logs transport error codes, not credentials.
+
+### ArcAgentManager integration (plan §31–35)
+
+- New injectable `ArcAgentAccountStatusSource` (default reports `unknown`, preserving Phase 6 behavior). Overall-state rules extended: runtime ready + account `connected` → `ready`; + `not-connected` → **`account-required`** (new state); expired/error/unknown → conservative `runtime-ready`; runtime problems still dominate.
+- `connect-account` action: available for Codex/Claude Code exactly when the runtime is ready and the account is not-connected/expired/error; OMP stays unavailable ("agent does not support account connection yet"); connected accounts report "already connected".
+- Status reads remain side-effect-free with an account source attached (manifest byte-identical across a full sweep; account source consulted once per agent, no logins started).
+
+### Files changed
+
+- Application source: `src/arc-account/{types,account-pool-source,service,agent-status-source}.ts` (new); `src/arc-agent/{types,manager}.ts` (account axis + account-required + connect-account)
+- Imported plugin source: `plugins/account-pool/**` (server-only, pinned upstream `93344e0`, documented modifications above); `apps/server/src/services/plugins/builtin-registry.ts` (default-enabled); lockfile importer patch
+- Tests: `test/arc-account-pool-source.test.ts` (22), `test/arc-account-service.test.ts` (10), `test/arc-agent-manager-accounts.test.ts` (8); updated `apps/server/test/services/plugins/builtin-plugins.test.ts`
+- UI: none. Provider source: none. Generated artifacts: `plugins/account-pool/.bundled-runtime`, `packages/bundled-plugins/dist` (gitignored).
+
+### Tests
+
+- `pnpm --filter bb-plugin-account-pool test` → **128/128 PASS**
+- `pnpm --filter @bb/desktop typecheck` and `@bb/server typecheck` → PASS
+- Phase 7 focused suites → 40/40 PASS
+- `pnpm --filter @bb/desktop test` → **622 passed / 3 failed / 1 skipped** — failures identical to the Phase 0–6 baseline (nightly publish-feed, server-moved notice, browser-view popup). +40 tests, zero regressions.
+- Live wire-contract check against the running Arc server (above); no real login performed.
+
+### Remaining for later phases
+
+- OMP accounts/auth-broker — Phase 8 (OMP stays account-unknown; no broker started).
+- Usage dashboard / cross-source dedup by canonical accountKey — Phase 9.
+- Accounts UI — Phase 10 (backend APIs are ready); service/manager wiring behind IPC — Phase 10.
+- First real coding turns with connected accounts — end-to-end validation once an account is connected in-product.
+
+### Gate
+
+PASS.
+
+---
+
+## Phase 8 — OMP Accounts / Providers Integration
+
+Date: 2026-09-19. Continues on the Phase 7 working tree.
+
+### OMP verification (exact managed version, no assumptions)
+
+- Managed target verified: **18.2.6** — release binary downloaded from `github.com/can1357/oh-my-pi/releases/download/v18.2.6/omp-darwin-arm64`, sha256 `d498da40d577e1ffa681ca8632c2ea40a9f722a08b880412011d37dffee9513a` matching the official `SHA256SUMS.txt`, live-executed. The oh-my-pi **source at tag `78b7531` (v18.2.6)** was fetched and read for the auth-broker, auth-storage, usage, and broker-server implementations. All contracts below are confirmed against both.
+- **Provider discovery**: `omp auth-broker list --json` → static OAuth registry, `[{id, name}]`, **75 providers in 18.2.6** (73 in 18.2.0). Proven NOT to be accounts: a fresh isolated config still lists all 75 with zero credentials (`runList` maps `getOAuthProviders()` only — registry, not store).
+- **Connected-account discovery**: broker `GET /v1/snapshot` returns every stored credential (`id`, `provider`, `type: oauth|api_key`, identity fields, `identityKey`, `blocks`). This is the only *complete* machine-readable inventory — `omp usage --json` culls providers without usage endpoints (22 usage providers registered) and can exit 1 with only a stderr hint. Arc uses the snapshot.
+- **Login**: `omp auth-broker login <provider>` drives the official flow in-process and persists to the same SQLite store. OAuth providers print `Open this URL in your browser:` + URL; API-key providers (e.g. DeepSeek) print a dashboard URL *then* a key prompt with **no trailing newline** (`Paste your DeepSeek API key (sk-...): `) and validate the key against the provider. Cancel = process SIGTERM.
+- **Logout**: `omp auth-broker logout <provider>` deletes ALL credentials for a provider — per-account removal does not exist. **Enable/disable: none** (only automatic provider-side `blocks`/tombstones). **Priority/reorder: none** (storage order + round-robin; `--account N` selection only).
+- **Multi-account: yes** — multiple OAuth credentials per provider (`identity_key`, stored order).
+- **Credentials**: OMP-owned SQLite `agent.db` (`auth_credentials`, `auth_credential_blocks`); refresh tokens arrive as sentinels in snapshots, access tokens/api keys are real → backend-only handling, metadata allowlist mapping, immediate discard. Broker bearer token: `<configRoot>/auth-broker.token`, created **0600** (verified live), obtained via `omp auth-broker token` (Arc never reads the file directly).
+- **Broker**: default bind `127.0.0.1:8765` (source-verified `DEFAULT_AUTH_BROKER_BIND`); `--bind=127.0.0.1:0` works (ephemeral port reported on stdout). Bearer-guarded (verified 401 unauthenticated). Routes: `/v1/healthz`, `/v1/snapshot`, `/v1/usage`(+history/observed/clients/stale), `/v1/credentials/disabled`, `POST /v1/credential`. No LLM proxying.
+- **Phase 9 usage contract** (documented, not wired): `omp usage --json` → `{generatedAt, reports[] (provider, limits[], metadata{email,accountId,...}, raw trimmed), accountsWithoutUsage[], disabledCredentials[], capacity{}}`; broker `/v1/usage` same trimmed shape; 5-minute per-credential server-side cache; usage history in `agent.db` (`usage_history` keyed provider/account_key/limit_id).
+
+### ArcAccountService / ArcAgentManager integration
+
+- `OmpAccountSource` (`apps/desktop/src/arc-account/omp-account-source.ts`) implements the Phase 7 `ArcAccountSource` contract behind the existing service — no service redesign. `sourceKind: "omp"`, `availableThrough: ["omp"]` only.
+- Inventory = lazily-started loopback broker + snapshot, mapped through an explicit metadata allowlist (identity: `accountId` → `omp:<provider>:<accountId>` canonical key when provider-issued; email never identity; api-key credentials → `accountKey: null`, distinct records). Active `blocks` → `authState: "disabled"` (automatic, `enabled` stays true — no user disable exists).
+- Broker lifecycle: starts on first account operation, ephemeral `127.0.0.1:0` bind, **idle-stopped after 60s** (configurable). Non-loopback reported address → fail-safe rejection before the token is used. Snapshot cached 5s in-process. **No `omp acp`, no permanent broker/daemon**; live-verified zero OMP processes after shutdown.
+- Login: per-provider single-flight in the service (`startOmpProviderLogin`/`poll`/`cancel`/`submitOmpProviderLoginKey`); OAuth challenges carry presentation data only; API keys travel only into the OMP child's stdin and are never stored/logged/returned.
+- Removal: provider-wide `omp auth-broker logout` only when the account is the provider's sole credential; multi-account providers fail honestly with `disconnect-failed`. Unsupported operations (enable/disable, priority, reorder, pool logins) throw typed `unsupported-provider`.
+- Failure isolation: `listArcAccountsDetailed()` returns per-source `ready|unavailable` status; one source failing never destroys the other's accounts; a failed relevant source maps to agent account `unknown` (never fabricated `not-connected`); only an all-sources failure throws.
+- Manager: OMP now reports real account state — ready+zero accounts → `account-required` with `connect-account` available; connected → `ready`; source failure → `unknown`/`runtime-ready`. Catalog unchanged: exactly OMP, Codex, Claude Code (permanent test).
+- Isolation: every OMP child resolves via the runtime manifest (`createArcOmpRuntimeResolver`) and the Phase 4 environment builder (`PI_CONFIG_DIR`/`PI_CODING_AGENT_DIR` under Arc userData) — a global `omp` on PATH can never win; standalone `~/.omp` untouched (test-proven).
+
+### Live end-to-end evidence (real 18.2.6, isolated env)
+
+- `listOmpProviders()` → 75 providers, 0 accounts; `listAccounts()` → `[]`.
+- DeepSeek login: challenge `kind: "api-key"` with the unterminated prompt captured; invalid key submitted via stdin → OMP validated → terminal `failed`; `shutdown()` → `pgrep` confirms **no OMP processes remain**.
+
+### Files changed
+
+- Application source: `src/arc-account/omp-account-source.ts` (new); `src/arc-account/types.ts` (OMP provider/login types, source status, new error codes, open provider family); `src/arc-account/service.ts` (failure isolation, `accountStateForAgent`, OMP login APIs); `src/arc-account/agent-status-source.ts` (OMP readiness); `src/arc-agent/manager.ts` (OMP connect-account); `src/arc-account/account-pool-source.ts` (type narrowing only)
+- Tests: `test/arc-account-omp-source.test.ts` (22), `test/arc-account-source-merge.test.ts` (8), `test/arc-agent-manager-omp-accounts.test.ts` (7), `test/arc-omp-runtime-resolver.test.ts` (2); one Phase 7 assertion updated for Phase 8 semantics (`arc-agent-manager-accounts.test.ts`)
+- UI: none. Account Pool source: unchanged. No IPC.
+
+### Tests
+
+- Phase 8 focused suites → **42/42 PASS**
+- `pnpm --filter @bb/desktop typecheck` + `pnpm --filter @bb/server typecheck` → PASS
+- `pnpm --filter @bb/desktop test` → **664 passed / 3 failed / 1 skipped** — failures identical to the Phase 0–7 baseline (nightly publish-feed, server-moved notice, browser-view popup). +42 tests, zero regressions.
+- Live smoke against the real managed 18.2.6 binary (above).
+
+### Remaining for later phases
+
+- Usage & Limits unification — Phase 9 (`omp usage --json` + broker `/v1/usage` contract documented above).
+- Accounts/Settings UI and provider-selection UX — Phase 10 (backend APIs ready: `listOmpProviders`, login start/poll/cancel, key submit).
+- Import Existing OMP Configuration — later feature (deliberately not built; no credential copying).
+
+### Gate
+
+PASS.
+
+---
+
+## Phase 9 — Unified Usage & Limits
+
+Date: 2026-09-19. Continues on the Phase 8 working tree.
+
+### What was built
+
+- New domain `apps/desktop/src/arc-usage/` — one generic usage abstraction over
+  three real sources, backend/domain only (no UI, no IPC, no `main.ts` wiring;
+  Phase 10 consumes it):
+  - `types.ts` — `ArcUsageResource` / `ArcUsageWindow` / source interfaces /
+    typed domain errors (`usage-source-unavailable`, `usage-fetch-failed`,
+    `usage-resource-not-found`, `usage-refresh-failed`, `usage-contract-invalid`).
+  - `service.ts` — `ArcUsageService`: `listUsageResources`, `getUsageResource`,
+    `refreshUsageResource`, `refreshAllUsage`, `getCurrentAgentUsage`. Per-resource
+    last-good in-memory cache, source failure isolation, canonical-identity
+    association, observational reads only.
+  - `pool-source.ts` — adapter over the Account Pool's already-bundled generic
+    usage RPC (`provider-usage.v1.listResources` / `getResource`) reusing the
+    Phase 7 `AccountPoolRpcClient` HTTP seam. Zod-validates wire payloads
+    locally (`usage-contract-invalid` on malformed data); no pool code changed.
+  - `omp-source.ts` — adapter over `OmpAccountSource.fetchUsageSnapshot()`
+    (new): broker `GET /v1/usage` (reports) + `GET /v1/credentials/disabled`
+    (tombstones), reusing the Phase 8 lazy loopback broker lifecycle.
+  - `thread-source.ts` — thread context-window occupancy as its own
+    `sourceKind: "thread"` resource via an injectable `ArcThreadContextGateway`.
+- `apps/desktop/src/arc-account/omp-account-source.ts` — broker wire extended
+  with `usage()` / `disabledCredentials()` and a public `fetchUsageSnapshot()`.
+
+### Truthfulness rules implemented
+
+- UNKNOWN != ZERO: provider-not-exposed → `status: "unavailable"` +
+  `unavailableReason: "not-exposed"`, `windows: []`; auth/install states →
+  `unavailableReason: "not-connected"`; fetch failures → `status: "error"`.
+  No fabricated percentages anywhere.
+- Percentages derived only from true fractions (explicit fraction, or
+  used/limit with a real positive denominator). Unbounded amounts (OpenRouter
+  `$7.32 remaining`) stay amount-only with `unit: "usd"` — never "73%".
+- Stale last-good: a failed refresh keeps the previous successful reading,
+  marked `stale: true`; a failure with no prior data yields an error state,
+  never zeros. "unavailable" (a real provider answer) does not mark prior data
+  stale and does not overwrite it.
+- `observedAt` (provider-side snapshot time) preserved separately from
+  `fetchedAt` (when Arc obtained it); reset timestamps pass through or stay
+  null — never guessed.
+- Window kinds normalized: five-hour / daily / weekly / monthly / custom,
+  preserving provider labels; unknown vendor windows ("Rolling 3 hours") map
+  to `custom` with their label intact.
+
+### Identity and association
+
+- Association key: identical non-null canonical `accountKey` only. Email is
+  never identity (permanent test: same email + different accountKey → two
+  resources). `accountKey: null` is always source-local, never cross-source
+  merged.
+- Merged resources keep provenance: `sources: ["pool", "omp"]` (deterministic
+  kind order), per-window `source`, agentIds union in Arc catalog order.
+  Same-semantics window conflicts resolve to the newer `observedAt`; distinct
+  semantics stay side by side. Nothing is averaged.
+- Pool and OMP canonical namespaces differ by issuer (`openai:chatgpt:<id>`
+  vs `omp:openai-codex:<id>`), so production association is conservative:
+  pool↔OMP duplicates remain separate until a trustworthy mapping exists
+  (same rule as ADR-049/051). The merge machinery is tested with fixtures.
+
+### Source behavior
+
+- Pool: `listResources` is metadata-only (no quota refresh); `getResource`
+  maps the ok/not_installed/unauthenticated/expired/error union; refresh flag
+  passes through per resource.
+- OMP: broker `/v1/usage` returns only `{generatedAt, reports[]}` — verified
+  live against the real managed 18.2.6 binary (empty store → `reports: []`,
+  clean SIGTERM exit). `accountsWithoutUsage` is derived locally from the Arc
+  OMP account inventory minus report-covered identities; api-key accounts are
+  covered only by a single-identity provider report. Disabled tombstones map
+  to `credentialDisabled` + `unavailableReason: "disabled"` ("Connected but
+  temporarily unavailable" for Phase 10). Broker has no force-refresh
+  parameter: a refresh is a fetch attempt bounded by OMP's five-minute
+  per-credential server cache (documented, not hidden). Capacity stats and
+  usage history are out of scope per plan §48.
+- Thread context: `usedTokens`/`modelContextWindow` with `estimated` flag;
+  tokens with a real denominator produce a true percentage; kept strictly
+  separate from provider quota (own sourceKind, never merged).
+
+### Security
+
+- Report `metadata` passes an explicit allowlist (email, accountId, orgId,
+  orgName, planType) — nothing else crosses. Raw provider payloads stay
+  backend-only. Broker token remains in `Authorization` headers inside the
+  backend; a non-loopback broker address still fails closed before token use
+  (Phase 8 machinery unchanged).
+- Permanent tests scan serialized usage resources for token/credential
+  patterns (access/refresh/api keys, authorization, bearer, cookies, pkce).
+
+### Current-agent resolution (`getCurrentAgentUsage`)
+
+- Returns the current thread context resource plus every usage resource for
+  the active agent. OMP resources never attach to Codex/Claude and vice
+  versa. Active-account identity is not invented: with no supplied
+  `activeAccountKey`, all agent resources return with `activeAccountUnknown:
+  true` (Phase 10 may render "multiple connected accounts"); a supplied key
+  filters provably-different accounts out while keeping unknown ones.
+
+### Files changed
+
+- Application source: `src/arc-usage/{types,service,pool-source,omp-source,thread-source}.ts` (new); `src/arc-account/omp-account-source.ts` (broker wire + `fetchUsageSnapshot`)
+- Account Pool source: unchanged (its generic usage RPC is consumed as-is).
+- Runtime source: unchanged. OMP runtime: unchanged.
+- UI: none. IPC: none. Mission Control: unchanged (Phase 10 migrates its direct+pool dashboard onto this service).
+
+### Tests
+
+- New suites: `test/arc-usage-pool-source.test.ts` (12), `test/arc-usage-omp-source.test.ts` (11), `test/arc-usage-service.test.ts` (12) → **35/35 PASS**
+- `@bb/desktop` + `@bb/server` typecheck → PASS
+- `pnpm --filter bb-plugin-account-pool test` → 128/128 PASS (pool untouched)
+- `pnpm --filter @bb/desktop test` → **699 passed / 3 failed / 1 skipped** — failures identical to the Phase 0–8 baseline (nightly publish-feed, server-moved notice, browser-view popup). +35 tests, zero regressions.
+- Live contract check against the real managed 18.2.6 broker (isolated env): `/v1/usage` → `{generatedAt, reports[]}`, `/v1/credentials/disabled` → `{generatedAt, disabled[]}`, clean process exit.
+
+### Gate
+
+PASS.
+
+## Phase 10 — Arc Product Surfaces (Agent Picker, Agents, Accounts, Usage UI)
+
+### Domain relocation
+
+- `arc-runtime/`, `arc-agent/`, `arc-account/`, `arc-usage/` moved from `apps/desktop/src/` to a new shared package `packages/arc-domains` so the server-side `arc-core` plugin (and the desktop) consume one implementation. Desktop suite now 389 passed / 3 known failures / 1 skipped; `packages/arc-domains` 300 passed / 12 skipped (300 + 389 = 689 of the pre-move 699; the remaining delta is tests later consolidated while slicing — totals reported per package, never compared as one number).
+- One behavioral fix during relocation: agent `availableActions` now omit the `reason` key when an action is available instead of carrying `reason: undefined`; the strict RPC wire contract rejects explicit-undefined values. Found by live visual review (HTTP 500 from `arc.agents.list`).
+
+### arc-core service plugin (new, bundled)
+
+- `plugins/arc-core/` hosts `ArcAgentManager` / `ArcAccountService` / `ArcUsageService` behind a fixed 22-method `bb.rpc` contract (`arc.status`, `arc.agents.*`, `arc.accounts.*`, `arc.omp.*`, `arc.usage.*`). Strict zod wire schemas; unknown fields rejected; secret-bearing payloads rejected by a permanent scanner test; contract-drift tests pin the method set.
+- Arc mode is declared by env (`BB_ARC_RUNTIME_ROOT` / `BB_ARC_APP_VERSION` / `BB_ARC_SEED_ROOT`) set by the desktop shell on the server it spawns (`buildArcManagedRuntimeEnvironment`, Phase 4). Absent env → every RPC reports `arc-unavailable` rather than fabricating state.
+- Wired a node-backed `OmpSpawn` (`createNodeOmpSpawn`) into `OmpAccountSource` — without it OMP provider discovery/auth had no process runner in the server process ("no OMP process runner is configured"). Spawned executable is only ever the manifest-pinned managed runtime path, never caller input.
+- Registered in `packages/bundled-plugins` (default-enabled). SDK pin corrected to the checkout's `0.4.99` (`>=0.4.102` pins from mid-work upstream context blocked loading).
+
+### Agent picker
+
+- Server filters `execution-options` to the closed Arc catalog in Arc mode: OMP, Codex, Claude Code visible; Pi/OpenCode/Cursor/Grok/Hermes and other non-Arc providers hidden from normal selection. Historical threads remain readable (filter applies to options, not to thread rendering). 4 server tests (incl. catalog edge cases).
+
+### Mission Control (adnan/plugins/adnan-mission-control, rewritten)
+
+- Backend proxy (`server.ts`): fixed `arc_*` RPC passthrough over the loopback HTTP RPC with `ArcUnavailableError` mapping (`arc_status` degrades to `{arcAvailable:false, reason}`; others propagate a clean message). Old direct+pool usage dashboard RPC/hooks removed entirely.
+- Nav restructure: Overview, Agents, Accounts, Usage & Limits, Threads (moved), Roles, Approvals, Verification.
+- Overview: live Arc summary (agents/ready/setup-required, accounts connected, usage stale/error).
+- Agents: exactly three cards over `arc.agents.list` — runtime state, version, compatibility, account state, source; per-agent actions (prepare/repair via ArcAgentManager; Claude "Set Up Claude Code" dialog drives the Phase 5 managed setup backend; no Terminal). Update/rollback actions intentionally absent (Phase 11).
+- Accounts: ChatGPT / Claude / OMP Providers groups over `arc.accounts.list` — connect, multiple accounts, enable/disable/remove (pool), provider-wide disconnect (OMP, per ADR-051 semantics). No "Account Pool" terminology.
+- OMP provider management: dynamic discovery through the managed broker (75 providers, no hardcoded registry), searchable picker ("kimi" → Kimi Code + Moonshot), OAuth vs api-key auth classes from the backend wire, api-key submit → backend → OMP with immediate input clear (test-pinned; no key persisted in UI state/storage/logs).
+- Usage & Limits dashboard: OMP / Codex / Claude Code grouping, multiple accounts+windows, five-hour/weekly/custom kinds, amount-only limits, reset timestamps, stale + not-exposed + error + partial-failure render rules, per-resource refresh.
+- Small usage popup (thread timeline `ProviderUsageSection`): consumes `arc.usage.current`; context window section; UNKNOWN≠ZERO, stale last-good, not-exposed, amount-only, active-account-unknown all rendered; retry on transient failure.
+
+### Era-matched dependency repair (not Arc functionality)
+
+- `plugins/automations` restored from upstream commit `3b37d2790` — the newest commit before `592c7a1a0` (#3738) introduced required `workingDirectory`/`resolvedWorkingDirectory` fields this checkout's apps/app stories/fixtures do not provide, and after `2aa42d886` (#3553) rebuilt the stories the checkout carries. `upstream/main` (`c1a64f4b`) and merge-base (`fe53586c5`) were both wrong eras (too new / too old). Checkout-era app code + checkout-era plugin = no compat patch.
+- `plugins/secrets` restoration was evaluated and rejected (not an installed workspace member; module-resolution churn), leaving one pre-existing apps/app story import failure (`InteractionStates.stories.tsx`) documented as baseline, unrelated to Arc.
+
+### Visual review (real app, mandatory)
+
+- Launched the desktop Arc app (Electron, CDP-driven) against the dev server running with the Arc env contract; seeded managed runtimes (Codex 0.155.1, OMP 18.2.6) into the dev userData via the Phase 1 bootstrap service.
+- Screens opened and inspected: Mission Control Overview, Agents, Accounts, OMP provider picker + live search, Usage & Limits dashboard, new-thread composer, dark mode, 760px narrow viewport. Issues found and fixed: the `reason: undefined` wire failure above; the missing OMP spawn runner above; stale React Query caches after plugin reload (fixed by reload, no code change). Sidebar "Threads" header pill shows a light background block in dark mode — pre-existing app shell styling, not an MC surface, left unchanged.
+- Not live-verifiable without real credentials (covered by tests instead): OAuth connect flows, usage data rendering with real accounts, in-thread popup with a running agent. API-key flows not executed against real providers by policy.
+
+### Security
+
+- arc-core wire contract rejects secret-shaped values; account/usage payloads cross only the Phase 8/9 allowlists; no access/refresh/broker/api-key material observed in any renderer payload during review. No arbitrary command/executable-path/download/env RPC exists (fixed 22-method set; executable paths come only from the runtime manifest).
+- API keys: submit → backend → OMP stdin; input cleared immediately; never persisted or displayed.
+
+### Resource behavior
+
+- UI idle (Mission Control open, no agent running): no Codex/Claude/OMP-ACP processes. OMP auth broker starts lazily for discovery and idle-stops after its 60s TTL — verified live (process gone after ~75s).
+
+### Tests
+
+- `packages/arc-domains`: 300 passed / 12 skipped · `plugins/arc-core`: 8/8 (incl. new node-spawn behavioral tests) · Mission Control: 26/26 · desktop: 389 passed / 3 known failures / 1 skipped (identical to pre-Phase-10 baseline) · server affected: 4/4 · account-pool: 128/128 · typecheck green: desktop, server, arc-domains, arc-core, MC; apps/app green except one documented pre-existing story failure.
+- Mission Control plugin built via `bb plugin build` (`dist/server.js` + `dist/app.js`) and loaded by the running app.
+
+### Gate
+
+PASS (with documented pre-existing baselines: 3 desktop failures, 1 apps/app story import).

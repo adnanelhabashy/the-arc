@@ -1,181 +1,223 @@
-// Usage & Limits tab: one capacity dashboard over every configured source —
-// direct providers (the same bb.sdk.system.usageLimits contract the thread
-// popup renders) and Account Pooler accounts (their own honest group).
-// Remaining quota leads; nothing is estimated, missing values render as n/a.
-import { useEffect, useState, type ReactNode } from "react";
-import type { UsageDashboard, UsageEntry, UsageWindow } from "../server";
-import { useUsageDashboard } from "@/lib/data";
-import { useProvidersList, ProviderMark } from "@/lib/bb";
-import { Chip, EmptyState, relativeTime } from "@/components/common";
+// Usage & Limits tab (Phase 10): Arc's unified usage model over the three
+// agent groups (OMP / Codex / Claude Code). One card per usage resource,
+// rendered per the Arc render rules — UNKNOWN is never presented as 0%: a
+// resource that does not expose usage says so, an amount-only window renders
+// its amount without a fabricated bar, and a failed refresh keeps the last
+// good reading marked stale rather than blanking the card.
+import { useEffect, useState } from "react";
+import { useBbNavigate } from "@get-bb/plugin-sdk/app";
+import type { ArcUsageResource, ArcUsageSnapshot, ArcUsageUnit, ArcUsageWindow } from "@/lib/arc-types";
+import { useArcUsage } from "@/lib/data";
+import { EmptyState, relativeTime } from "@/components/common";
 import { cn } from "@/lib/utils";
 
-export type UsageTone = "ok" | "warn" | "danger" | "na";
-type FilledTone = Exclude<UsageTone, "na">;
+const UNIT_LABEL: Record<ArcUsageUnit, string> = {
+  percent: "%",
+  tokens: "tokens",
+  requests: "requests",
+  credits: "credits",
+  usd: "",
+  minutes: "min",
+  bytes: "bytes",
+  unknown: "",
+};
 
-/** Tone for a window that reports a percentage. Callers with a possibly-null
- *  percentage must branch on null first; n/a windows never reach the tone
- *  maps, so the maps only name real states. */
-function filledTone(usedPercent: number): FilledTone {
+function clampPercent(value: number): number {
+  return Math.min(Math.max(value, 0), 100);
+}
+
+function percentTone(usedPercent: number): string {
   const remaining = 100 - usedPercent;
-  if (remaining < 20) return "danger";
-  if (remaining <= 50) return "warn";
-  return "ok";
+  if (remaining < 20) return "bg-red-400";
+  if (remaining <= 50) return "bg-amber-400";
+  return "bg-emerald-400/80";
 }
 
-const TONE_TEXT: Record<FilledTone, string> = {
-  ok: "text-emerald-400/90",
-  warn: "text-amber-400",
-  danger: "text-red-400",
-};
-
-const TONE_BAR: Record<FilledTone, string> = {
-  ok: "bg-emerald-400/80",
-  warn: "bg-amber-400",
-  danger: "bg-red-400",
-};
-
-function stateChip(entry: UsageEntry): { label: string; className: string } | null {
-  switch (entry.state.kind) {
-    case "ready":
-      return null;
-    case "loading":
-      return { label: "Loading", className: "text-muted-foreground" };
-    case "unauthenticated":
-      return { label: "Not signed in", className: "text-amber-400" };
-    case "not_installed":
-      return { label: "Not installed", className: "text-amber-400" };
-    case "expired":
-      return { label: "Sign-in expired", className: "text-amber-400" };
-    case "error":
-      return { label: "Error", className: "text-red-400" };
-    case "not_exposed":
-      return { label: "Not exposed", className: "text-muted-foreground" };
+/** Compact countdown like "2h 14m"; dates beyond 48h render as "Sep 24". */
+function resetText(resetsAt: number, now: number): string {
+  const delta = resetsAt - now;
+  if (delta <= 48 * 60 * 60 * 1_000) {
+    const totalMinutes = Math.max(1, Math.round(delta / 60_000));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return hours === 0 ? `Resets in ${minutes}m` : `Resets in ${hours}h ${minutes}m`;
   }
+  return `Resets ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(resetsAt)}`;
 }
 
-function WindowRow({ window, now }: { window: UsageWindow; now: number }) {
-  const percent = window.usedPercent;
-  const used = percent === null ? null : Math.round(percent);
-  const left = used === null ? null : Math.max(0, 100 - used);
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-baseline justify-between gap-2 text-[12px] tabular-nums">
-        <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-          <span className="truncate">{window.label}</span>
-          {window.scope !== null ? (
-            <span className="shrink-0 rounded border border-border px-1 text-[9px] uppercase tracking-wide text-muted-foreground/70">
-              {window.scope}
-            </span>
-          ) : null}
-          {window.status === "blocked" || window.status === "warning" ? (
-            <span className="shrink-0 text-[10px] text-amber-400">{window.status}</span>
-          ) : null}
-        </span>
-        {percent === null || used === null || left === null ? (
-          <span className="shrink-0 text-muted-foreground">n/a</span>
-        ) : (
-          <span className="flex shrink-0 items-baseline gap-2">
-            <span className={cn("font-medium", TONE_TEXT[filledTone(percent)])}>{used}% used</span>
-            <span className="w-12 text-right text-muted-foreground">{left}% left</span>
-          </span>
-        )}
-      </div>
-      {percent !== null ? (
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-          <div
-            className={cn("h-full rounded-full", TONE_BAR[filledTone(percent)])}
-            style={{ width: `${Math.min(Math.max(percent, 0), 100)}%` }}
-          />
+function formatRemainingAmount(amount: number, unit: ArcUsageUnit | null): string {
+  if (unit === "usd") return `$${amount.toFixed(2)} remaining`;
+  const label = unit === null || unit === "unknown" ? "" : UNIT_LABEL[unit];
+  return label === "" ? `${amount} remaining` : `${amount} ${label} remaining`;
+}
+
+function WindowRow({ window, now }: { window: ArcUsageWindow; now: number }) {
+  const hasPercent = window.usedPercent !== null || window.remainingPercent !== null;
+
+  if (hasPercent) {
+    const used =
+      window.usedPercent !== null
+        ? clampPercent(window.usedPercent)
+        : window.remainingPercent !== null
+          ? clampPercent(100 - window.remainingPercent)
+          : null;
+    const remaining =
+      window.remainingPercent !== null
+        ? Math.round(window.remainingPercent)
+        : used !== null
+          ? 100 - Math.round(used)
+          : null;
+    return (
+      <div className="flex flex-col gap-1">
+        <div className="flex items-baseline justify-between gap-2 text-[12px]">
+          <span className="truncate text-muted-foreground">{window.label}</span>
+          {remaining !== null ? <span className="font-medium tabular-nums">{remaining}% remaining</span> : null}
         </div>
-      ) : null}
-      <div className="flex items-baseline justify-between gap-2 text-[11px] tabular-nums text-muted-foreground">
-        <span>{window.resetsAt === null ? "reset n/a" : `resets ${relativeTime(window.resetsAt, now)}`}</span>
-        {window.cost !== null ? (
-          <span>
-            ${(window.cost.usedUsdCents / 100).toFixed(2)} of ${(window.cost.limitUsdCents / 100).toFixed(2)}
-          </span>
+        {used !== null ? (
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div className={cn("h-full rounded-full", percentTone(used))} style={{ width: `${used}%` }} />
+          </div>
+        ) : null}
+        {window.resetsAt !== null ? (
+          <span className="text-[11px] tabular-nums text-muted-foreground">{resetText(window.resetsAt, now)}</span>
         ) : null}
       </div>
+    );
+  }
+
+  // Amount-only window: render the amount + unit, never a percent or a bar.
+  return (
+    <div className="flex items-baseline justify-between gap-2 text-[12px]">
+      <span className="truncate text-muted-foreground">{window.label}</span>
+      {window.remainingAmount !== null ? (
+        <span className="font-medium tabular-nums">{formatRemainingAmount(window.remainingAmount, window.unit)}</span>
+      ) : (
+        <span className="text-muted-foreground">n/a</span>
+      )}
     </div>
   );
 }
 
-function bodyFor(entry: UsageEntry, now: number): ReactNode {
-  if (entry.state.kind === "ready") {
-    if (entry.windows.length === 0) {
-      return <span className="text-[11px] text-muted-foreground">No limit windows reported</span>;
-    }
+function ResourceBody({
+  resource,
+  now,
+  onRetry,
+}: {
+  resource: ArcUsageResource;
+  now: number;
+  onRetry: () => void;
+}) {
+  if (resource.status === "error") {
     return (
-      <div className="flex flex-col gap-2">
-        {entry.windows.map((window, index) => (
-          <WindowRow key={`${window.label}:${index}`} window={window} now={now} />
-        ))}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] text-red-400">Usage temporarily unavailable</span>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-md border border-border px-2 py-0.5 text-[11px] hover:bg-accent/60"
+        >
+          Retry
+        </button>
       </div>
     );
   }
-  if (entry.state.kind === "error") {
-    return <span className="text-[11px] text-red-400">{entry.state.message}</span>;
+  if (resource.status === "unavailable") {
+    const label =
+      resource.unavailableReason === "not-exposed"
+        ? "Usage limits not exposed by provider"
+        : resource.unavailableReason === "disabled"
+          ? "Connected · temporarily unavailable"
+          : resource.unavailableReason === "not-connected"
+            ? "Connect an account to see usage"
+            : "Usage temporarily unavailable";
+    return <span className="text-[11px] text-muted-foreground">{label}</span>;
   }
-  if (entry.state.kind === "not_exposed") {
-    return <span className="text-[11px] text-muted-foreground">Not exposed by provider</span>;
+  if (resource.status === "unknown") {
+    return <span className="text-[11px] text-muted-foreground">Usage unavailable</span>;
   }
-  const chip = stateChip(entry);
-  return <span className="text-[11px] text-muted-foreground">{chip?.label ?? entry.state.kind}</span>;
+
+  const windows = resource.windows;
+  return (
+    <div className="flex flex-col gap-2">
+      {windows.length === 0 ? (
+        <span className="text-[11px] text-muted-foreground">No limit windows reported</span>
+      ) : (
+        windows.map((window) => <WindowRow key={window.id} window={window} now={now} />)
+      )}
+      {resource.stale ? (
+        <span className="text-[10px] text-muted-foreground/80">
+          Last updated {relativeTime(resource.fetchedAt ?? resource.observedAt ?? now, now)} · could not refresh
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
-function UsageCard({ entry, now }: { entry: UsageEntry; now: number }) {
-  const providers = useProvidersList();
-  const chip = stateChip(entry);
-  const worstTone: UsageTone = entry.windows.reduce((worst: UsageTone, window) => {
-    if (window.usedPercent === null) return worst;
-    const tone = filledTone(window.usedPercent);
-    if (tone === "danger") return "danger";
-    if (tone === "warn" && worst !== "danger") return "warn";
-    if (tone === "ok" && worst === "na") return "ok";
-    return worst;
-  }, "na");
-  const attention = worstTone === "danger" ? "border-red-400/40" : worstTone === "warn" ? "border-amber-400/40" : "border-border";
-  const body = bodyFor(entry, now);
+function ResourceCard({
+  resource,
+  now,
+  onRetry,
+}: {
+  resource: ArcUsageResource;
+  now: number;
+  onRetry: () => void;
+}) {
+  const navigate = useBbNavigate();
   return (
-    <article className={cn("flex flex-col gap-2 rounded-lg border bg-card p-3", attention)}>
-      <div className="flex min-w-0 items-center gap-2">
-        <ProviderMark providerId={entry.providerId} providers={providers} className="size-4 shrink-0 text-muted-foreground" />
-        <span className="truncate text-[13px] font-medium">{entry.providerLabel}</span>
-        {entry.source === "pool" ? (
-          <Chip>
-            <span className="size-1 rounded-full bg-amber-400/80" />
-            pooled
-          </Chip>
-        ) : null}
-        {chip !== null ? <span className={cn("ml-auto shrink-0 text-[10px]", chip.className)}>{chip.label}</span> : null}
-      </div>
-      {entry.accountLabel !== null || entry.planLabel !== null || entry.modelLabel !== null ? (
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-          {entry.planLabel !== null ? <span className="shrink-0">{entry.planLabel}</span> : null}
-          {entry.accountLabel !== null ? <span className="truncate">{entry.accountLabel}</span> : null}
-          {entry.modelLabel !== null ? <span className="shrink-0">model: {entry.modelLabel}</span> : null}
+    <article className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
+      <div className="flex min-w-0 items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate text-[13px] font-medium">{resource.providerLabel}</div>
+          {resource.planLabel !== null || resource.accountEmail !== null ? (
+            <div className="truncate text-[11px] text-muted-foreground">
+              {[resource.planLabel, resource.accountEmail].filter((value) => value !== null).join(" · ")}
+            </div>
+          ) : null}
         </div>
-      ) : null}
-      <div>{body}</div>
-      {entry.state.kind === "ready" && entry.state.updatedAt !== null ? (
+        {resource.accountSourceId !== null ? (
+          <button
+            type="button"
+            onClick={() => navigate.toPluginPanel("mission-control", { subPath: "accounts" })}
+            className="shrink-0 text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          >
+            Manage account
+          </button>
+        ) : null}
+      </div>
+
+      <ResourceBody resource={resource} now={now} onRetry={onRetry} />
+
+      {resource.fetchedAt !== null ? (
         <span className="text-right text-[10px] tabular-nums text-muted-foreground/70">
-          updated {relativeTime(entry.state.updatedAt, now)}
+          Updated {relativeTime(resource.fetchedAt, now)}
         </span>
       ) : null}
     </article>
   );
 }
 
-function EntryGroup({ title, entries, now, empty }: { title: string; entries: UsageEntry[]; now: number; empty: string }) {
+function AgentGroup({
+  title,
+  resources,
+  now,
+  onRetry,
+  empty,
+}: {
+  title: string;
+  resources: ArcUsageResource[];
+  now: number;
+  onRetry: (resourceId: string) => void;
+  empty: string;
+}) {
   return (
     <section className="flex flex-col gap-2">
       <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
-      {entries.length === 0 ? (
+      {resources.length === 0 ? (
         <EmptyState title={empty} />
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {entries.map((entry, index) => (
-            <UsageCard key={`${entry.source}:${entry.providerId}:${entry.accountLabel ?? index}`} entry={entry} now={now} />
+          {resources.map((resource) => (
+            <ResourceCard key={resource.id} resource={resource} now={now} onRetry={() => onRetry(resource.id)} />
           ))}
         </div>
       )}
@@ -184,7 +226,7 @@ function EntryGroup({ title, entries, now, empty }: { title: string; entries: Us
 }
 
 export function UsageLimitsPage() {
-  const { data, isLoading, isFetching, error, refresh } = useUsageDashboard();
+  const { data, isLoading, isFetching, error, refresh, refreshResource } = useArcUsage();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 30_000);
@@ -214,16 +256,24 @@ export function UsageLimitsPage() {
       </div>
     );
   }
-  const dashboard: UsageDashboard | null = data;
+
+  const snapshot: ArcUsageSnapshot | null = data;
+  const resources = snapshot?.resources ?? [];
+
+  const omp = resources.filter((resource) => resource.agentIds.includes("omp"));
+  const codex = resources.filter((resource) => resource.agentIds.includes("codex") && !resource.agentIds.includes("omp"));
+  const claude = resources.filter(
+    (resource) =>
+      resource.agentIds.includes("claude-code") && !resource.agentIds.includes("omp") && !resource.agentIds.includes("codex"),
+  );
+
   return (
     <div className="flex flex-col gap-4 p-4">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold">Usage & Limits</h2>
-          {dashboard !== null ? (
-            <p className="text-[11px] tabular-nums text-muted-foreground">
-              updated {relativeTime(dashboard.generatedAt, now)}
-            </p>
+          <h2 className="text-sm font-semibold">Usage &amp; Limits</h2>
+          {snapshot !== null ? (
+            <p className="text-[11px] tabular-nums text-muted-foreground">updated {relativeTime(snapshot.generatedAt, now)}</p>
           ) : null}
         </div>
         <button
@@ -249,23 +299,9 @@ export function UsageLimitsPage() {
           </svg>
         </button>
       </div>
-      {dashboard !== null ? (
-        <>
-          <EntryGroup title="Direct Providers" entries={dashboard.direct} now={now} empty="No usage-capable providers configured." />
-          {dashboard.poolAvailable ? (
-            <EntryGroup title="Pooled Accounts" entries={dashboard.pool} now={now} empty="Account Pooler has no accounts yet." />
-          ) : (
-            <section className="flex flex-col gap-2">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pooled Accounts</h3>
-              <EmptyState title="Account Pooler is not available.">
-                <p className="text-[12px] text-muted-foreground">
-                  Enable the account-pool plugin to see pooled subscription accounts here.
-                </p>
-              </EmptyState>
-            </section>
-          )}
-        </>
-      ) : null}
+      <AgentGroup title="OMP" resources={omp} now={now} onRetry={refreshResource} empty="No OMP usage sources." />
+      <AgentGroup title="Codex" resources={codex} now={now} onRetry={refreshResource} empty="No Codex usage sources." />
+      <AgentGroup title="Claude Code" resources={claude} now={now} onRetry={refreshResource} empty="No Claude Code usage sources." />
     </div>
   );
 }
