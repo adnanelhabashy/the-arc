@@ -37,6 +37,11 @@ The official plugins are:
 
 Never check in `plugins/*/dist` or `plugins/*/.bundled-runtime`; they are generated.
 
+A bundled plugin that is not a dependency of `@bb/bundled-plugins` is never
+prepared, so a packaged app cannot resolve it and keeps loading whatever copy a
+previous installation left on the machine. See
+[plugin-provenance.md](plugin-provenance.md).
+
 ## Adding a new official plugin
 
 1. Create the plugin under `plugins/<name>` with a `bb` manifest

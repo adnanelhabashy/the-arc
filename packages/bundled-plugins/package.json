@@ -10,6 +10,12 @@
     "bb-plugin-account-pool": "workspace:*",
     "bb-plugin-arc-core": "workspace:*",
     "bb-plugin-automations": "workspace:*",
-    "bb-plugin-bb-guide": "workspace:*"
+    "bb-plugin-bb-guide": "workspace:*",
+    "bb-plugin-environment-modal-sandbox": "workspace:*",
+    "bb-plugin-provider-acp": "workspace:*",
+    "bb-plugin-provider-claude-code": "workspace:*",
+    "bb-plugin-provider-codex": "workspace:*",
+    "bb-plugin-provider-pi": "workspace:*",
+    "bb-plugin-secrets": "workspace:*"
   }
 }

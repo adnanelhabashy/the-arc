@@ -41,6 +41,13 @@
 - Never use CSS `@scope`; it causes severe WebKit style-recalculation costs. Confine styles with zero-specificity `:where(<roots>)` descendant and compound selector arms, as implemented in `packages/plugin-build/src/scope-plugin-utilities.ts`.
 - Use the shared persistent responsive drawer for compact slide-out menus, pickers, popovers, and dialogs. Avoid modal primitives that add `inert` or `aria-hidden` to the app root. Start the transform before heavy content; realize content after two animation frames with a timeout fallback, then retain it. Verify representative drawers in iOS Simulator Safari and test app-root and deferred-realization behavior.
 
+## Plugin Provenance
+
+- A packaged app must never run a builtin plugin from another installed BB/Arc app. Every registry name either resolves to a copy this checkout built or fails loudly; a silent fallback to a stale copy on disk is a bug. See [docs/plugin-provenance.md](docs/plugin-provenance.md).
+- A plugin with sources under `plugins/<name>` must list its `package.json` name in `@bb/bundled-plugins` dependencies, so Turbo runs its `prepare:bundled` before assembly. The assembly test (`packages/scripts/test/bundled-plugin-tasks.test.mjs`) and `packages/bundled-plugins/build.ts` fail otherwise.
+- Ship plugin code as `prepare:bundled` output only. Never hand-copy a plugin `dist/` into an app bundle, and never rely on `reconcileBundled` to repair a wrong `plugins.root_dir` — it keeps the previous row when the resolved path has no readable manifest.
+- Prove packaged plugin provenance by artifact, not by UI: `plugins.root_dir` must point inside the app being launched, and `~/.bb/plugin-host-artifacts/<pluginId>/<digest>/host.mjs` must hash to that app's `dist/host.js`. `plugin <id>: ignoring prebuilt dist/server.js … loading from source` does not mean current source runs.
+
 ## Build And Test
 
 - Use Turbo for builds, typechecks, and tests so upstream dependencies run first: `pnpm exec turbo run <task> --filter=@bb/<pkg>`. Use the package's actual name for other scopes. Bypass orchestration only for deliberate investigation; do not invoke package scripts or raw `tsc` routinely.

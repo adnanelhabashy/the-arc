@@ -1646,6 +1646,24 @@ importers:
       bb-plugin-bb-guide:
         specifier: workspace:*
         version: link:../../plugins/bb-guide
+      bb-plugin-environment-modal-sandbox:
+        specifier: workspace:*
+        version: link:../../plugins/environment-modal-sandbox
+      bb-plugin-provider-acp:
+        specifier: workspace:*
+        version: link:../../plugins/provider-acp
+      bb-plugin-provider-claude-code:
+        specifier: workspace:*
+        version: link:../../plugins/provider-claude-code
+      bb-plugin-provider-codex:
+        specifier: workspace:*
+        version: link:../../plugins/provider-codex
+      bb-plugin-provider-pi:
+        specifier: workspace:*
+        version: link:../../plugins/provider-pi
+      bb-plugin-secrets:
+        specifier: workspace:*
+        version: link:../../plugins/secrets
 
   packages/client-core:
     dependencies:

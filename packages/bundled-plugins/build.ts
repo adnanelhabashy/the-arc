@@ -20,13 +20,31 @@ await cp(
   ),
   resolve(output, BUNDLED_MARKETPLACE_FILENAME),
 );
+const withoutSource: string[] = [];
 for (const { name } of BUNDLED_PLUGINS) {
-  // Arc Agent fork: plugin sources no longer live in this checkout, so a
-  // plugin without a prepared .bundled-runtime simply is not bundled here.
-  const staged = resolve(root, "plugins", name, ".bundled-runtime");
-  if (!existsSync(staged)) {
-    console.warn(`bundled-plugins: ${name} has no .bundled-runtime; skipping`);
+  if (!existsSync(resolve(root, "plugins", name, "package.json"))) {
+    // Arc Agent fork: this plugin's sources are not part of this checkout.
+    // Registry names are upstream truth, so it stays registered; it just is
+    // not built or shipped from here.
+    withoutSource.push(name);
     continue;
   }
+  // A registry name with sources here must be a dependency of this package:
+  // that is what makes turbo run its `prepare:bundled` before this copy, and
+  // what makes a plugin source edit invalidate this build. Skipping silently
+  // would ship no copy at all, and the packaged app would then load whatever
+  // plugin artifact another installation left on the machine.
+  const staged = resolve(root, "plugins", name, ".bundled-runtime");
+  if (!existsSync(staged)) {
+    throw new Error(
+      `bundled-plugins: "${name}" has sources in this checkout but no prepared .bundled-runtime. ` +
+        `Add "bb-plugin-${name}" to packages/bundled-plugins dependencies so "prepare:bundled" runs for it.`,
+    );
+  }
   await cp(staged, resolve(output, name), { recursive: true });
+}
+if (withoutSource.length > 0) {
+  console.warn(
+    `bundled-plugins: not built in this checkout (no plugin sources): ${withoutSource.join(", ")}`,
+  );
 }

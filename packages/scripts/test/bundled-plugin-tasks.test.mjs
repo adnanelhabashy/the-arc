@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BUNDLED_PLUGINS } from "../../../apps/server/src/services/plugins/builtin-registry.ts";
@@ -7,9 +7,24 @@ const root = resolve(import.meta.dirname, "../../..");
 const turboSource = readFileSync(resolve(root, "turbo.json"), "utf8");
 const turbo = JSON.parse(turboSource.replace(/^\s*\/\/.*$/gm, ""));
 
+function pluginSourceDirectories() {
+  return readdirSync(resolve(root, "plugins"), { withFileTypes: true })
+    .filter(
+      (entry) =>
+        entry.isDirectory() &&
+        existsSync(resolve(root, "plugins", entry.name, "package.json")),
+    )
+    .map((entry) => entry.name);
+}
+
 describe("bundled plugin task graph", () => {
-  it("prepares every registered plugin before assembly with separate output ownership", () => {
-    const expected = BUNDLED_PLUGINS.map(({ name }) => {
+  it("prepares every bundled plugin with sources in this checkout before assembly", () => {
+    // A registry name with sources here but no place in this package ships no
+    // copy at all, and the packaged app then loads whatever plugin artifact
+    // another installation left on the machine.
+    const expected = BUNDLED_PLUGINS.filter(({ name }) =>
+      existsSync(resolve(root, "plugins", name, "package.json")),
+    ).map(({ name }) => {
       const manifest = JSON.parse(
         readFileSync(resolve(root, "plugins", name, "package.json"), "utf8"),
       );
@@ -40,5 +55,12 @@ describe("bundled plugin task graph", () => {
     expect(
       plugin.inputs.some((input) => input.includes("$TURBO_ROOT$/plugins/")),
     ).toBe(false);
+  });
+
+  it("registers every plugin source in this checkout as bundled", () => {
+    const registered = new Set(BUNDLED_PLUGINS.map(({ name }) => name));
+    expect(pluginSourceDirectories().filter((name) => !registered.has(name))).toEqual(
+      [],
+    );
   });
 });
