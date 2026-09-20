@@ -6,6 +6,23 @@ import { resolveAppServerLaunch } from "./bridge.js";
 
 afterEach(() => vi.unstubAllEnvs());
 
+const BASE_ARGS = [
+  "app-server",
+  "-c",
+  "features.code_mode_host=false",
+  "-c",
+  "check_for_update_on_startup=false",
+];
+
+describe("Codex managed-runtime baseline launch", () => {
+  it("always disables the code-mode host probe (Arc never installs codex-code-mode-host)", () => {
+    expect(resolveAppServerLaunch({})).toEqual({
+      command: "codex",
+      args: BASE_ARGS,
+    });
+  });
+});
+
 describe("Codex Account Pool launch", () => {
   it("adds an in-memory base URL and environment-backed hub header", () => {
     vi.stubEnv("CODEX_OPENAI_BASE_URL", "https://bb.example/pool/v1");
@@ -21,6 +38,9 @@ describe("Codex Account Pool launch", () => {
     );
     expect(launch.args).toContain(
       "model_providers.bb-account-pool.supports_websockets=false",
+    );
+    expect(launch.args).toContain(
+      'shell_environment_policy.exclude=["CODEX_POOL_AUTH_TOKEN"]',
     );
     expect(JSON.stringify(launch.args)).not.toContain("secret-machine-token");
   });
@@ -56,15 +76,18 @@ describe("Codex Account Pool launch", () => {
 
   it("leaves Codex's default transport alone when the pool is not routed", () => {
     const launch = resolveAppServerLaunch({});
-    expect(launch).toEqual({ command: "codex", args: ["app-server"] });
+    expect(launch).toEqual({ command: "codex", args: BASE_ARGS });
     expect(JSON.stringify(launch.args)).not.toContain("supports_websockets");
+    expect(JSON.stringify(launch.args)).not.toContain(
+      "shell_environment_policy",
+    );
   });
 
   it("does not partially route when either required variable is missing", () => {
     vi.stubEnv("CODEX_OPENAI_BASE_URL", "https://bb.example/pool/v1");
     expect(resolveAppServerLaunch()).toEqual({
       command: "codex",
-      args: ["app-server"],
+      args: BASE_ARGS,
     });
   });
 });
@@ -85,7 +108,7 @@ describe("Codex Account Pool isolation", () => {
         CODEX_POOL_AUTH_TOKEN: "inherited-parent-token",
         ...args.env,
       });
-      expect(launch).toEqual({ command: "codex", args: ["app-server"] });
+      expect(launch).toEqual({ command: "codex", args: BASE_ARGS });
       expect(JSON.stringify(launch.args)).not.toContain("parent.example");
       expect(JSON.stringify(launch.args)).not.toContain(
         "inherited-parent-token",
@@ -119,7 +142,7 @@ describe("Codex managed-runtime ownership", () => {
 
       expect(launch.command).toBe(managedCodex);
       expect(launch.command).not.toBe(globalCodex);
-      expect(launch.args).toEqual(["app-server"]);
+      expect(launch.args).toEqual(BASE_ARGS);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -142,7 +165,7 @@ describe("Codex managed-runtime ownership", () => {
   it("keeps resolving codex from PATH outside Arc", () => {
     expect(resolveAppServerLaunch({})).toEqual({
       command: "codex",
-      args: ["app-server"],
+      args: BASE_ARGS,
     });
   });
 });

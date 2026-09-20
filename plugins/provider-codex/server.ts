@@ -2,8 +2,10 @@ import { registerUsageSource } from "./src/usage-source.js";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { codexExtensionKinds } from "./src/extension-kinds.js";
 import { CODEX_NATIVE_ROOTS_DECLARATION } from "./src/native-roots.js";
+import { hardenCodexShellSnapshotDir } from "./src/shell-snapshot-hardening.js";
 
 export default function plugin(bb: BbPluginApi) {
+  hardenCodexShellSnapshotDir();
   registerUsageSource(bb);
   bb.experimental_aiServices.register({
     id: "codex",

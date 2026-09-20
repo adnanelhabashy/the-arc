@@ -371,10 +371,17 @@ export function resolveAppServerLaunch(env: NodeJS.ProcessEnv = process.env): {
 } {
   const command = resolveAppServerCommand(env);
   const rawArgs = env[CODEX_APP_SERVER_ARGS_ENV];
-  const args =
+  const baseArgs =
     rawArgs === undefined || rawArgs.length === 0
       ? ["app-server"]
       : z.array(z.string()).parse(JSON.parse(rawArgs));
+  const args = [
+    ...baseArgs,
+    "-c",
+    "features.code_mode_host=false",
+    "-c",
+    "check_for_update_on_startup=false",
+  ];
   const poolBaseUrl = env[CODEX_POOL_BASE_URL_ENV];
   const poolToken = env[CODEX_POOL_AUTH_TOKEN_ENV];
   if (!poolBaseUrl || !poolToken) return { command, args };
@@ -400,6 +407,8 @@ export function resolveAppServerLaunch(env: NodeJS.ProcessEnv = process.env): {
       "model_providers.bb-account-pool.supports_websockets=false",
       "-c",
       'model_providers.bb-account-pool.env_http_headers.x-bb-account-pool-token="CODEX_POOL_AUTH_TOKEN"',
+      "-c",
+      `shell_environment_policy.exclude=${JSON.stringify([CODEX_POOL_AUTH_TOKEN_ENV])}`,
       ...(poolPin
         ? [
             "-c",
