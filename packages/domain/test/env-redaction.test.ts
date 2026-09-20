@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSensitiveEnvName, redactEnvValue } from "./env-redaction.js";
+import { isSensitiveEnvName, redactEnvValue } from "../src/env-redaction.js";
 
 describe("env redaction policy", () => {
   it.each([

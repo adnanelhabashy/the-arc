@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { redactEnvResolvedRow } from "./redact-stored-env-secrets.js";
+import { redactEnvResolvedRow } from "../src/commands/redact-stored-env-secrets.js";
 
 function eventRow(
   entries: Array<{ name: string; value: unknown; source?: unknown }>,
