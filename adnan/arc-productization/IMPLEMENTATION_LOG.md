@@ -890,3 +890,53 @@ Rebuilt and reinstalled `/Applications/Arc Agent.app` twice this phase (once to 
 ### Remaining limitation
 
 The E2E verification above was driven through the same server API the Electron UI calls, not through literal mouse clicks in the app window (no UI automation access in this environment) — the user may still want to click through the composer themselves to confirm the visual flow, though the underlying execution path is identical either way.
+## Phase 10.2.3 — OMP multi-account architecture (ADR-068) and Claude coverage
+
+### What changed
+
+- `packages/arc-domains`: `ArcAccount.identityKey` (OMP credential identity; null for pool accounts and OMP api-key credentials, which OMP's filter never matches), mapped from the broker snapshot's `identityKey` with the empty api-key value normalized to null. New `src/arc-account/omp-execution-pin.ts`: canonical key parsing, pin resolution (pinned / unavailable / not-omp-account / unpinned), and the account-pool file content for each outcome. `OmpAccountSource` gains `holdBrokerForExecution()` / `renewBrokerHold()` and a hold-aware idle timer.
+- `plugins/arc-core`: `experimental_contributeEnv("acp-omp", …)` resolves the thread's `accountKey` against `accounts.listArcAccounts()`, writes the content-addressed pool file 0600 under `<userData>/omp/account-pool`, holds the broker, and contributes `OMP_AUTH_BROKER_URL` / `OMP_AUTH_BROKER_TOKEN` / `OMP_AUTH_BROKER_ACCOUNT_POOL_FILE`. `experimental_contributeEnvHealth("acp-omp", …)` renews a live hold and reports the pinned state. `ArcServiceHost` exposes the OMP source for that one caller.
+- `plugins/arc-core/src/contract.ts`: `identityKey` added to the renderer-facing account schema (the drift alarm in `test/contract.test.ts` caught its absence).
+- `packages/plugin-sdk`: provider-env context fixtures gained the `accountKey`/`accountResolved` fields Phase 10.2 added to `ExperimentalPluginProviderEnvContext` (pre-existing typecheck failure, and the context round-trip assertion now matches).
+
+### Tests
+
+New: `packages/arc-domains/test/arc-account-omp-execution-pin.test.ts` (12), identity-key mapping + broker-hold lifecycle cases in `arc-account-omp-source.test.ts`, `plugins/arc-core/test/omp-execution-env.test.ts` (5: pin, Auto, unavailable, non-OMP pin, pool-file reuse), `plugins/account-pool/src/server-provider-env.test.ts` (6: Claude pin header, Auto correlation, stale-key fail-closed, Codex pin/correlation env vars, reconnect-resolved row id). Suites: `@bb/arc-domains` 318 passed / 12 skipped, `bb-plugin-arc-core` 13, `bb-plugin-account-pool` 165, `@get-bb/plugin-sdk` 291, `@bb/provider-bridge-acp` 319, `@bb/client-core` 291.
+
+### Live evidence (single real account each; no two-account isolation claimed)
+
+- OMP mechanism against the real 18.2.6 binary and the real stored Kimi credential (`~/.bb` untouched, credential only read): `{"kimi-code": ["account:d9l3vugu8ld95qngp75g"]}` → Kimi still resolvable; `{"kimi-code": []}` → Kimi absent from `omp usage --json` while the api-key provider remains; unrelated provider listed → unrestricted. Probe broker terminated afterwards; the app's own brokers were left alone.
+- Claude Code transport, real packaged app, real Claude account connected (`anthropic:account:6f6162cb-…`, thread `thr_utkhs87fys`): pinned to a non-existent account key, the real Claude Code process received **HTTP 409** from Arc's hub and retried 1/10…9/10 — the pin reached the hub and failed closed instead of serving the one connected account. Unpinned (Auto) execution reached the hub too and was refused with the hub's own **429 "No Account Pooler account is currently eligible"**, because that account's 5-hour window is at 100% (`status: rejected`, reset ≈ 13:59 local). A successful Claude turn therefore could not be produced in this window; the thread was stopped and its pin restored to the real account.
+
+### Remaining limitations (disclosed, not worked around)
+
+- No second Kimi account and only one Claude account: concurrent/isolated two-account execution is **NOT AVAILABLE** for both providers; Codex remains the only provider with real two-account E2E.
+- `arc-core` now owns the `acp-omp` provider-env contribution (one contributor per provider id, as with Codex/Claude Code in `account-pool`); a future provider-proxy plugin for OMP cannot also contribute env for that id.
+- `pnpm audit` crashes the Node process on this workspace, so the dependency audit was not run; this phase adds no dependencies.
+- Workspace `typecheck` is red only in `bb-plugin-automations` (`src/working-directory.ts` imports `AutomationScriptWorkingDirectory`, absent from `src/rpc-types.ts` at HEAD — a pre-existing gap from the era-matched plugin source restore).
+- `@bb/server`'s full suite has ~37 failures whose errors are all of the same shape — `no readable package.json at plugins/<name>/package.json`, and registry/bundled counts (10 present vs the 37/39 the tests expect) — i.e. this fork's missing plugin sources, the residual hole recorded in `docs/plugin-provenance.md`. Pre-existing, unrelated to this phase's changes.
+
+## Phase 10 complete — installed-app smoke evidence (2026-09-20)
+
+`/Applications/Arc Agent.app` was rebuilt from this tree (`pnpm --filter @bb/desktop package`) and reinstalled over the running copy; the previous bundle was kept as `/Applications/Arc Agent.app.bak-10.3` and `~/.bb` was never touched. Installed artifact provenance: installed `app.asar` == the checkout build (`ee25717d…`), bundled `arc-core` dist == the repo build (`9af922be…`) and contains the OMP env contract, bundled `account-pool` dist == the repo build (`672a266e…`, the same file carrying `getSticky` and `x-bb-account-pool-pin`).
+
+Every check below ran against that installed app through the same server API the renderer calls, with the pool's own per-request observations as the account evidence.
+
+| Check | Output | Pin the provider received | Account that actually served it |
+|---|---|---|---|
+| Codex Plus | `plus-ok` | `CODEX_ACCOUNT_POOL_PIN=4bf9165d…` (Plus) | Plus `account_quota.observed_at` advanced; Team unchanged |
+| Codex Team | `team-ok` | `8ce4f09d…` (Team) | Team advanced; Plus unchanged |
+| Same-thread Plus → Team | `switch-team` | `8ce4f09d…` | Team advanced; Plus unchanged |
+| Same-thread Team → Plus | `switch-plus` | `4bf9165d…` | Plus advanced; Team unchanged |
+| OMP ⟶ Kimi (account selected at creation) | `kimi-ok` | contributed by `arc-core` for `acp-omp` | pool file + broker, below |
+| OMP ⟶ Auto | `auto-ok` | **no** `arc-core` contribution (0 entries) | OMP keeps its own selection |
+
+The same-thread switching rows matter most: the provider session stayed alive across all four sends, and each switch re-resolved the environment and rebuilt the ACP session, so the pin follows the thread rather than the process.
+
+OMP evidence: the thread's `provider.env-resolved` event carries `OMP_AUTH_BROKER_URL=http://127.0.0.1:57232`, `OMP_AUTH_BROKER_TOKEN` (loopback, redacted), and `OMP_AUTH_BROKER_ACCOUNT_POOL_FILE=<userData>/omp/account-pool/b020b0113ee4feba.json`; that file exists as `-rw-------` holding exactly `{"kimi-code": ["account:d9l3vugu8ld95qngp75g"]}`, and a broker is listening on `127.0.0.1:57232`. Switching the same thread to Auto and back changed the resolved contribution accordingly (3 arc-core entries ⟶ 0 ⟶ 3) while each turn still completed.
+
+Account selector: `POST /api/v1/plugins/arc-core/rpc/arc.accounts.list` — the composer's own call — returns five accounts (ChatGPT plus/team, Claude pro, and the two OMP credentials) with `accountKey`, plan label, and auth state; `PATCH /threads/:id` with `accountKey` persisted to `threads.account_key`/`account_resolved` in every direction tested (Plus, Team, Auto, Kimi); the installed renderer bundle contains the selector ("Accounts", "Account unavailable", `arc.accounts.list`). No UI automation exists in this environment, so the visual click-through remains for the user.
+
+Secret exposure: the OMP pool file is 0600 and holds credential identities only, the provider secret store is 0700, both brokers bind `127.0.0.1` only, the accounts payload contains no token/secret-shaped keys or values, and neither the diff nor the new files contain token literals.
+
+Disclosures: (1) provider environment values are persisted in `events` as `provider.env-resolved`, including the loopback hub/broker tokens — pre-existing behaviour of the contribution mechanism (the Codex path recorded `CODEX_POOL_AUTH_TOKEN` before this phase) and now also true for OMP; `~/.bb/bb.db` is mode 0644, so tightening it to 0600 is worth a follow-up. (2) Two OMP brokers from the pre-rebuild app instance survived that app's quit (PIDs 64128, 69106, reparented to PID 1) — a pre-existing broker-lifecycle gap, unrelated to this change. (3) On this machine the OMP *provider* executes the PATH-resolved `~/.local/bin/omp` shim (which execs `omp-real`), because `.local/bin` precedes the Arc runtime directory on the inherited PATH; a machine without a global `omp` resolves the managed runtime instead. (4) The CLI gap recorded in ADR-069.
