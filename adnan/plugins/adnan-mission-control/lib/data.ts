@@ -12,6 +12,9 @@ import type {
   ArcOmpProvider,
   ArcOpenAiLoginChallenge,
   ArcOpenAiLoginPollResult,
+  ArcRuntimeRollbackOutcome,
+  ArcRuntimeUpdateDiscovery,
+  ArcRuntimeUpdateOutcome,
   ArcStatus,
   ArcUsageSnapshot,
 } from "./arc-types";
@@ -359,6 +362,9 @@ export function useArcAgents(): {
   refresh: () => void;
   prepare: (id: string) => Promise<ArcAgentStatus>;
   repair: (id: string) => Promise<ArcAgentStatus>;
+  checkForUpdate: (id: string) => Promise<ArcRuntimeUpdateDiscovery>;
+  update: (id: string) => Promise<{ outcome: ArcRuntimeUpdateOutcome; agent: ArcAgentStatus }>;
+  rollback: (id: string) => Promise<{ outcome: ArcRuntimeRollbackOutcome; agent: ArcAgentStatus }>;
 } {
   const rpc = useRpc<typeof rpcContract>();
   const [agents, setAgents] = useState<ArcAgentStatus[] | null>(null);
@@ -408,7 +414,41 @@ export function useArcAgents(): {
     [rpc, load],
   );
 
-  return { agents, isLoading, error, refresh: load, prepare, repair };
+  const checkForUpdate = useCallback(
+    async (id: string) => {
+      const result = (await rpc.call("arc_agents_check_for_update", { id })) as {
+        discovery: ArcRuntimeUpdateDiscovery;
+      };
+      return result.discovery;
+    },
+    [rpc],
+  );
+
+  const update = useCallback(
+    async (id: string) => {
+      const result = (await rpc.call("arc_agents_update", { id })) as {
+        outcome: ArcRuntimeUpdateOutcome;
+        agent: ArcAgentStatus;
+      };
+      load();
+      return result;
+    },
+    [rpc, load],
+  );
+
+  const rollback = useCallback(
+    async (id: string) => {
+      const result = (await rpc.call("arc_agents_rollback", { id })) as {
+        outcome: ArcRuntimeRollbackOutcome;
+        agent: ArcAgentStatus;
+      };
+      load();
+      return result;
+    },
+    [rpc, load],
+  );
+
+  return { agents, isLoading, error, refresh: load, prepare, repair, checkForUpdate, update, rollback };
 }
 
 export function useArcAccounts(): {

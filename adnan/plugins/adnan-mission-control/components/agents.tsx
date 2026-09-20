@@ -5,7 +5,12 @@
 // tree, which moved to components/threads.tsx.
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { ArcAgentStatus, ArcRuntimeSource } from "@/lib/arc-types";
+import type {
+  ArcAgentStatus,
+  ArcRuntimeRollbackOutcome,
+  ArcRuntimeSource,
+  ArcRuntimeUpdateOutcome,
+} from "@/lib/arc-types";
 import { useArcAgents } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -200,20 +205,67 @@ function ClaudePrepareDialog({
   );
 }
 
+// Minimal, unpolished messaging for the update/rollback outcomes — the
+// polished Updates UI (progress steps, version history) is Phase 23; this
+// just makes the already-working backend reachable without curl.
+function updateOutcomeMessage(outcome: ArcRuntimeUpdateOutcome): { text: string; isError: boolean } {
+  switch (outcome.kind) {
+    case "updated":
+      return { text: outcome.detail, isError: false };
+    case "up-to-date":
+      return { text: `Already up to date${outcome.version !== null ? ` (${outcome.version})` : ""}`, isError: false };
+    case "no-trusted-update":
+      return { text: `Couldn't check for updates: ${outcome.reason}`, isError: true };
+    case "staging-failed":
+      return { text: `Download/verification failed: ${outcome.reason}`, isError: true };
+    case "pre-activation-health-failed":
+      return { text: `Candidate failed a health check before activating: ${outcome.reason}`, isError: true };
+    case "activation-failed":
+      return { text: `Activation failed: ${outcome.reason}`, isError: true };
+    case "post-activation-unhealthy-rolled-back":
+      return {
+        text: `${outcome.to} failed a health check after activating and was rolled back from ${outcome.from} automatically.`,
+        isError: true,
+      };
+    case "post-activation-unhealthy-no-rollback-target":
+      return {
+        text: `${outcome.version} failed a health check after activating; no known-good version was available to roll back to.`,
+        isError: true,
+      };
+  }
+}
+
+function rollbackOutcomeMessage(outcome: ArcRuntimeRollbackOutcome): { text: string; isError: boolean } {
+  switch (outcome.kind) {
+    case "rolled-back":
+      return { text: `Rolled back from ${outcome.from} to ${outcome.to}`, isError: false };
+    case "unavailable":
+      return { text: `Rollback unavailable: ${outcome.reason}`, isError: true };
+    case "failed":
+      return { text: `Rollback failed: ${outcome.reason}`, isError: true };
+  }
+}
+
 function AgentCard({
   agent,
   prepare,
   repair,
+  update,
+  rollback,
 }: {
   agent: ArcAgentStatus;
   prepare: (id: string) => Promise<ArcAgentStatus>;
   repair: (id: string) => Promise<ArcAgentStatus>;
+  update: (id: string) => Promise<{ outcome: ArcRuntimeUpdateOutcome; agent: ArcAgentStatus }>;
+  rollback: (id: string) => Promise<{ outcome: ArcRuntimeRollbackOutcome; agent: ArcAgentStatus }>;
 }) {
-  const [busy, setBusy] = useState<"prepare" | "repair" | null>(null);
+  const [busy, setBusy] = useState<"prepare" | "repair" | "update" | "rollback" | null>(null);
   const [claudeOpen, setClaudeOpen] = useState(false);
 
   const hasPrepare = agent.actions.some((action) => action.id === "prepare" && action.available);
   const hasRepair = agent.actions.some((action) => action.id === "repair" && action.available);
+  const hasUpdate = agent.actions.some((action) => action.id === "update" && action.available);
+  const hasRollback = agent.actions.some((action) => action.id === "rollback" && action.available);
   const compatibility = compatibilityLine(agent);
   const source = sourceLabel(agent.runtime.source);
 
@@ -232,6 +284,34 @@ function AgentCard({
     setBusy("repair");
     try {
       await repair(agent.id);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function runUpdate() {
+    setBusy("update");
+    try {
+      const { outcome } = await update(agent.id);
+      const { text, isError } = updateOutcomeMessage(outcome);
+      if (isError) toast.error(text);
+      else toast.success(text);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function runRollback() {
+    setBusy("rollback");
+    try {
+      const { outcome } = await rollback(agent.id);
+      const { text, isError } = rollbackOutcomeMessage(outcome);
+      if (isError) toast.error(text);
+      else toast.success(text);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
@@ -260,7 +340,7 @@ function AgentCard({
         {source !== null ? <span className="text-[11px] text-muted-foreground/70">{source}</span> : null}
       </div>
 
-      {hasPrepare || hasRepair ? (
+      {hasPrepare || hasRepair || hasUpdate || hasRollback ? (
         <div className="mt-1 flex flex-wrap gap-2">
           {hasPrepare && agent.id === "claude-code" ? (
             <Button size="sm" onClick={() => setClaudeOpen(true)} disabled={busy !== null}>
@@ -276,6 +356,16 @@ function AgentCard({
               {busy === "repair" ? "Repairing…" : "Repair"}
             </Button>
           ) : null}
+          {hasUpdate ? (
+            <Button variant="outline" size="sm" onClick={() => void runUpdate()} disabled={busy !== null}>
+              {busy === "update" ? "Updating…" : "Update"}
+            </Button>
+          ) : null}
+          {hasRollback ? (
+            <Button variant="outline" size="sm" onClick={() => void runRollback()} disabled={busy !== null}>
+              {busy === "rollback" ? "Rolling back…" : "Roll Back"}
+            </Button>
+          ) : null}
         </div>
       ) : null}
 
@@ -287,7 +377,7 @@ function AgentCard({
 }
 
 export function AgentsPage() {
-  const { agents, isLoading, error, prepare, repair } = useArcAgents();
+  const { agents, isLoading, error, prepare, repair, update, rollback } = useArcAgents();
 
   if (error !== null && agents === null) {
     return (
@@ -308,7 +398,7 @@ export function AgentsPage() {
     <div className="mx-auto w-full max-w-3xl space-y-3 p-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {agents.map((agent) => (
-          <AgentCard key={agent.id} agent={agent} prepare={prepare} repair={repair} />
+          <AgentCard key={agent.id} agent={agent} prepare={prepare} repair={repair} update={update} rollback={rollback} />
         ))}
       </div>
     </div>

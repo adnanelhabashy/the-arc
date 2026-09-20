@@ -69,7 +69,46 @@ export interface ArcAgentRuntimeStatus {
   compatibility: ArcRuntimeCompatibility | null;
   compatibilityReason: string | null;
   source: ArcRuntimeSource | null;
+  knownGoodVersion: string | null;
 }
+
+export interface ArcRuntimeReleaseSummary {
+  version: string;
+  platform: string;
+  releaseTag: string;
+  assetName: string;
+  downloadUrl: string;
+  sha256: string;
+  license: string;
+}
+
+export interface ArcRuntimeUpdateDiscovery {
+  runtimeId: ArcAgentId;
+  installedVersions: string[];
+  activeVersion: string | null;
+  knownGoodVersion: string | null;
+  latestTrusted: ArcRuntimeReleaseSummary | null;
+  latestTrustedCompatibility: ArcRuntimeCompatibility | null;
+  latestTrustedCompatibilityReason: string | null;
+  updateAvailable: boolean;
+  rollbackAvailable: boolean;
+  discoveryError: string | null;
+}
+
+export type ArcRuntimeUpdateOutcome =
+  | { kind: "updated"; version: string; detail: string }
+  | { kind: "up-to-date"; version: string | null }
+  | { kind: "no-trusted-update"; reason: string }
+  | { kind: "staging-failed"; reason: string }
+  | { kind: "pre-activation-health-failed"; reason: string }
+  | { kind: "activation-failed"; reason: string }
+  | { kind: "post-activation-unhealthy-rolled-back"; from: string; to: string; reason: string }
+  | { kind: "post-activation-unhealthy-no-rollback-target"; version: string; reason: string };
+
+export type ArcRuntimeRollbackOutcome =
+  | { kind: "rolled-back"; from: string; to: string }
+  | { kind: "unavailable"; reason: string }
+  | { kind: "failed"; reason: string };
 
 export interface ArcAgentStatus {
   id: ArcAgentId;

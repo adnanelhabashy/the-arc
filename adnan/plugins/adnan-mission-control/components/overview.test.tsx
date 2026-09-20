@@ -33,7 +33,7 @@ function agent(overallState: ArcAgentStatus["overallState"]): ArcAgentStatus {
     displayName: "Codex",
     runtimeId: "codex",
     providerId: "codex",
-    runtime: { state: "ready", version: "18.2.6", compatibility: "supported", compatibilityReason: null, source: "arc-bundled" },
+    runtime: { state: "ready", version: "18.2.6", compatibility: "supported", compatibilityReason: null, source: "arc-bundled", knownGoodVersion: "18.2.6" },
     provider: { state: "ready" },
     account: { state: "connected" },
     overallState,

@@ -37,6 +37,7 @@ function agent(
       compatibility: runtimeState === "unsupported" ? "blocked" : runtimeState === "ready-with-warning" ? "untested" : "supported",
       compatibilityReason: null,
       source: "arc-bundled",
+      knownGoodVersion: "18.2.6",
     },
     provider: { state: providerState },
     account: { state: accountState },
@@ -46,7 +47,10 @@ function agent(
         ? [{ id: "prepare", available: true }]
         : runtimeState === "broken"
           ? [{ id: "repair", available: true }]
-          : [],
+          : [
+              { id: "update", available: true },
+              { id: "rollback", available: false },
+            ],
     observedAt: 1,
   };
 }
@@ -59,6 +63,8 @@ function renderWith(agents: ArcAgentStatus[]) {
     refresh: vi.fn(),
     prepare: vi.fn().mockResolvedValue(agents[0]),
     repair: vi.fn().mockResolvedValue(agents[0]),
+    update: vi.fn().mockResolvedValue({ outcome: { kind: "up-to-date", version: "18.2.6" }, agent: agents[0] }),
+    rollback: vi.fn().mockResolvedValue({ outcome: { kind: "unavailable", reason: "no target" }, agent: agents[0] }),
   });
   render(<AgentsPage />);
 }
@@ -120,6 +126,18 @@ describe("AgentsPage", () => {
   it("shows a Repair button for a broken agent", () => {
     renderWith([agent("claude-code", "Claude Code", "broken", "connected", "ready", "broken")]);
     expect(screen.getByText("Repair")).toBeTruthy();
+  });
+
+  it("shows Update but not Roll Back for a ready agent with no rollback target", () => {
+    renderWith([agent("codex", "Codex")]);
+    expect(screen.getByText("Update")).toBeTruthy();
+    expect(screen.queryByText("Roll Back")).toBeNull();
+  });
+
+  it("shows neither Update nor Roll Back for a not-prepared agent", () => {
+    renderWith([agent("omp", "OMP", "not-prepared", "not-connected", "ready", "not-prepared")]);
+    expect(screen.queryByText("Update")).toBeNull();
+    expect(screen.queryByText("Roll Back")).toBeNull();
   });
 
   it("never renders green when the provider state is unknown", () => {
