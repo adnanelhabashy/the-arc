@@ -1,8 +1,15 @@
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
+import {
+  cleanAbandonedArcRuntimeStaging,
+  createArcRuntimePaths,
+  type ArcRuntimeUpdateDiscovery,
+} from "@bb/arc-domains/arc-runtime";
 import { reapStaleOmpBroker } from "./broker-ownership.js";
 import { arcRpcContract } from "./contract.js";
+import type { arcRuntimeUpdateDiscoverySchema } from "./contract.js";
+import type { z } from "zod";
 import {
   ArcUnavailableError,
   createArcServiceHost,
@@ -14,6 +21,39 @@ import {
   resolveArcOmpExecutionEnv,
 } from "./omp-execution-env.js";
 import { ARC_CHANGED_CHANNEL, type ArcChangedKind } from "./realtime.js";
+
+// Only the fields the renderer needs to display are forwarded — never
+// runtimeId/artifactKind/expectedExecutableVersion/executableSha256, and
+// never anything the renderer could feed back to control a download (the
+// wire contract's release summary is strict, so an extra field would fail
+// to serialize rather than leak silently).
+function toArcRuntimeUpdateDiscoverySummary(
+  discovery: ArcRuntimeUpdateDiscovery,
+): z.infer<typeof arcRuntimeUpdateDiscoverySchema> {
+  return {
+    runtimeId: discovery.runtimeId,
+    installedVersions: discovery.installedVersions,
+    activeVersion: discovery.activeVersion,
+    knownGoodVersion: discovery.knownGoodVersion,
+    latestTrusted:
+      discovery.latestTrusted === null
+        ? null
+        : {
+            version: discovery.latestTrusted.version,
+            platform: discovery.latestTrusted.platform,
+            releaseTag: discovery.latestTrusted.releaseTag,
+            assetName: discovery.latestTrusted.assetName,
+            downloadUrl: discovery.latestTrusted.downloadUrl,
+            sha256: discovery.latestTrusted.sha256,
+            license: discovery.latestTrusted.license,
+          },
+    latestTrustedCompatibility: discovery.latestTrustedCompatibility,
+    latestTrustedCompatibilityReason: discovery.latestTrustedCompatibilityReason,
+    updateAvailable: discovery.updateAvailable,
+    rollbackAvailable: discovery.rollbackAvailable,
+    discoveryError: discovery.discoveryError,
+  };
+}
 
 // Arc Core: the fixed renderer-facing boundary over the Arc domain services
 // (agents, accounts, usage). The renderer can only invoke these fixed,
@@ -60,6 +100,28 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
     }
   };
   void reapAtStartup().catch(() => undefined);
+
+  // A staging directory abandoned by a crash mid-download or
+  // mid-verification is never the source of truth for anything active
+  // (plan 2.7, 2.22); sweeping it at every startup is always safe.
+  const cleanStagingAtStartup = async (): Promise<void> => {
+    if (config === null) return;
+    const runtimePaths = createArcRuntimePaths({
+      userDataPath: config.runtimeRoot,
+    });
+    const result = await cleanAbandonedArcRuntimeStaging(runtimePaths);
+    if (result.removed.length > 0) {
+      bb.log.info(
+        `arc-core removed ${String(result.removed.length)} abandoned runtime staging director${result.removed.length === 1 ? "y" : "ies"}.`,
+      );
+    }
+    if (result.failed.length > 0) {
+      bb.log.warn(
+        `arc-core could not remove ${String(result.failed.length)} runtime staging director${result.failed.length === 1 ? "y" : "ies"}.`,
+      );
+    }
+  };
+  void cleanStagingAtStartup().catch(() => undefined);
 
   bb.onDispose(async () => {
     if (host === null) return;
@@ -146,6 +208,24 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
       publish("agents");
       publish("accounts");
       return { agent };
+    },
+    "arc.agents.checkForUpdate": async ({ id }) => {
+      const discovery = await requireHost().agents.checkForUpdate(id);
+      return { discovery: toArcRuntimeUpdateDiscoverySummary(discovery) };
+    },
+    "arc.agents.update": async ({ id }) => {
+      const { outcome, agent } = await requireHost().agents.updateAgent(id);
+      if (id === "omp") await requireHost().ompAccounts.shutdown();
+      publish("agents");
+      publish("accounts");
+      return { outcome, agent };
+    },
+    "arc.agents.rollback": async ({ id }) => {
+      const { outcome, agent } = await requireHost().agents.rollbackAgent(id);
+      if (id === "omp") await requireHost().ompAccounts.shutdown();
+      publish("agents");
+      publish("accounts");
+      return { outcome, agent };
     },
     "arc.accounts.list": async () => {
       const detailed = await requireHost().accounts.listArcAccountsDetailed();

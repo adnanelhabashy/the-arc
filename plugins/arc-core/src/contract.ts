@@ -55,20 +55,21 @@ export const arcAgentActionSchema = z
   })
   .strict();
 
+export const arcRuntimeSourceSchema = z.enum([
+  "arc-bundled",
+  "arc-managed-download",
+  "official-managed-install",
+  "external-override",
+]);
+
 export const arcAgentRuntimeStatusSchema = z
   .object({
     state: arcRuntimeStateSchema,
     version: z.string().nullable(),
     compatibility: z.enum(["supported", "untested", "blocked"]).nullable(),
     compatibilityReason: z.string().nullable(),
-    source: z
-      .enum([
-        "arc-bundled",
-        "arc-managed-download",
-        "official-managed-install",
-        "external-override",
-      ])
-      .nullable(),
+    source: arcRuntimeSourceSchema.nullable(),
+    knownGoodVersion: z.string().nullable(),
   })
   .strict();
 
@@ -313,6 +314,73 @@ export const arcStatusSchema = z
   })
   .strict();
 
+// Safe, backend-owned provenance metadata for a trusted candidate release
+// (plan 2.26). The renderer can see this — none of it is secret — but never
+// supplies it back: arc.agents.update takes no release argument at all, it
+// re-discovers and re-verifies the trusted source itself.
+export const arcRuntimeReleaseSummarySchema = z
+  .object({
+    version: z.string(),
+    platform: z.string(),
+    releaseTag: z.string(),
+    assetName: z.string(),
+    downloadUrl: z.string(),
+    sha256: z.string(),
+    license: z.string(),
+  })
+  .strict();
+
+export const arcRuntimeUpdateDiscoverySchema = z
+  .object({
+    runtimeId: arcAgentIdSchema,
+    installedVersions: z.array(z.string()),
+    activeVersion: z.string().nullable(),
+    knownGoodVersion: z.string().nullable(),
+    latestTrusted: arcRuntimeReleaseSummarySchema.nullable(),
+    latestTrustedCompatibility: z
+      .enum(["supported", "untested", "blocked"])
+      .nullable(),
+    latestTrustedCompatibilityReason: z.string().nullable(),
+    updateAvailable: z.boolean(),
+    rollbackAvailable: z.boolean(),
+    discoveryError: z.string().nullable(),
+  })
+  .strict();
+
+export const arcRuntimeUpdateOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("updated"), version: z.string(), detail: z.string() }).strict(),
+  z.object({ kind: z.literal("up-to-date"), version: z.string().nullable() }).strict(),
+  z.object({ kind: z.literal("no-trusted-update"), reason: z.string() }).strict(),
+  z.object({ kind: z.literal("staging-failed"), reason: z.string() }).strict(),
+  z
+    .object({ kind: z.literal("pre-activation-health-failed"), reason: z.string() })
+    .strict(),
+  z.object({ kind: z.literal("activation-failed"), reason: z.string() }).strict(),
+  z
+    .object({
+      kind: z.literal("post-activation-unhealthy-rolled-back"),
+      from: z.string(),
+      to: z.string(),
+      reason: z.string(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("post-activation-unhealthy-no-rollback-target"),
+      version: z.string(),
+      reason: z.string(),
+    })
+    .strict(),
+]);
+
+export const arcRuntimeRollbackOutcomeSchema = z.discriminatedUnion("kind", [
+  z
+    .object({ kind: z.literal("rolled-back"), from: z.string(), to: z.string() })
+    .strict(),
+  z.object({ kind: z.literal("unavailable"), reason: z.string() }).strict(),
+  z.object({ kind: z.literal("failed"), reason: z.string() }).strict(),
+]);
+
 export const arcRpcContract = defineRpcContract({
   "arc.status": {
     input: z.null(),
@@ -333,6 +401,30 @@ export const arcRpcContract = defineRpcContract({
   "arc.agents.repair": {
     input: z.object({ id: arcAgentIdSchema }).strict(),
     output: z.object({ agent: arcAgentStatusSchema }).strict(),
+  },
+  "arc.agents.checkForUpdate": {
+    input: z.object({ id: arcAgentIdSchema }).strict(),
+    output: z
+      .object({ discovery: arcRuntimeUpdateDiscoverySchema })
+      .strict(),
+  },
+  "arc.agents.update": {
+    input: z.object({ id: arcAgentIdSchema }).strict(),
+    output: z
+      .object({
+        outcome: arcRuntimeUpdateOutcomeSchema,
+        agent: arcAgentStatusSchema,
+      })
+      .strict(),
+  },
+  "arc.agents.rollback": {
+    input: z.object({ id: arcAgentIdSchema }).strict(),
+    output: z
+      .object({
+        outcome: arcRuntimeRollbackOutcomeSchema,
+        agent: arcAgentStatusSchema,
+      })
+      .strict(),
   },
   "arc.accounts.list": {
     input: z.null(),

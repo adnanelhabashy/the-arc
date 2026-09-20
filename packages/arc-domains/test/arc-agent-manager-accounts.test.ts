@@ -89,6 +89,7 @@ async function activateRuntime(
   manifest.runtimes[runtimeId] = {
     activeVersion: version,
     previousVersion: null,
+    knownGoodVersion: version,
     source:
       runtimeId === "claude-code" ? "official-managed-install" : "arc-bundled",
     digest: "0".repeat(64),

@@ -64,6 +64,11 @@ export interface ArcAgentRuntimeStatus {
   compatibility: ArcRuntimeCompatibility | null;
   compatibilityReason: string | null;
   source: ArcRuntimeSource | null;
+  // Distinct from version (ADR-076): the version last proven healthy after
+  // activation, and therefore the explicit rollback target. Equal to
+  // version once a just-activated update promotes; may differ from version
+  // for a short window right after activation, before promotion runs.
+  knownGoodVersion: string | null;
 }
 
 export interface ArcAgentStatus {
@@ -84,6 +89,8 @@ export type ArcAgentErrorCode =
   | "unsupported-agent"
   | "runtime-prepare-failed"
   | "runtime-repair-failed"
+  | "runtime-update-failed"
+  | "runtime-rollback-failed"
   | "provider-unavailable";
 
 export class ArcAgentError extends Error {

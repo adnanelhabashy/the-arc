@@ -378,6 +378,7 @@ describe("ArcAgentManager — repair", () => {
     manifest.runtimes.codex = {
       activeVersion: "0.156.0",
       previousVersion: null,
+      knownGoodVersion: "0.156.0",
       source: "arc-managed-download",
       digest: "0".repeat(64),
       installedAt: 1,

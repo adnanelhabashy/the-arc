@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { z } from "zod";
 import type {
   ArcAccount,
   ArcAccountSourceStatus,
@@ -7,8 +8,10 @@ import type {
   ArcOmpLoginChallenge,
   ArcOmpLoginPoll,
   ArcOmpProvider,
+  ArcRuntimeUpdateOutcome,
   ArcUsageSnapshot,
 } from "@bb/arc-domains";
+import type { RollbackArcRuntimeVersionResult } from "@bb/arc-domains/arc-runtime";
 import {
   arcAccountSchema,
   arcAccountSourceStatusSchema,
@@ -17,6 +20,9 @@ import {
   arcOmpLoginChallengeSchema,
   arcOmpLoginPollSchema,
   arcOmpProviderSchema,
+  arcRuntimeRollbackOutcomeSchema,
+  arcRuntimeUpdateDiscoverySchema,
+  arcRuntimeUpdateOutcomeSchema,
   arcUsageSnapshotSchema,
 } from "../src/contract.js";
 
@@ -33,6 +39,7 @@ const agentStatus: ArcAgentStatus = {
     compatibility: "untested",
     compatibilityReason: "version not covered by the compatibility policy",
     source: "arc-bundled",
+    knownGoodVersion: "18.2.6",
   },
   provider: { state: "unknown" },
   account: { state: "connected" },
@@ -188,6 +195,59 @@ const currentUsage: ArcCurrentAgentUsage = {
   activeAccountUnknown: true,
 };
 
+// The domain type's latestTrusted is a full ArcRuntimeRelease; the wire
+// schema deliberately narrows it (server.ts's toArcRuntimeUpdateDiscoverySummary
+// maps runtimeId/artifactKind/expectedExecutableVersion/executableSha256
+// away before it ever reaches this boundary), so this fixture matches what
+// actually crosses the wire, not the raw domain shape.
+const updateDiscovery: z.infer<typeof arcRuntimeUpdateDiscoverySchema> = {
+  runtimeId: "codex",
+  installedVersions: ["0.155.1", "0.156.0"],
+  activeVersion: "0.155.1",
+  knownGoodVersion: "0.155.1",
+  latestTrusted: {
+    version: "0.156.0",
+    platform: "darwin-arm64",
+    releaseTag: "rust-v0.156.0",
+    assetName: "codex-aarch64-apple-darwin.tar.gz",
+    downloadUrl:
+      "https://github.com/openai/codex/releases/download/rust-v0.156.0/codex-aarch64-apple-darwin.tar.gz",
+    sha256: "b".repeat(64),
+    license: "Apache-2.0",
+  },
+  latestTrustedCompatibility: "untested",
+  latestTrustedCompatibilityReason: "version is newer than the tested maximum",
+  updateAvailable: true,
+  rollbackAvailable: false,
+  discoveryError: null,
+};
+
+const updateOutcomes: ArcRuntimeUpdateOutcome[] = [
+  { kind: "updated", version: "0.156.0", detail: "codex updated to 0.156.0" },
+  { kind: "up-to-date", version: "0.155.1" },
+  { kind: "no-trusted-update", reason: "network unreachable" },
+  { kind: "staging-failed", reason: "digest mismatch" },
+  { kind: "pre-activation-health-failed", reason: "doctor did not complete" },
+  { kind: "activation-failed", reason: "staged executable missing" },
+  {
+    kind: "post-activation-unhealthy-rolled-back",
+    from: "0.156.0",
+    to: "0.155.1",
+    reason: "app-server did not start",
+  },
+  {
+    kind: "post-activation-unhealthy-no-rollback-target",
+    version: "0.156.0",
+    reason: "app-server did not start",
+  },
+];
+
+const rollbackOutcomes: RollbackArcRuntimeVersionResult[] = [
+  { kind: "rolled-back", from: "0.156.0", to: "0.155.1" },
+  { kind: "unavailable", reason: "no rollback target recorded" },
+  { kind: "failed", reason: "rollback produced no result" },
+];
+
 describe("arc wire contract", () => {
   it("accepts full-fidelity domain objects without drift", () => {
     expect(() => arcAgentStatusSchema.parse(agentStatus)).not.toThrow();
@@ -198,6 +258,17 @@ describe("arc wire contract", () => {
     expect(() => arcOmpLoginPollSchema.parse(ompPoll)).not.toThrow();
     expect(() => arcUsageSnapshotSchema.parse(snapshot)).not.toThrow();
     expect(() => arcCurrentAgentUsageSchema.parse(currentUsage)).not.toThrow();
+    expect(() =>
+      arcRuntimeUpdateDiscoverySchema.parse(updateDiscovery),
+    ).not.toThrow();
+    for (const outcome of updateOutcomes) {
+      expect(() => arcRuntimeUpdateOutcomeSchema.parse(outcome)).not.toThrow();
+    }
+    for (const outcome of rollbackOutcomes) {
+      expect(() =>
+        arcRuntimeRollbackOutcomeSchema.parse(outcome),
+      ).not.toThrow();
+    }
   });
 
   it("rejects unknown fields so secrets cannot ride along", () => {
@@ -206,6 +277,18 @@ describe("arc wire contract", () => {
     ).toThrow();
     expect(() =>
       arcAgentStatusSchema.parse({ ...agentStatus, brokerToken: "t" }),
+    ).toThrow();
+    expect(() =>
+      arcRuntimeUpdateDiscoverySchema.parse({
+        ...updateDiscovery,
+        latestTrusted: {
+          ...updateDiscovery.latestTrusted,
+          runtimeId: "codex",
+          artifactKind: "archive",
+          executableSha256: "b".repeat(64),
+          expectedExecutableVersion: "0.156.0",
+        },
+      }),
     ).toThrow();
     expect(() =>
       arcUsageSnapshotSchema.parse({

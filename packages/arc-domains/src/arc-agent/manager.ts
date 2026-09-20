@@ -1,5 +1,7 @@
+import { rollbackArcRuntimeVersion } from "../arc-runtime/activation.js";
 import { prepareArcManagedRuntimes } from "../arc-runtime/bootstrap.js";
 import {
+  defaultVerifyCodeSignature,
   prepareManagedClaudeCode,
   type PrepareManagedClaudeCodeArgs,
 } from "../arc-runtime/claude-setup.js";
@@ -16,6 +18,15 @@ import {
   type ArcRuntimeRelease,
 } from "../arc-runtime/releases.js";
 import type { ArcRuntimeId } from "../arc-runtime/types.js";
+import {
+  discoverArcRuntimeUpdate,
+  type FetchLatestArcRuntimeRelease,
+  type ArcRuntimeUpdateDiscovery,
+} from "../arc-runtime/update-discovery.js";
+import {
+  updateArcRuntime,
+  type ArcRuntimeUpdateOutcome,
+} from "../arc-runtime/update.js";
 import {
   ARC_AGENT_CATALOG,
   getArcAgentDescriptor,
@@ -76,6 +87,7 @@ export interface ArcAgentManagerArgs {
   download?: PrepareManagedClaudeCodeArgs["download"];
   runDoctor?: PrepareManagedClaudeCodeArgs["runDoctor"];
   verifyCodeSignature?: PrepareManagedClaudeCodeArgs["verifyCodeSignature"];
+  fetchLatestRelease?: FetchLatestArcRuntimeRelease;
 }
 
 export class ArcAgentManager {
@@ -93,6 +105,7 @@ export class ArcAgentManager {
   private readonly download: PrepareManagedClaudeCodeArgs["download"];
   private readonly runDoctor: PrepareManagedClaudeCodeArgs["runDoctor"];
   private readonly verifyCodeSignature: PrepareManagedClaudeCodeArgs["verifyCodeSignature"];
+  private readonly fetchLatestRelease: FetchLatestArcRuntimeRelease | undefined;
   private readonly inFlight = new Map<ArcAgentId, Promise<void>>();
 
   constructor(args: ArcAgentManagerArgs) {
@@ -110,6 +123,7 @@ export class ArcAgentManager {
     this.download = args.download;
     this.runDoctor = args.runDoctor;
     this.verifyCodeSignature = args.verifyCodeSignature;
+    this.fetchLatestRelease = args.fetchLatestRelease;
   }
 
   // Side-effect-free: never downloads, repairs, or writes. Status reads may
@@ -152,7 +166,7 @@ export class ArcAgentManager {
       provider: { state: providerState },
       account: { state: accountState },
       overallState,
-      actions: resolveActions(descriptor.id, runtime.state, accountState),
+      actions: resolveActions(descriptor.id, runtime, accountState),
       observedAt: this.now(),
     };
   }
@@ -218,6 +232,120 @@ export class ArcAgentManager {
       }
     });
     return this.getArcAgent(id);
+  }
+
+  // Side-effect-free (plan 2.4): never downloads, stages, or writes.
+  async checkForUpdate(id: ArcAgentId): Promise<ArcRuntimeUpdateDiscovery> {
+    const descriptor = getArcAgentDescriptor(id);
+    if (descriptor === undefined) {
+      throw new ArcAgentError("unsupported-agent", `unknown Arc agent "${id}"`);
+    }
+    const manifestResult = await readArcRuntimeManifest({
+      createdByArcVersion: this.createdByArcVersion,
+      manifestPath: this.runtimePaths.manifestPath,
+      platform: this.platform,
+    });
+    const manifest =
+      manifestResult.kind === "unsupported-version"
+        ? null
+        : manifestResult.manifest;
+    if (manifest === null) {
+      throw new ArcAgentError(
+        "runtime-update-failed",
+        `manifest declares unsupported schema version; cannot check for updates`,
+      );
+    }
+    return discoverArcRuntimeUpdate({
+      runtimeId: descriptor.runtimeId,
+      manifest,
+      runtimePaths: this.runtimePaths,
+      fetchLatestRelease: this.fetchLatestRelease,
+    });
+  }
+
+  // The full discover→stage→verify→activate→observe→promote-or-rollback
+  // lifecycle (plan 2.30), run under the same per-agent exclusive lock as
+  // prepare/repair so it can never race a concurrent operation on the same
+  // runtime. Never throws for an expected outcome (up to date, no trusted
+  // update, staging/health failure, automatic rollback) — those are real,
+  // typed results the caller inspects, not exceptions.
+  async updateAgent(
+    id: ArcAgentId,
+  ): Promise<{ outcome: ArcRuntimeUpdateOutcome; agent: ArcAgentStatus }> {
+    const descriptor = getArcAgentDescriptor(id);
+    if (descriptor === undefined) {
+      throw new ArcAgentError("unsupported-agent", `unknown Arc agent "${id}"`);
+    }
+    let outcome: ArcRuntimeUpdateOutcome | null = null;
+    await this.runExclusive(id, async () => {
+      const manifestResult = await readArcRuntimeManifest({
+        createdByArcVersion: this.createdByArcVersion,
+        manifestPath: this.runtimePaths.manifestPath,
+        platform: this.platform,
+      });
+      if (manifestResult.kind === "unsupported-version") {
+        outcome = {
+          kind: "no-trusted-update",
+          reason: "manifest declares unsupported schema version",
+        };
+        return;
+      }
+      outcome = await updateArcRuntime({
+        runtimeId: descriptor.runtimeId,
+        manifest: manifestResult.manifest,
+        createdByArcVersion: this.createdByArcVersion,
+        platform: this.platform,
+        runtimePaths: this.runtimePaths,
+        fetchLatestRelease: this.fetchLatestRelease,
+        download: this.download,
+        now: this.now,
+        verifyExecutable:
+          id === "claude-code" ? defaultVerifyCodeSignature : undefined,
+      });
+    });
+    const agent = await this.getArcAgent(id);
+    return {
+      outcome: outcome ?? {
+        kind: "no-trusted-update",
+        reason: "update produced no result",
+      },
+      agent,
+    };
+  }
+
+  // Reactivates the recorded knownGoodVersion without redownloading (plan
+  // 2.14). A missing rollback target or a deleted known-good binary is a
+  // distinct, reported outcome — never a silent no-op and never a fresh
+  // install of anything.
+  async rollbackAgent(
+    id: ArcAgentId,
+  ): Promise<{
+    outcome: Awaited<ReturnType<typeof rollbackArcRuntimeVersion>>;
+    agent: ArcAgentStatus;
+  }> {
+    const descriptor = getArcAgentDescriptor(id);
+    if (descriptor === undefined) {
+      throw new ArcAgentError("unsupported-agent", `unknown Arc agent "${id}"`);
+    }
+    let outcome: Awaited<ReturnType<typeof rollbackArcRuntimeVersion>> | null =
+      null;
+    await this.runExclusive(id, async () => {
+      outcome = await rollbackArcRuntimeVersion({
+        runtimeId: descriptor.runtimeId,
+        createdByArcVersion: this.createdByArcVersion,
+        platform: this.platform,
+        runtimePaths: this.runtimePaths,
+        now: this.now,
+      });
+    });
+    const agent = await this.getArcAgent(id);
+    return {
+      outcome: outcome ?? {
+        kind: "failed",
+        reason: "rollback produced no result",
+      },
+      agent,
+    };
   }
 
   // Single-flight per agent: a duplicate prepare/repair for the same agent
@@ -296,6 +424,7 @@ export class ArcAgentManager {
         compatibility: null,
         compatibilityReason: `manifest declares unsupported schema version ${manifestResult.schemaVersion}`,
         source: null,
+        knownGoodVersion: null,
       };
     }
     if (manifestResult.kind === "invalid") {
@@ -305,6 +434,7 @@ export class ArcAgentManager {
         compatibility: null,
         compatibilityReason: manifestResult.problem,
         source: null,
+        knownGoodVersion: null,
       };
     }
 
@@ -316,6 +446,7 @@ export class ArcAgentManager {
         compatibility: null,
         compatibilityReason: null,
         source: null,
+        knownGoodVersion: entry.knownGoodVersion,
       };
     }
 
@@ -349,6 +480,7 @@ export class ArcAgentManager {
       compatibility: evaluation.compatibility,
       compatibilityReason: evaluation.reason,
       source: entry.source,
+      knownGoodVersion: entry.knownGoodVersion,
     };
   }
 }
@@ -382,13 +514,22 @@ function resolveOverallState(
 
 function resolveActions(
   agentId: ArcAgentId,
-  runtimeState: ArcAgentRuntimeState,
+  runtime: ArcAgentRuntimeStatus,
   accountState: ArcAgentAccountState,
 ): ArcAgentAction[] {
+  const runtimeState = runtime.state;
   const prepareAvailable = runtimeState === "not-prepared";
   const repairAvailable = runtimeState === "broken";
   const runtimeReady =
     runtimeState === "ready" || runtimeState === "ready-with-warning";
+  const updateAvailable =
+    runtimeState === "ready" ||
+    runtimeState === "ready-with-warning" ||
+    runtimeState === "unsupported" ||
+    runtimeState === "broken";
+  const rollbackAvailable =
+    runtime.knownGoodVersion !== null &&
+    runtime.knownGoodVersion !== runtime.version;
   // All three Arc agents have account backends after Phase 8 (pool for
   // Codex/Claude Code, OMP's own providers for OMP).
   const supportsAccount = true;
@@ -441,13 +582,27 @@ function resolveActions(
     },
     {
       id: "update",
-      available: false,
-      reason: "Runtime updates arrive in a later Arc release",
+      available: updateAvailable,
+      ...(updateAvailable
+        ? {}
+        : {
+            reason:
+              runtimeState === "not-prepared"
+                ? "nothing prepared yet; use prepare first"
+                : "runtime is mid-operation",
+          }),
     },
     {
       id: "rollback",
-      available: false,
-      reason: "Runtime rollback arrives in a later Arc release",
+      available: rollbackAvailable,
+      ...(rollbackAvailable
+        ? {}
+        : {
+            reason:
+              runtime.knownGoodVersion === null
+                ? "no known-good version has been recorded yet"
+                : "the active version is already the known-good version",
+          }),
     },
     {
       id: "open-settings",
