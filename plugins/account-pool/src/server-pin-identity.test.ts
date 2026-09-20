@@ -131,7 +131,11 @@ describe("account-pool Codex pin identity resolution", () => {
       (entry) => entry.name === "CODEX_POOL_AUTH_TOKEN",
     )?.value as string;
     const callsBeforeRequest = fetchCalls.length;
-    const response = await hitFlatRoute(host, token, pinHeader(pin!.value));
+    const response = await hitFlatRoute(
+      host,
+      token,
+      pinHeader(pin!.value as string),
+    );
     expect(response?.status).toBe(200);
     expect(fetchCalls.length - callsBeforeRequest).toBe(1);
   });
@@ -219,7 +223,7 @@ describe("account-pool Codex pin identity resolution", () => {
       (entry) => entry.name === "CODEX_POOL_AUTH_TOKEN",
     )?.value as string;
     const callsBeforeRequest = fetchCalls.length;
-    const response = await hitFlatRoute(host, token, pinHeader(pin!));
+    const response = await hitFlatRoute(host, token, pinHeader(pin as string));
     expect(response?.status).toBe(409);
     expect(response?.headers.get("x-bb-account-pool-pin-unavailable")).toBe(
       "removed",

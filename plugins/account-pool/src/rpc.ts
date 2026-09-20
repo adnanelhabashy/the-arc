@@ -104,7 +104,11 @@ export const accountPoolRpcContract = defineRpcContract({
   },
   "account.getResolved": {
     input: z.object({ threadId: z.string().min(1) }).strict(),
-    output: z.object({ accountId: z.string().uuid().nullable() }).strict(),
+    // The canonical, stable account identity (`openai:chatgpt:<id>` /
+    // `anthropic:account:<uuid>`) — the same format threads.accountKey
+    // stores — never the pool's own internally-generated row id, which a
+    // reconnect changes.
+    output: z.object({ accountKey: z.string().min(1).nullable() }).strict(),
   },
   "token.rotate": {
     input: tokenRotateInputSchema,

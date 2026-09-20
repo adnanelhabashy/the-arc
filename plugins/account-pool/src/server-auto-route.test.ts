@@ -79,6 +79,50 @@ async function hitFlatRoute(
   return route.handler(fakeContext);
 }
 
+async function setUpPluginWithTwoAccounts(fetchImpl: typeof fetch) {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "bb-account-pool-auto-"));
+  const host = createFakePluginHost({ pluginId: "account-pool", dataDir });
+  host.harness.sdk.stub("hosts.list", async () => []);
+  host.harness.sdk.stub("system.providerStates", async () => ({
+    providers: [],
+  }));
+  let importCount = 0;
+  const plugin = createAccountPoolPlugin({
+    fetch: fetchImpl,
+    now: Date.now,
+    importCodexCredentials: async () => {
+      importCount += 1;
+      return {
+        accessToken: `access-token-${importCount}`,
+        refreshToken: "refresh-token",
+        idToken: null,
+        accountId: `codex-account-${importCount}`,
+        email: null,
+        expiresAt: null,
+      };
+    },
+  });
+  await plugin(host.bb);
+  host.harness.runService("hub");
+  cleanups.push(async () => {
+    await host.harness.lifecycle.dispose();
+    await fs.rm(dataDir, { recursive: true, force: true });
+  });
+  const accountA = (await host.harness.callRpc("account.add", {
+    provider: "codex",
+    source: { kind: "import" },
+    label: "codex account a",
+    priority: 1,
+  })) as { id: string };
+  const accountB = (await host.harness.callRpc("account.add", {
+    provider: "codex",
+    source: { kind: "import" },
+    label: "codex account b",
+    priority: 2,
+  })) as { id: string };
+  return { host, accountA, accountB };
+}
+
 describe("account-pool Codex Auto-mode correlation", () => {
   it("carries the thread id as a header env var, on the same flat URL as a pinned thread, never a path segment", async () => {
     const { host } = await setUpPlugin(
@@ -133,7 +177,60 @@ describe("account-pool Codex Auto-mode correlation", () => {
 
     const resolved = (await host.harness.callRpc("account.getResolved", {
       threadId: "thread-1",
-    })) as { accountId: string | null };
-    expect(resolved.accountId).toBe(account.id);
+    })) as { accountKey: string | null };
+    // The canonical stable identity, never the pool's own row id — the RPC
+    // consumer (apps/server) persists this straight into threads.accountKey.
+    expect(resolved.accountKey).toBe("openai:chatgpt:codex-account-1");
+    void account;
+  });
+
+  it("keeps an already-resolved Auto thread on the same account for later turns, even after priority changes make the other account preferred", async () => {
+    const authHeaders: Array<string | null> = [];
+    const { host, accountA, accountB } = await setUpPluginWithTwoAccounts(
+      async (url, init) => {
+        // Adding each account triggers its own usage-refresh fetch; only
+        // the proxied `/v1/responses` calls matter for this test.
+        const href = typeof url === "string" ? url : url.toString();
+        if (!href.includes("/usage")) {
+          authHeaders.push(new Headers(init?.headers).get("authorization"));
+        }
+        return new Response("{}", { status: 200 });
+      },
+    );
+    const envVars = await host.harness.resolveProviderEnv(
+      "codex",
+      autoContext("thread-1"),
+    );
+    const token = envVars.find(
+      (entry) => entry.name === "CODEX_POOL_AUTH_TOKEN",
+    )?.value as string;
+
+    // Turn 1: fresh selection picks one of the two accounts.
+    const first = await hitFlatRoute(host, token, "thread-1");
+    expect(first?.status).toBe(200);
+    expect(authHeaders).toHaveLength(1);
+    const firstAuth = authHeaders[0];
+
+    // Now flip priority so the OTHER account is clearly preferred — this
+    // simulates the exact real-world scenario that silently moved an
+    // already-running thread before the sticky binding existed.
+    const wasFirstA = firstAuth === "Bearer access-token-1";
+    await host.harness.callRpc("account.setPriority", {
+      accountId: wasFirstA ? accountB.id : accountA.id,
+      priority: 1,
+    });
+    await host.harness.callRpc("account.setPriority", {
+      accountId: wasFirstA ? accountA.id : accountB.id,
+      priority: 100,
+    });
+
+    // Turn 2: the same long-lived provider process sends the exact same
+    // env-derived headers (no PIN, just the thread-id correlation) — the
+    // hub must still route to the same account it already picked, not the
+    // one that priority now favors.
+    const second = await hitFlatRoute(host, token, "thread-1");
+    expect(second?.status).toBe(200);
+    expect(authHeaders).toHaveLength(2);
+    expect(authHeaders[1]).toBe(firstAuth);
   });
 });

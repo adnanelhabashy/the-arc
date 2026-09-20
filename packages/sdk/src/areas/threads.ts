@@ -668,6 +668,7 @@ function updateJson(args: ThreadUpdateArgs): UpdateThreadRequest {
     model: args.model,
     reasoningLevel: args.reasoningLevel,
     visibility: args.visibility,
+    accountKey: args.accountKey,
   };
 }
 

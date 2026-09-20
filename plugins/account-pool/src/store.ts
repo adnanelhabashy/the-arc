@@ -489,6 +489,15 @@ export class AccountResolutionStore {
       accountId,
       resolvedAt: this.now(),
     });
+    // Durable, never-consumed twin of the record above: a Codex/Claude
+    // provider process is spawned once per thread and keeps making unpinned,
+    // thread-correlated requests for its whole lifetime, so the hub's own
+    // per-request account selection (hub.ts `handle()`) must keep routing
+    // those requests to the same account even after the one-shot Arc poll
+    // above has consumed its copy and even if account priority later
+    // changes — otherwise an already-running thread silently drifts to a
+    // different account the moment the pool's picks change.
+    await this.kv.set(this.stickyKey(threadId), accountId);
   }
 
   async getResolved(threadId: string): Promise<ResolvedAccount | null> {
@@ -501,8 +510,17 @@ export class AccountResolutionStore {
     return value;
   }
 
+  async getSticky(threadId: string): Promise<string | null> {
+    const raw = await this.kv.get(this.stickyKey(threadId));
+    return raw === undefined ? null : z.string().min(1).parse(raw);
+  }
+
   private key(threadId: string): string {
     return `resolved:${z.string().min(1).parse(threadId)}`;
+  }
+
+  private stickyKey(threadId: string): string {
+    return `sticky:${z.string().min(1).parse(threadId)}`;
   }
 }
 

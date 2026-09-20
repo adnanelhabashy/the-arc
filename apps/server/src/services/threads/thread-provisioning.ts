@@ -100,14 +100,20 @@ interface EnvironmentPayloadThreadArgs {
   thread: Thread;
 }
 
-const ACCOUNT_AUTO_RESOLUTION_CHECK_DELAY_MS = 4_000;
-const ACCOUNT_AUTO_RESOLUTION_MAX_ATTEMPTS = 2;
+const ACCOUNT_AUTO_RESOLUTION_CHECK_DELAY_MS = 5_000;
+// A real first turn can easily run well past the account-pool hub's own
+// upstream request before the model responds (slow reasoning turns commonly
+// take a minute or more) — a two-attempt/8s window observed the model's
+// real, successful reply land while this check had already given up, so the
+// account never got pinned even though execution genuinely succeeded. 24
+// attempts at 5s covers 2 minutes, comfortably inside the account-pool
+// resolution record's own 5-minute TTL, without polling indefinitely.
+const ACCOUNT_AUTO_RESOLUTION_MAX_ATTEMPTS = 24;
 
-// ponytail: a fire-and-forget poll (bounded to two attempts) rather than an
-// event-driven hook, since there is no existing "thread reached running
-// state" signal reachable from here without touching hot per-turn lifecycle
-// paths (explicitly out of scope). The double-write guard makes an extra or
-// skipped poll harmless.
+// ponytail: a fire-and-forget poll rather than an event-driven hook, since
+// there is no existing "thread reached running state" signal reachable from
+// here without touching hot per-turn lifecycle paths (explicitly out of
+// scope). The double-write guard makes an extra or skipped poll harmless.
 function scheduleAccountAutoResolutionCheck(
   deps: ThreadProvisioningDeps,
   threadId: string,
@@ -129,13 +135,18 @@ export async function checkAccountAutoResolution(
   threadId: string,
   attempt: number,
 ): Promise<void> {
+  const alreadyPinned = getThreadAccountState(deps.db, threadId);
+  // The thread may have been deleted, or explicitly (re)pinned by the user,
+  // since this poll was scheduled — stop polling rather than burn the full
+  // window on a thread that no longer needs (or wants) auto-resolution.
+  if (alreadyPinned === null || alreadyPinned.accountKey !== null) return;
   const rpc = createAccountPoolHttpRpcClient({
     serverUrl: `http://127.0.0.1:${deps.config.serverPort}`,
   });
   const result = (await rpc.call("account.getResolved", { threadId })) as {
-    accountId: string | null;
+    accountKey: string | null;
   };
-  if (result.accountId === null) {
+  if (result.accountKey === null) {
     if (attempt < ACCOUNT_AUTO_RESOLUTION_MAX_ATTEMPTS - 1) {
       scheduleAccountAutoResolutionCheck(deps, threadId, attempt + 1);
     }
@@ -145,7 +156,7 @@ export async function checkAccountAutoResolution(
   if (current === null || current.accountKey !== null) return;
   setThreadAccount(deps.db, {
     threadId,
-    accountKey: result.accountId,
+    accountKey: result.accountKey,
     accountResolved: true,
   });
 }

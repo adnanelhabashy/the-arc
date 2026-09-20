@@ -402,13 +402,24 @@ export class AccountPoolHub {
     // An explicit pin delivered as a registered URL path segment (used by
     // providers whose CLI cannot send custom headers, e.g. Codex) takes
     // precedence over the header-based pin (used by Claude Code).
-    const pinnedAccountId =
+    let pinnedAccountId =
       explicitPinnedAccountId ?? request.headers.get(PINNED_ACCOUNT_HEADER);
     const correlationThreadId =
       explicitCorrelationThreadId ??
       (pinnedAccountId === null
         ? request.headers.get(THREAD_CORRELATION_HEADER)
         : null);
+    if (pinnedAccountId === null && correlationThreadId !== null) {
+      // The provider process for this thread was spawned before this thread
+      // resolved to a concrete account (or before it was ever explicitly
+      // re-pinned) and keeps sending only the thread-correlation header for
+      // its whole lifetime — it never picks up a later env change. Without
+      // this, every turn after the first would re-run fresh selection below
+      // and could land on a different account the moment priority or
+      // enablement changes, silently moving an already-running thread.
+      pinnedAccountId =
+        await this.options.resolution.getSticky(correlationThreadId);
+    }
     if (pinnedAccountId !== null) {
       const pinned = accounts.find((account) => account.id === pinnedAccountId);
       if (pinned === undefined) {

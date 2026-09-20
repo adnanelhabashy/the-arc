@@ -1,3 +1,4 @@
+import { resolvePoolAccountId } from "./account-key.js";
 import { registerUsageSource } from "./usage-source.js";
 import {
   createUpstreamTransport,
@@ -13,7 +14,6 @@ import {
   accountPoolConfigSchema,
   accountPoolConfigSetInputSchema,
   poolAvailabilitySchema,
-  type Account,
   type AccountPoolConfigController,
   type PoolProvider,
   type PoolStatus,
@@ -306,23 +306,8 @@ export function createAccountPoolPlugin(
     // disconnected/replaced), the caller is meant to fall through to the
     // original key unchanged so the hub's own "removed" 409 fires — never
     // silently pin a different account.
-    const resolvePoolAccountId = async (
-      provider: PoolProvider,
-      accountKey: string,
-    ): Promise<string | null> => {
-      const prefix =
-        provider === "codex" ? "openai:chatgpt:" : "anthropic:account:";
-      if (!accountKey.startsWith(prefix)) return null;
-      const providerIssuedId = accountKey.slice(prefix.length);
-      if (providerIssuedId.length === 0) return null;
-      const match = (await accounts.list()).find((candidate: Account) => {
-        if (candidate.provider !== provider) return false;
-        return provider === "codex"
-          ? candidate.codexAccountId === providerIssuedId
-          : candidate.accountUuid === providerIssuedId;
-      });
-      return match?.id ?? null;
-    };
+    const resolveAccountKeyToPoolId = (provider: PoolProvider, key: string) =>
+      resolvePoolAccountId(accounts, provider, key);
     const proxiedHealth = async (provider: PoolProvider) =>
       (await canServe(provider))
         ? {
@@ -342,7 +327,7 @@ export function createAccountPoolPlugin(
         // bridge-side change needed.
         let pinHeader: string;
         if (context.accountKey !== null) {
-          const poolAccountId = await resolvePoolAccountId(
+          const poolAccountId = await resolveAccountKeyToPoolId(
             "claude",
             context.accountKey,
           );
@@ -394,7 +379,7 @@ export function createAccountPoolPlugin(
         // per-thread selection existed is what makes this reliable.
         let pinEntry: PoolEnvEntry | null = null;
         if (context.accountKey !== null) {
-          const poolAccountId = await resolvePoolAccountId(
+          const poolAccountId = await resolveAccountKeyToPoolId(
             "codex",
             context.accountKey,
           );

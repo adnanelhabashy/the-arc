@@ -62,6 +62,9 @@ class FakeResolutionStore {
   async getResolved(): Promise<null> {
     return null;
   }
+  async getSticky(): Promise<null> {
+    return null;
+  }
 }
 
 function makeAdapter(fetchImpl: typeof fetch): ProviderAdapter {

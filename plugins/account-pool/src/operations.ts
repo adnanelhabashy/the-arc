@@ -7,6 +7,7 @@ import type {
   RoutedThreadStatus,
 } from "./contracts.js";
 import type { AccountAddInput } from "./contracts.js";
+import { accountKeyFor } from "./account-key.js";
 import type { AccountPoolHub } from "./hub.js";
 import type {
   AccountResolutionStore,
@@ -284,10 +285,17 @@ export class PoolOperations {
   }
 
   async getResolvedAccount(threadId: string): Promise<{
-    accountId: string | null;
+    accountKey: string | null;
   }> {
     const resolved = await this.resolution.getResolved(threadId);
-    return { accountId: resolved?.accountId ?? null };
+    if (resolved === null) return { accountKey: null };
+    const account = (await this.accounts.list()).find(
+      (candidate) => candidate.id === resolved.accountId,
+    );
+    // The pool row the hub resolved may have been removed between selection
+    // and this read (rare, but possible) — report unresolved rather than a
+    // stale identity that would never match anything again.
+    return { accountKey: account === undefined ? null : accountKeyFor(account) };
   }
 
   async routedThreadsWithoutLocalLogin(): Promise<RoutedThreadStatus[]> {
