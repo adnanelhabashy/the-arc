@@ -78,7 +78,9 @@ export default function plugin(bb: BbPluginApi) {
     ],
     composerActions: ["plan"],
     completedTurnDisplay: "flat",
-    env: { passthrough: ["BB_CLAUDE_CODE_EXECUTABLE"] },
+    env: {
+      passthrough: ["BB_CLAUDE_CODE_EXECUTABLE", "BB_ARC_RUNTIME_ROOT"],
+    },
     models: {
       scope: "host",
       fallback: CLAUDE_CODE_ACTIVE_CATALOG_DATA.map((entry) => ({

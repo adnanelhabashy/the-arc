@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
+import { accessSync, constants } from "node:fs";
 import {
   isStandaloneBuiltinCompactCommand,
   approvalInteractionOutcomeSchema,
@@ -340,25 +341,47 @@ async function delay(ms: number): Promise<void> {
 }
 const MISSING_CODEX_CLI_GUIDANCE =
   "bb could not find the Codex CLI on this machine. Install Codex (https://developers.openai.com/codex/cli) or put `codex` on PATH, then retry.";
+const ARC_RUNTIME_ROOT_ENV = "BB_ARC_RUNTIME_ROOT";
+
+function resolveAppServerCommand(env: NodeJS.ProcessEnv): string {
+  const configured = env[CODEX_APP_SERVER_COMMAND_ENV]?.trim();
+  const arcOwnsRuntimes =
+    (env[ARC_RUNTIME_ROOT_ENV]?.trim().length ?? 0) > 0;
+  if (configured !== undefined && configured.length > 0) {
+    try {
+      accessSync(configured, constants.X_OK);
+    } catch {
+      throw new Error(
+        `${CODEX_APP_SERVER_COMMAND_ENV} must point to an executable Codex path: ${configured}`,
+      );
+    }
+    return configured;
+  }
+  if (arcOwnsRuntimes) {
+    throw new Error(
+      `Arc owns the Codex runtime but ${CODEX_APP_SERVER_COMMAND_ENV} is not set; the managed Codex runtime is missing or broken. Repair it in Arc's Agents view.`,
+    );
+  }
+  return "codex";
+}
 
 export function resolveAppServerLaunch(env: NodeJS.ProcessEnv = process.env): {
   command: string;
   args: string[];
 } {
-  const command = env[CODEX_APP_SERVER_COMMAND_ENV];
+  const command = resolveAppServerCommand(env);
   const rawArgs = env[CODEX_APP_SERVER_ARGS_ENV];
-  const args = command
-    ? rawArgs
-      ? z.array(z.string()).parse(JSON.parse(rawArgs))
-      : []
-    : ["app-server"];
+  const args =
+    rawArgs === undefined || rawArgs.length === 0
+      ? ["app-server"]
+      : z.array(z.string()).parse(JSON.parse(rawArgs));
   const poolBaseUrl = env[CODEX_POOL_BASE_URL_ENV];
   const poolToken = env[CODEX_POOL_AUTH_TOKEN_ENV];
-  if (!poolBaseUrl || !poolToken) return { command: command ?? "codex", args };
+  if (!poolBaseUrl || !poolToken) return { command, args };
   const poolPin = env[CODEX_POOL_PIN_ENV];
   const poolThreadId = env[CODEX_POOL_THREAD_ID_ENV];
   return {
-    command: command ?? "codex",
+    command,
     args: [
       ...args,
       "-c",

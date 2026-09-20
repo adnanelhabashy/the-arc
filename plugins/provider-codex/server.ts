@@ -39,6 +39,13 @@ export default function plugin(bb: BbPluginApi) {
       brandPrefix: "GPT-",
     },
     models: { scope: "host" },
+    env: {
+      passthrough: [
+        "BB_CODEX_BRIDGE_APP_SERVER_COMMAND",
+        "BB_CODEX_BRIDGE_APP_SERVER_ARGS",
+        "BB_ARC_RUNTIME_ROOT",
+      ],
+    },
     ...CODEX_NATIVE_ROOTS_DECLARATION,
     maintenance: { health: true, usage: true, installation: true },
     capabilities: {

@@ -10,6 +10,7 @@ import { resolveConfiguredAcpAgents } from "./src/configured-agents.js";
 import { acpHostContract } from "./src/contract.js";
 import { acpProviderDeclaration } from "./src/declaration.js";
 import { applyAcpAgentProbe } from "./src/probe-capabilities.js";
+import { resolveAcpLaunchExecutable } from "./src/launch-executable.js";
 import {
   KNOWN_ACP_AGENTS,
   RESERVED_ACP_PROVIDER_IDS,
@@ -79,16 +80,36 @@ export default async function acpProvidersPlugin(
   const registered = new Map<string, { key: string; dispose(): void }>();
 
   const narrowed = new Map<string, AcpAgentDefinition>();
+  const reportedUnavailable = new Set<string>();
   let configuredAgents: readonly AcpAgentDefinition[] = [];
 
   function desiredAgents(): AcpAgentDefinition[] {
     const configuredIds = new Set(configuredAgents.map((agent) => agent.id));
-    return [
+    const candidates = [
       ...KNOWN_ACP_AGENTS.filter((agent) => !configuredIds.has(agent.id)).map(
         (agent) => narrowed.get(agent.id) ?? agent,
       ),
       ...configuredAgents,
     ];
+    const resolved: AcpAgentDefinition[] = [];
+    for (const agent of candidates) {
+      const resolution = resolveAcpLaunchExecutable({
+        agent,
+        env: process.env,
+      });
+      if (resolution.kind === "unavailable") {
+        if (!reportedUnavailable.has(agent.id)) {
+          reportedUnavailable.add(agent.id);
+          bb.log.warn(
+            `Not registering ACP provider "${agent.id}": ${resolution.reason}`,
+          );
+        }
+        continue;
+      }
+      reportedUnavailable.delete(agent.id);
+      resolved.push(resolution.agent);
+    }
+    return resolved;
   }
 
   function register(declaration: PluginProviderDeclaration): void {
@@ -168,31 +189,37 @@ export default async function acpProvidersPlugin(
       if (configuredIds.has(shipped.id)) continue;
       const agent = narrowed.get(shipped.id) ?? shipped;
       if ((agent.fork ?? "none") === "none") continue;
+      const resolution = resolveAcpLaunchExecutable({
+        agent,
+        env: process.env,
+      });
+      if (resolution.kind === "unavailable") continue;
+      const launched = resolution.agent;
       let probe: AcpAgentProbe;
       try {
         probe = await host.call(
           "probeAgent",
           {
-            command: agent.launch.command,
-            args: agent.launch.args,
-            env: agent.launch.env,
+            command: launched.launch.command,
+            args: launched.launch.args,
+            env: launched.launch.env,
           },
           { hostId, signal },
         );
       } catch (error) {
         bb.log.debug(
-          `Could not probe ${agent.id} on host ${hostId}: ${String(error)}`,
+          `Could not probe ${launched.id} on host ${hostId}: ${String(error)}`,
         );
         continue;
       }
-      const applied = applyAcpAgentProbe(agent, probe);
+      const applied = applyAcpAgentProbe(launched, probe);
       if (applied === null) {
         continue;
       }
       bb.log.info(
-        `${agent.id} on host ${hostId}: ${applied.reason}; re-registering.`,
+        `${launched.id} on host ${hostId}: ${applied.reason}; re-registering.`,
       );
-      narrowed.set(agent.id, applied.agent);
+      narrowed.set(launched.id, applied.agent);
       reconcile(desiredAgents());
     }
   }

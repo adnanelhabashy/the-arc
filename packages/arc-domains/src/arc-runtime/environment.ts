@@ -11,6 +11,9 @@ import {
 } from "./types.js";
 
 export const BB_CLAUDE_CODE_EXECUTABLE_ENV = "BB_CLAUDE_CODE_EXECUTABLE";
+export const BB_CODEX_APP_SERVER_COMMAND_ENV =
+  "BB_CODEX_BRIDGE_APP_SERVER_COMMAND";
+export const BB_OMP_EXECUTABLE_ENV = "BB_OMP_EXECUTABLE";
 
 // Arc-mode declaration for the spawned bb server: the arc-core plugin reads
 // these to host the Arc agents/accounts/usage services. Set only on the
@@ -173,6 +176,13 @@ export function buildArcManagedRuntimeEnvironment(
     }
   }
 
+  const activeCodex = activeById.get("codex");
+  if (activeCodex !== undefined) {
+    nextEnv[BB_CODEX_APP_SERVER_COMMAND_ENV] = resolve(
+      activeCodex.executablePath,
+    );
+  }
+
   const activeClaude = activeById.get("claude-code");
   if (activeClaude !== undefined) {
     nextEnv[BB_CLAUDE_CODE_EXECUTABLE_ENV] = resolve(
@@ -187,6 +197,7 @@ export function buildArcManagedRuntimeEnvironment(
 
   const activeOmp = activeById.get("omp");
   if (activeOmp !== undefined) {
+    nextEnv[BB_OMP_EXECUTABLE_ENV] = resolve(activeOmp.executablePath);
     applyArcOmpStateIsolation({
       env: nextEnv,
       homeDirectory: args.homeDirectory ?? homedir(),

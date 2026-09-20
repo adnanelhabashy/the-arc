@@ -1,3 +1,6 @@
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveAppServerLaunch } from "./bridge.js";
 
@@ -89,4 +92,57 @@ describe("Codex Account Pool isolation", () => {
       );
     },
   );
+});
+
+describe("Codex managed-runtime ownership", () => {
+  async function fakeExecutable(dir: string, name: string): Promise<string> {
+    await mkdir(dir, { recursive: true });
+    const path = join(dir, name);
+    await writeFile(path, "#!/bin/sh\nexit 0\n", "utf8");
+    await chmod(path, 0o755);
+    return path;
+  }
+
+  it("runs the Arc-managed Codex even when a global codex comes first on PATH", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codex-managed-"));
+    try {
+      const globalBin = join(root, "global-bin");
+      const managedDir = join(root, "arc-runtimes", "runtimes", "codex", "0.155.1");
+      const globalCodex = await fakeExecutable(globalBin, "codex");
+      const managedCodex = await fakeExecutable(managedDir, "codex");
+
+      const launch = resolveAppServerLaunch({
+        PATH: `${globalBin}:${managedDir}`,
+        BB_ARC_RUNTIME_ROOT: join(root, "arc-runtimes"),
+        BB_CODEX_BRIDGE_APP_SERVER_COMMAND: managedCodex,
+      });
+
+      expect(launch.command).toBe(managedCodex);
+      expect(launch.command).not.toBe(globalCodex);
+      expect(launch.args).toEqual(["app-server"]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed instead of using PATH when Arc owns the runtime but names no executable", () => {
+    expect(() =>
+      resolveAppServerLaunch({ BB_ARC_RUNTIME_ROOT: "/arc/arc-runtimes" }),
+    ).toThrow(/managed Codex runtime/);
+  });
+
+  it("rejects a configured command that is not executable", () => {
+    expect(() =>
+      resolveAppServerLaunch({
+        BB_CODEX_BRIDGE_APP_SERVER_COMMAND: "/nonexistent/codex",
+      }),
+    ).toThrow(/must point to an executable Codex path/);
+  });
+
+  it("keeps resolving codex from PATH outside Arc", () => {
+    expect(resolveAppServerLaunch({})).toEqual({
+      command: "codex",
+      args: ["app-server"],
+    });
+  });
 });

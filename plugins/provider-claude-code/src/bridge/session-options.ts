@@ -49,6 +49,11 @@ const SUMMARIZED_ADAPTIVE_THINKING = {
   display: "summarized",
 } satisfies Exclude<Options["thinking"], undefined>;
 const CLAUDE_CODE_EXECUTABLE_ENV = "BB_CLAUDE_CODE_EXECUTABLE";
+const ARC_RUNTIME_ROOT_ENV = "BB_ARC_RUNTIME_ROOT";
+
+function arcOwnsRuntimes(env: NodeJS.ProcessEnv): boolean {
+  return (env[ARC_RUNTIME_ROOT_ENV]?.trim().length ?? 0) > 0;
+}
 
 export function toSdkEffort(
   reasoningLevel: ReasoningLevel,
@@ -183,6 +188,12 @@ export function resolveClaudeCodeExecutable(
         `${CLAUDE_CODE_EXECUTABLE_ENV} must point to an executable Claude CLI path: ${trimmedExplicitPath}`,
       );
     }
+  }
+
+  if (arcOwnsRuntimes(args.env)) {
+    throw new Error(
+      `Arc owns the Claude Code runtime but ${CLAUDE_CODE_EXECUTABLE_ENV} is not set; the managed Claude Code runtime is missing or broken. Repair it in Arc's Agents view.`,
+    );
   }
 
   const executableOnPath = resolveExecutableOnPath({

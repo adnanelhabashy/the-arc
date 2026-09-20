@@ -387,3 +387,56 @@ describe("Arc-managed Claude Code environment", () => {
     expect(env.DISABLE_UPDATES).toBe("1");
   });
 });
+
+describe("Arc-managed runtime executable overrides", () => {
+  it("names every managed runtime explicitly so PATH order cannot decide execution", async () => {
+    const root = await tempDir();
+    const userDataPath = join(root, "userData");
+    const globalBin = join(root, "global-bin");
+    await mkdir(globalBin, { recursive: true });
+    const runtimesRoot = join(userDataPath, "arc-runtimes", "runtimes");
+    const managedCodex = await fakeCodex(
+      join(runtimesRoot, "codex", "0.155.1"),
+      "arc-managed-codex",
+    );
+    const managedClaude = await fakeClaude(
+      join(runtimesRoot, "claude-code", "2.1.276"),
+      "arc-managed-claude",
+    );
+    const managedOmp = await fakeOmp(
+      join(runtimesRoot, "omp", "18.2.6"),
+      "arc-managed-omp",
+    );
+
+    const runtimePaths = createArcRuntimePaths({ userDataPath });
+    const env = buildArcManagedRuntimeEnvironment({
+      activeRuntimes: [
+        { id: "codex", executablePath: managedCodex },
+        { id: "claude-code", executablePath: managedClaude },
+        { id: "omp", executablePath: managedOmp },
+      ],
+      env: { PATH: globalBin, HOME: join(root, "home") },
+      platform: "darwin",
+      runtimePaths,
+    });
+
+    expect(env.BB_CODEX_BRIDGE_APP_SERVER_COMMAND).toBe(managedCodex);
+    expect(env.BB_CLAUDE_CODE_EXECUTABLE).toBe(managedClaude);
+    expect(env.BB_OMP_EXECUTABLE).toBe(managedOmp);
+    expect(env.BB_ARC_RUNTIME_ROOT).toBe(userDataPath);
+  });
+
+  it("leaves the overrides unset when a runtime is not active", async () => {
+    const userDataPath = join(await tempDir(), "userData");
+    const runtimePaths = createArcRuntimePaths({ userDataPath });
+    const env = buildArcManagedRuntimeEnvironment({
+      activeRuntimes: [],
+      env: { PATH: "/usr/bin:/bin" },
+      platform: "darwin",
+      runtimePaths,
+    });
+
+    expect(env.BB_CODEX_BRIDGE_APP_SERVER_COMMAND).toBeUndefined();
+    expect(env.BB_OMP_EXECUTABLE).toBeUndefined();
+  });
+});
