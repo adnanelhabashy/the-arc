@@ -1960,6 +1960,8 @@ describe("providers.experimental_contributeEnv", () => {
         threadId: "thread-1",
         projectId: "project-1",
         hostId: "host-1",
+        accountKey: null,
+        accountResolved: false,
       }),
     ).resolves.toEqual([
       {
@@ -1973,6 +1975,8 @@ describe("providers.experimental_contributeEnv", () => {
         threadId: "thread-1",
         projectId: "project-1",
         hostId: "host-1",
+        accountKey: null,
+        accountResolved: false,
       },
     ]);
   });
@@ -2029,6 +2033,8 @@ describe("providers.experimental_contributeEnv", () => {
         threadId: "thread-1",
         projectId: "project-1",
         hostId: "host-1",
+        accountKey: null,
+        accountResolved: false,
       }),
     ).resolves.toEqual([]);
     expect(harness.inspection.logEntries.at(-1)).toMatchObject({
