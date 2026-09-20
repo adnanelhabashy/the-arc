@@ -19,6 +19,7 @@ function ompAccount(overrides: Partial<ArcAccount> = {}): ArcAccount {
     providerFamily: "openai-codex",
     providerLabel: "OpenAI Codex",
     accountKey: "omp:openai-codex:chatgpt-acc-1",
+    identityKey: null,
     email: "adnan@example.com",
     planLabel: null,
     authState: "connected",

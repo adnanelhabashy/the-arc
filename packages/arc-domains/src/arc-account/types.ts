@@ -33,6 +33,11 @@ export interface ArcAccount {
   providerFamily: ArcAccountProviderFamily;
   providerLabel: string;
   accountKey: string | null;
+  // The source's own credential identity, and the only handle some sources
+  // can pin an execution by. null for every account whose source cannot pin by
+  // it: pool accounts (provider-issued accountKey only) and OMP api-key
+  // credentials, which OMP's account filter never matches.
+  identityKey: string | null;
   email: string | null;
   planLabel: string | null;
   authState: ArcAccountAuthState;

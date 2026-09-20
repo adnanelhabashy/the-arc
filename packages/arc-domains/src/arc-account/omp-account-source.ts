@@ -46,6 +46,12 @@ import {
 
 const BROKER_BIND_HOST = "127.0.0.1";
 const DEFAULT_BROKER_IDLE_TTL_MS = 60_000;
+// A pinned OMP execution resolves its credentials through the broker for the
+// whole life of its provider process, so a hold has to outlive the single env
+// resolution that created it. Renewals come from each later resolution and
+// health check for that provider; past this window without one, the broker
+// returns to its normal idle shutdown rather than living forever.
+const DEFAULT_BROKER_HOLD_TTL_MS = 30 * 60 * 1_000;
 const DEFAULT_SNAPSHOT_TTL_MS = 5_000;
 const LOGIN_START_TIMEOUT_MS = 15_000;
 
@@ -304,6 +310,15 @@ export function mapOmpSnapshotEntry(
     providerFamily: entry.provider as ArcAccountProviderFamily,
     providerLabel,
     accountKey,
+    // OMP's own credential identity (`account:<provider account id>`), the
+    // only handle OMP's account-pool filter matches on. Kept even though it is
+    // not Arc's canonical key: it is what pins one OMP execution to one stored
+    // credential. OMP stores an empty key for api-key credentials, which can
+    // be neither pinned nor excluded — reported as absent, never as "".
+    identityKey:
+      entry.identityKey !== null && entry.identityKey.length > 0
+        ? entry.identityKey
+        : null,
     email: identity.email ?? null,
     // OMP 18.2.6 does not report plan/subscription metadata in its
     // credential snapshot; unknown stays null (never "free").
@@ -368,9 +383,15 @@ export interface OmpAccountSourceArgs {
   fetchImpl?: typeof fetch;
   now?: () => number;
   brokerIdleTtlMs?: number;
+  brokerHoldTtlMs?: number;
   snapshotTtlMs?: number;
   scheduler?: Scheduler;
   loginStartTimeoutMs?: number;
+}
+
+export interface ArcOmpBrokerConnection {
+  url: string;
+  token: string;
 }
 
 interface LoginSessionState {
@@ -393,12 +414,14 @@ export class OmpAccountSource implements ArcAccountSource {
   private readonly fetchImpl: typeof fetch;
   private readonly now: () => number;
   private readonly brokerIdleTtlMs: number;
+  private readonly brokerHoldTtlMs: number;
   private readonly snapshotTtlMs: number;
   private readonly scheduler: Scheduler;
   private readonly loginStartTimeoutMs: number;
 
   private brokerPromise: Promise<OmpBrokerSession> | null = null;
   private brokerIdleTimer: unknown = null;
+  private brokerHeldUntil = 0;
   private snapshotCache: { at: number; snapshot: OmpSnapshot } | null = null;
   private registryCache: { at: number; providers: ArcOmpProvider[] } | null =
     null;
@@ -410,6 +433,8 @@ export class OmpAccountSource implements ArcAccountSource {
     this.fetchImpl = args.fetchImpl ?? fetch;
     this.now = args.now ?? Date.now;
     this.brokerIdleTtlMs = args.brokerIdleTtlMs ?? DEFAULT_BROKER_IDLE_TTL_MS;
+    this.brokerHoldTtlMs =
+      args.brokerHoldTtlMs ?? DEFAULT_BROKER_HOLD_TTL_MS;
     this.snapshotTtlMs = args.snapshotTtlMs ?? DEFAULT_SNAPSHOT_TTL_MS;
     this.scheduler = args.scheduler ?? {
       setTimer: (fn, ms) => setTimeout(fn, ms),
@@ -808,11 +833,32 @@ export class OmpAccountSource implements ArcAccountSource {
     // terminal "cancelled" state instead of an account-not-found error.
   }
 
+  // Holds the loopback broker open for a pinned OMP execution. oh-my-pi
+  // resolves credentials through the broker in that mode and fails startup
+  // when it is unreachable, and the provider process outlives this call, so
+  // the hold is a deadline (see DEFAULT_BROKER_HOLD_TTL_MS) renewed by every
+  // later resolution for the provider, not a release the caller must pair.
+  async holdBrokerForExecution(): Promise<ArcOmpBrokerConnection> {
+    this.brokerHeldUntil = this.now() + this.brokerHoldTtlMs;
+    const broker = await this.ensureBroker();
+    return { url: broker.url, token: broker.token };
+  }
+
+  // Extends a live hold. Returns false when none is live, so a caller can
+  // report "not holding" instead of keeping an idle broker alive forever.
+  renewBrokerHold(): boolean {
+    if (this.brokerHeldUntil <= this.now()) return false;
+    this.brokerHeldUntil = this.now() + this.brokerHoldTtlMs;
+    this.armBrokerIdleTimer();
+    return true;
+  }
+
   // Stops the lazily-started broker immediately (idle shutdown also happens
   // automatically after brokerIdleTtlMs of inactivity). Arc never leaves an
   // OMP broker — or any OMP process — running in the background.
   async shutdown(): Promise<void> {
     this.clearBrokerIdleTimer();
+    this.brokerHeldUntil = 0;
     const broker = this.brokerPromise;
     this.brokerPromise = null;
     this.snapshotCache = null;
@@ -1073,6 +1119,14 @@ export class OmpAccountSource implements ArcAccountSource {
 
   private armBrokerIdleTimer(): void {
     this.clearBrokerIdleTimer();
+    const holdRemainingMs = this.brokerHeldUntil - this.now();
+    if (holdRemainingMs > 0) {
+      this.brokerIdleTimer = this.scheduler.setTimer(() => {
+        this.brokerIdleTimer = null;
+        this.armBrokerIdleTimer();
+      }, holdRemainingMs);
+      return;
+    }
     this.brokerIdleTimer = this.scheduler.setTimer(() => {
       this.brokerIdleTimer = null;
       void this.shutdown();

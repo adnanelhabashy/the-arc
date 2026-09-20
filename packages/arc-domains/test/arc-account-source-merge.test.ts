@@ -20,6 +20,7 @@ function account(overrides: Partial<ArcAccount>): ArcAccount {
     providerFamily: "openai",
     providerLabel: "ChatGPT",
     accountKey: null,
+    identityKey: null,
     email: null,
     planLabel: null,
     authState: "connected",

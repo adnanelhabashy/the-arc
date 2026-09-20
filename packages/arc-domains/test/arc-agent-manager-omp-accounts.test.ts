@@ -99,6 +99,7 @@ function ompAccount(overrides: Partial<ArcAccount> = {}): ArcAccount {
     providerFamily: "kimi-code",
     providerLabel: "Kimi Code",
     accountKey: "omp:kimi-code:k1",
+    identityKey: "account:k1",
     email: "kimi@example.com",
     planLabel: null,
     authState: "connected",

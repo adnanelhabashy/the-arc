@@ -18,6 +18,7 @@ function arcAccount(overrides: Partial<ArcAccount> = {}): ArcAccount {
     providerFamily: "anthropic",
     providerLabel: "Claude",
     accountKey: "anthropic:account:uuid-1",
+    identityKey: null,
     email: "adnan@example.com",
     planLabel: "max",
     authState: "connected",

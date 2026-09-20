@@ -144,6 +144,7 @@ export function mapPoolAccount(
     providerFamily: family,
     providerLabel: ARC_ACCOUNT_PROVIDER_LABELS[family],
     accountKey,
+    identityKey: null,
     email: identity.email,
     planLabel: identity.subscriptionType,
     authState,

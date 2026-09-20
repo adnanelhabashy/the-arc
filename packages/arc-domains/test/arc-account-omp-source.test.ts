@@ -214,7 +214,9 @@ function makeSource(
   args: {
     resolveRuntime?: () => Promise<ArcOmpRuntime | null>;
     brokerIdleTtlMs?: number;
+    brokerHoldTtlMs?: number;
     snapshotTtlMs?: number;
+    now?: () => number;
   } = {},
 ) {
   const source = new OmpAccountSource({
@@ -223,8 +225,10 @@ function makeSource(
       (async () => ({ ...RUNTIME, env: { ...RUNTIME.env } })),
     spawn: fake.spawn,
     fetchImpl: fake.fetchImpl,
+    now: args.now,
     scheduler,
     brokerIdleTtlMs: args.brokerIdleTtlMs ?? 60_000,
+    brokerHoldTtlMs: args.brokerHoldTtlMs ?? 1_800_000,
     snapshotTtlMs: args.snapshotTtlMs ?? 5_000,
     loginStartTimeoutMs: 500,
   });
@@ -370,6 +374,41 @@ describe("OmpAccountSource inventory", () => {
     );
   });
 
+  it("surfaces the credential identity each OMP account can be pinned by", async () => {
+    const fake = new FakeOmp(brokerServeScript);
+    fake.snapshotPayload = {
+      credentials: [
+        {
+          id: 2,
+          provider: "kimi-code",
+          identityKey: "account:acct-a",
+          credential: { type: "oauth", email: "a@x.com", accountId: "acct-a" },
+          blocks: [],
+        },
+        {
+          id: 5,
+          provider: "kimi-code",
+          credential: { type: "oauth", email: "b@x.com", accountId: "acct-b" },
+          blocks: [],
+        },
+        {
+          id: 9,
+          provider: "opencode-go",
+          identityKey: "",
+          credential: { type: "api_key" },
+          blocks: [],
+        },
+      ],
+    };
+    const { source } = makeSource(fake);
+    const accounts = await source.listAccounts();
+    expect(accounts.map((a) => [a.accountKey, a.identityKey])).toEqual([
+      ["omp:kimi-code:acct-a", "account:acct-a"],
+      ["omp:kimi-code:acct-b", null],
+      [null, null],
+    ]);
+  });
+
   it("maps an active credential block to a disabled auth state", async () => {
     const fake = new FakeOmp(brokerServeScript);
     fake.snapshotPayload = {
@@ -453,6 +492,49 @@ describe("OmpAccountSource broker lifecycle and security", () => {
     // permanent OMP process behind.
     await source.listAccounts();
     expect(fake.spawnCalls.filter((c) => c.argv[1] === "serve")).toHaveLength(2);
+  });
+
+  it("keeps the broker alive while a pinned execution holds it", async () => {
+    const fake = new FakeOmp(brokerServeScript);
+    const scheduler = new ManualScheduler();
+    const clock = { value: 1_800_000_000_000 };
+    const { source } = makeSource(fake, scheduler, {
+      brokerIdleTtlMs: 1_000,
+      brokerHoldTtlMs: 10_000,
+      now: () => clock.value,
+    });
+
+    const connection = await source.holdBrokerForExecution();
+    expect(connection).toEqual({
+      url: "http://127.0.0.1:58860",
+      token: "broker-token-xyz",
+    });
+
+    // An idle timer firing inside the hold must not kill the broker the
+    // pinned provider process resolves its credentials through.
+    scheduler.fireAll();
+    await flushMicrotasks();
+    expect(fake.killed).toEqual([]);
+
+    // A later resolution for the same provider extends the hold instead of
+    // starting a second broker.
+    expect(source.renewBrokerHold()).toBe(true);
+    clock.value += 9_000;
+    scheduler.fireAll();
+    await flushMicrotasks();
+    expect(fake.killed).toEqual([]);
+    expect(fake.spawnCalls.filter((c) => c.argv[1] === "serve")).toHaveLength(1);
+
+    // Past the hold with no renewal, the normal idle shutdown resumes.
+    clock.value += 20_000;
+    expect(source.renewBrokerHold()).toBe(false);
+    scheduler.fireAll();
+    scheduler.fireAll();
+    await flushMicrotasks();
+    expect(fake.killed.some((k) => k.signal === "SIGTERM")).toBe(true);
+
+    await source.shutdown();
+    expect(source.renewBrokerHold()).toBe(false);
   });
 
   it("rejects a non-loopback broker address before using the token", async () => {
