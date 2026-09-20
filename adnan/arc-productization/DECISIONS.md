@@ -405,3 +405,127 @@ Status: **Accepted** (pre-Phase-11 hardening)
 Decision: one policy, one place. `isSensitiveEnvName`/`redactEnvValue` live in `@bb/domain` and mark a value `{masked: true}` when the name carries a credential word (`TOKEN`, `SECRET`, `PASSWORD`, `PASSWD`, `CREDENTIAL(S)`, `API_KEY`, `KEY`) or is `AUTHORIZATION`/`COOKIE`/`*_AUTH`. Word-boundary matching keeps useful diagnostics intact: `OMP_AUTH_BROKER_URL`, `CODEX_ACCOUNT_POOL_PIN`, `ANTHROPIC_BASE_URL` and `PATH` stay readable. `resolveThreadEnvironment` applies it to the entries it emits while leaving `envVars` — what the provider process actually receives — untouched, which a test asserts in both directions.
 
 Historical rows are handled by an explicit, opt-in tool: `bb-script-redact-stored-env-secrets` is dry-run by default, rewrites only `entries[].value` for credential-shaped names, preserves event identity, names, sources and ordering, prints counts rather than values, and requires `--apply`. It is not run automatically.
+
+## ADR-074 Codex shell-snapshot exposure of the Account Pool hub token is closed at the config layer for exec visibility and at the filesystem layer for the persisted snapshot; token lifetime is bounded by the existing manual rotation, not a new ephemeral-token subsystem
+
+Status: **Accepted** (Phase 11 Part 0)
+
+Every real Codex turn writes `CODEX_POOL_AUTH_TOKEN` — the long-lived Account Pool hub token — into Codex's own process environment, because Codex's `env_http_headers.<header>=<ENV_VAR_NAME>` mechanism (used since ADR-067) reads the named variable from its own process env at request time; there is no way to hand Codex that header value without the variable existing in its environment. Codex separately maintains a persistent "shell snapshot" (`$CODEX_HOME/shell_snapshots/<session>.<nonce>.sh`, default `~/.codex/shell_snapshots`) that replays a captured interactive shell for speed across tool calls. Verified against the real pinned 0.155.1 binary and the upstream `openai/codex` source at tag `rust-v0.155.1`: this raw capture is a *different* code path from the one governed by the documented `shell_environment_policy` config (inherit/exclude/include_only) — the policy is threaded only into a credential-broker-mediated snapshot mode gated on `sandbox.is_some()` and an active `codex_network_proxy` credential broker (an unrelated, deeper subsystem for MCP/network-proxy credentials), which Arc's Account Pool integration does not use and should not adopt just to solve this. Live end-to-end reproduction (a canary token, a real spawned `codex exec`, a temp `CODEX_HOME`) confirmed the policy has zero effect on what the raw capture writes; the plan's original assumption that Option C alone would close the file-based leak was wrong.
+
+The same reproduction also confirmed `shell_environment_policy.exclude` **does** work for a real, separate exposure: without it, any shell/exec command the model runs inherits `CODEX_POOL_AUTH_TOKEN` in its own subprocess environment and could read or echo it (`codex sandbox ... env` showed the token; with the exclude it did not). This is real and worth keeping even though it does not touch the snapshot file.
+
+Decision, two layers:
+
+1. `plugins/provider-codex/src/bridge/bridge.ts`'s `resolveAppServerLaunch` adds one more `-c` override alongside the existing account-pool `env_http_headers` overrides: `shell_environment_policy.exclude=["CODEX_POOL_AUTH_TOKEN"]`, applied in the exact branch where the token is actually present. This closes the model-shell-visibility exposure using Codex's own documented mechanism, with no new argv-carried secret (the value itself is never passed as a CLI argument, only the variable *name*, matching the existing `env_http_headers` pattern's own safety property).
+2. `plugins/provider-codex/src/shell-snapshot-hardening.ts` (`hardenCodexShellSnapshotDir`, called once from the plugin's `server.ts` entrypoint) applies the plan's own documented "minimum fallback" for what the config layer cannot reach: creates/tightens `$CODEX_HOME/shell_snapshots` to 0700 and sweeps existing files inside to 0600, following the exact `hardenLocalDataPermissions` (ADR-072) pattern — best-effort, never fatal to Codex launch, never touches files outside that one directory. Verified against the real binary that Codex does not loosen a pre-hardened 0700 directory when it writes a new snapshot into it (a fresh run left the directory at 0700 with the new file still 0644 underneath) — so the directory's own permission, not the per-file mode, is the load-bearing protection: on a standard POSIX filesystem a 0700 directory blocks every other local account from resolving a path into it at all, regardless of what mode the file inside carries. The one-time startup sweep therefore only needs to catch pre-existing loose files; it does not need to re-run per turn, and does not claim every file is 0600 at every instant — that residual (a session's new snapshot files stay 0644 until the next hardening pass, but are unreachable to other accounts through the 0700 directory the whole time) is the documented limitation, not a silent gap.
+
+Token lifetime: `plugins/account-pool/src/store.ts`'s `rotate`/`operations.ts`'s `rotateToken` already exist (manually invoked, with a grace-period overlap via `previous`) and were used during the incident this ADR follows up on. Building a new ephemeral, per-Codex-process token system (the plan's Option B) was evaluated and deliberately deferred: it is a materially larger change to the hub's trust model (minting, a growing validity set, revocation tied to process lifecycle) for a residual whose blast radius the two changes above already bound to "the current token value, readable only by the local account, until the next manual rotation" — disproportionate to build unprompted per the plan's own "do not build an overcomplicated security subsystem just for this" guidance. Automating `rotateToken` on a schedule is a smaller, real option for shrinking that residual further and is left as an open question rather than built silently.
+
+## ADR-075 `codex-code-mode-host` is an official, separately-released, version-locked companion binary that Arc does not install; the startup warning is closed by disabling the always-on host probe, not by shipping an unused ~22 MB binary
+
+Status: **Accepted** (Phase 11 Part 1)
+
+The installed app showed `Code Mode is unavailable because failed to spawn code-mode host .../codex-code-mode-host: host executable was not found` on every new Codex thread. Verified against `openai/codex` at the pinned tag `rust-v0.155.1`:
+
+- `codex-code-mode-host` is a genuine first-party Cargo workspace member (`codex-rs/code-mode-host`), built and released from the same commit/tag as `codex` itself — always version-locked 1:1 to the Codex release, never independently versioned. It ships as its own per-platform GitHub release asset (`codex-code-mode-host-aarch64-apple-darwin.tar.gz`, darwin-arm64 available, GitHub-computed digest `sha256:e8957108…b508a`, same integrity-metadata shape ADR-020/025 already consume) — a separate asset from the plain `codex-aarch64-apple-darwin.tar.gz` single-executable archive Arc downloads today, which is why Arc's managed Codex never had it.
+- Two distinct feature flags govern it (`codex-rs/features/src/lib.rs`): `code_mode` (the actual code-execution tool the model would call) is `Stage::UnderDevelopment`, `default_enabled: false` — Arc has never turned this on. `code_mode_host` (the companion-process *infrastructure*) is `Stage::Stable`, `default_enabled: true` — independently of whether `code_mode` itself is used, Codex always probes for the host binary and reports availability once per new Codex thread (an `AtomicBool`-guarded, take-once warning — not a real per-turn spawn loop, contrary to what "repeated" in the plan implied; still worth closing because the message ("host executable was not found") reads as a defect).
+- Confirmed empirically against the real pinned binary (`codex exec` against an isolated `CODEX_HOME`, unreachable pool URL so no real network egress) that Codex's own `-c`/`--disable` mechanism (already used for the account-pool overrides, ADR-067) applies uniformly to `app-server` too: `-c features.code_mode_host=false` changes the one-time notice from the alarming "failed to spawn ... host executable was not found" to the honest "Code Mode is unavailable because code-mode host is disabled" — and stops Codex from attempting to spawn anything at all. A residual single informational line still appears once per thread (Codex's own code always calls `take_unavailable_warning` from the tool-registration path regardless of why the feature is off); no supported mechanism to suppress that specific advisory line entirely was found, and none was invented.
+
+Decision: since `code_mode` (the feature that would actually consume the host) is off both upstream and in Arc, installing, verifying, staging and version-pinning a ~22 MB companion binary purely to silence a warning about infrastructure nothing uses would be disproportionate (plan's own "do not build an overcomplicated subsystem" standard). `plugins/provider-codex/src/bridge/bridge.ts`'s `resolveAppServerLaunch` now unconditionally appends `-c features.code_mode_host=false` to every Codex launch (not just pool-routed ones — this is unrelated to account-pool routing). This is the literal "feature disabled → Codex must not repeatedly attempt to spawn it" outcome the plan asked for. `arc.agents.prepare`/`repair`/health need no change: they already report the runtime healthy on the main binary alone, and that remains correct because the companion is not required by any feature Arc enables.
+
+If Arc later decides to ship Code Mode as a real product feature, the acquisition path is already proven end to end by ADR-020/021/025 and needs no new mechanism — pin `codex-code-mode-host-aarch64-apple-darwin.tar.gz` from the same release tag as the active Codex version (never a different tag — the plan's "install/activate/rollback the entire Codex version directory as one unit" requirement, deferred to Part 2, applies directly here), stage it beside `codex` in the runtime directory, drop the `-c features.code_mode_host=false` override, and extend health to require the companion whenever `code_mode`/`code_mode_host` is enabled. That work is explicitly out of scope until Arc makes that product decision.
+
+## ADR-076 The runtime manifest gains a `knownGoodVersion` field, migrated forward from every real v1 manifest instead of discarding it
+
+Status: **Accepted** (Phase 11 Part 2)
+
+The plan's update engine needs three distinct concepts per runtime — installed, active, known-good — and the existing manifest (ADR-016, schema v1) only had `activeVersion`/`previousVersion`. `activeVersion` alone cannot represent "this candidate is running but has not yet proven itself": collapsing that into `activeVersion` would mean either delaying activation until after a real provider turn succeeds (contradicting atomic activation, ADR-011 below) or treating every activation as instantly trustworthy (contradicting the plan's explicit "candidate does not become known-good simply because download succeeded").
+
+Decision: `packages/arc-domains/src/arc-runtime/manifest.ts` bumps `ARC_RUNTIME_MANIFEST_SCHEMA_VERSION` to 2 and adds `knownGoodVersion: string | null` per runtime entry. Critically, `readArcRuntimeManifest` does not simply reject a v1 file the way it already correctly rejects a *future* schema version (ADR-019) — a v1 file is a real prior release's manifest, not corrupt data, and discarding it would silently forget every already-verified, already-active runtime and force a redundant reinstall on every user's next launch. A parallel `arcRuntimeManifestSchemaV1` schema is kept for exactly this migration path: a file that fails the current schema is retried against v1, and on success is upgraded in memory (`knownGoodVersion` defaults to that entry's `activeVersion`, since every v1 activation was implicitly trusted with no promotion step). The migrated shape is returned as an ordinary `"ok"` read result; it is not written back until the next real mutation, at which point it naturally persists as v2 through the existing atomic tmp+rename path. Tested directly: a hand-written v1 JSON fixture (codex active, omp active, claude-code never installed) migrates with every field preserved and `knownGoodVersion` correctly defaulted per entry.
+
+## ADR-077 The update engine is layered entirely on top of the Phase 1–6 runtime primitives; no parallel runtime manager was created
+
+Status: **Accepted** (Phase 11 Part 2)
+
+Architecture map, written before any code per the plan's own instruction:
+
+```
+manifest (schema v2: activeVersion, previousVersion, knownGoodVersion, source, digest, installedAt)
+  → ArcRuntimePaths.executablePath(id, version) resolves the managed binary
+  → environment.ts injects BB_CODEX_BRIDGE_APP_SERVER_COMMAND / BB_CLAUDE_CODE_EXECUTABLE / BB_OMP_EXECUTABLE
+  → provider bridges launch exactly that executable (ADR-070, unchanged)
+
+trusted release (releases.ts: one pinned ArcRuntimeRelease per runtime, origin/asset-shape validated)
+  → NEW: update-discovery.ts asks the same trusted origin for the latest release (GitHub Releases API for
+    codex/omp, downloads.claude.ai's own /latest + manifest.json for claude-code — the exact mechanism
+    Anthropic's own install.sh uses), validates the result through validateArcRuntimeRelease before trusting
+    it for anything, side-effect-free
+  → NEW: update-download.ts downloads + reuses acquire.ts's existing stageReleaseExecutable (unchanged) to
+    verify checksum/version in a scratch staging directory — this is the same staging primitive Phase 3/5
+    already proved, now callable for ANY release, not just the build-time pin
+  → NEW: health.ts runs a minimal, offline, no-account probe per runtime (codex: version + `doctor`;
+    claude-code: version + `doctor`; omp: version + a real ACP `initialize` handshake, mirroring Phase 4's own
+    live proof) before AND after activation
+  → NEW: activation.ts's activateArcRuntimeVersion is exactly the atomic manifest write ADR-016/037 already
+    established, parameterized for any staged version, never deleting the superseded version's directory
+  → NEW: activation.ts's promoteArcRuntimeKnownGood / rollbackArcRuntimeVersion are the two new manifest
+    operations the plan requires; rollback reactivates knownGoodVersion (never previousVersion directly) and
+    never redownloads
+  → NEW: update.ts's updateArcRuntime chains all of the above: discover → stage → pre-activation health →
+    activate → post-activation health → promote-or-automatic-rollback
+
+ArcAgentManager (arc-agent/manager.ts, unchanged class, extended)
+  → the existing per-agent single-flight lock (runExclusive) now also guards checkForUpdate/updateAgent/
+    rollbackAgent — Codex and OMP updates already ran concurrently under this lock before Part 2; nothing new
+    was built for cross-runtime concurrency
+  → resolveActions' "update"/"rollback" entries (previously hardcoded available:false, "arrives in a later
+    Arc release") now reflect real local state: update whenever the runtime is prepared, rollback exactly
+    when knownGoodVersion differs from the active version — both computed from data already in ArcAgentStatus,
+    no network call on an ordinary status read
+
+arc-core plugin (unchanged files extended, not replaced)
+  → contract.ts gains arc.agents.checkForUpdate/update/rollback and their strict output schemas
+  → server.ts wires them to the same requireHost().agents.* methods every other agent action already uses,
+    with an explicit narrow-mapping (toArcRuntimeUpdateDiscoverySummary) so only display-safe release fields
+    (version/platform/releaseTag/assetName/downloadUrl/sha256/license) ever cross the RPC boundary — never
+    runtimeId/artifactKind/expectedExecutableVersion/executableSha256, and never anything the renderer could
+    feed back to control a future download
+```
+
+No new manifest file, no new lock, no new RPC transport, no new manager class. Every new module lives in `packages/arc-domains/src/arc-runtime/` beside the code it extends, and the only structural change to an *existing* file's behavior is the manifest schema migration (ADR-076) and `resolveActions`/`resolveRuntimeStatus` learning about `knownGoodVersion`.
+
+## ADR-078 Update discovery reuses each runtime's already-established trusted origin; every discovered release is re-validated through the same gate a build-time pin goes through
+
+Status: **Accepted** (Phase 11 Part 2)
+
+`discoverArcRuntimeUpdate` (`update-discovery.ts`) is side-effect-free: it never downloads, stages, or writes. For Codex and OMP it calls `GET api.github.com/repos/<owner>/<repo>/releases/latest` (the same GitHub repos already recorded in `releases.ts`'s `TRUSTED_RELEASE_ORIGINS`) and reads the asset's own `digest` field (`sha256:…`) — no separate checksum infrastructure invented; this is the identical GitHub-computed digest ADR-020/025 already consume. For Claude Code it calls `downloads.claude.ai/claude-code-releases/latest` (a plain-text version string) then that version's `manifest.json` for the per-platform checksum — verified by reading `claude.ai/install.sh` directly: this is exactly Anthropic's own official installer's discovery mechanism (`DOWNLOAD_BASE_URL/latest` → `DOWNLOAD_BASE_URL/$version/manifest.json`), not a new endpoint Arc invented. macOS code-signature verification (ADR-030) remains the cryptographic trust gate regardless of where the checksum came from.
+
+Whatever a discovery call returns is constructed into an ordinary `ArcRuntimeRelease` and passed through the exact same `validateArcRuntimeRelease` every pinned release already goes through (origin host/path-prefix, no `latest` aliases, https-only, exact asset-name suffix). A discovery response that tried to point anywhere else — a compromised API response, a misconfigured test seam, a bug — fails validation and is reported as `discoveryError`, never silently trusted. Tested directly (`arc-runtime-update-discovery.test.ts`): a discovered release with a doctored `downloadUrl` is rejected with `latestTrusted: null` and a `discoveryError` naming trust validation as the cause.
+
+Live-verified against the real trusted sources (read-only, non-destructive, 2026-09-20): Codex's and OMP's `releases/latest` both currently match Arc's existing pins exactly (0.155.1, 18.2.6) — no real update exists yet for either, matching the plan's 2.30 instruction not to force one. Claude Code's `/latest` returned `2.1.278`, newer than Arc's pinned `2.1.276` — a real update exists, and the discovery mechanism found it correctly end to end (version string + manifest.json checksum both fetched and shaped exactly as `discoverClaudeLatestRelease` expects). No production Claude update was performed; that stays deliberately deferred to the installed-app verification pass (plan 2.31), which Part 2's backend work does not include.
+
+## ADR-079 Known-good promotion is a distinct step after a post-activation health probe, not "activation succeeded" or "a real user turn happened"
+
+Status: **Accepted** (Phase 11 Part 2)
+
+The plan's fullest version of promotion criteria is "successful managed provider startup" — ideally a real user turn. Wiring that signal end to end would mean threading a "this runtime just completed a real turn" event from the provider bridges (provider-codex/provider-claude-code/provider-acp), through the agent-runtime execution layer, back into `ArcAgentManager` — a materially larger, cross-package change than Part 2's engine work, and one that touches code outside `arc-domains`/`arc-core` that has its own extensive existing behavior (ADR-061 through ADR-069) this phase must not regress.
+
+Decision: `updateArcRuntime`'s promotion criterion is a local, offline, no-account health probe run immediately after activation (the same `probeArcRuntimeHealth` used pre-activation, but now against the live, activated executable path) — version match plus `doctor` (Codex/Claude) or a real ACP `initialize` handshake (OMP). This is a real, meaningful check (it proves the activated binary starts and answers its own protocol), just not the plan's most ambitious version (an actual completed coding turn). The gap is deliberate and documented here, not silently narrower than advertised: a runtime could in principle pass this probe and still fail on a real turn for reasons the probe cannot see (a genuine account/provider-level issue, which ADR-080 explicitly keeps separate from this signal on purpose). Wiring true turn-level promotion is left as explicit future work if Part 2's probe-based promotion proves insufficient in practice.
+
+## ADR-080 Automatic rollback fires only on a local health-probe failure; account, quota, network, and provider-service failures never trigger it
+
+Status: **Accepted** (Phase 11 Part 2)
+
+The plan draws a hard line (2.10, 2.15): a runtime failure (missing executable, wrong architecture, immediate crash, app-server that will not start) should roll back automatically; an account/service failure (quota exhausted, OAuth expired, network outage, model unavailable) must not. `updateArcRuntime`'s only trigger for `rollbackArcRuntimeVersion` is `probeArcRuntimeHealth` reporting `unhealthy` on the newly-activated binary — a local process spawn/version-probe/doctor/ACP-handshake check that makes no account-scoped request and reaches no paid model endpoint (verified directly: the Codex/Claude checks are `--version` and `doctor`, both documented as pre-auth/read-only in Phase 5's own live evidence; the OMP check is a bare ACP `initialize` over stdio with no credentials involved, matching Phase 4's own proof that "runtime ready" is independent of "account ready"). Nothing in the update engine inspects account state, quota headers, or HTTP status codes from a provider API — those signals live entirely in the account/usage domains (`arc-account`, `arc-usage`) and are structurally unreachable from `update.ts`, so a quota exhaustion or an expired OAuth token cannot reach this code path at all, let alone trigger a rollback.
+
+## ADR-081 Codex's own update-check and Code Mode host probe are both disabled on every Arc-managed launch; this is defense-in-depth for "Arc owns runtime version changes," not new functionality
+
+Status: **Accepted** (Phase 11 Part 2, extends ADR-075)
+
+Beyond the Code Mode host disable (ADR-075), Codex's `ConfigToml` carries a real `check_for_update_on_startup` key backing its own `codex update` self-update path. Confirmed against the real pinned binary that this key is accepted (`-c check_for_update_on_startup=false` parses cleanly, matching the same `-c`/`--disable` validation already proven for `code_mode_host` in ADR-075) and is unconditionally appended to `resolveAppServerLaunch`'s base args alongside the Code Mode disable — one line, same mechanism, same reasoning: Arc, not Codex itself, decides when Codex's version changes (plan 2.19), and disabling a startup check that Arc's headless `app-server` integration has no use for either way costs nothing. Claude Code already carries the equivalent protection from Phase 5 (`DISABLE_AUTOUPDATER=1`/`DISABLE_UPDATES=1`, ADR-032, doctor-confirmed live). OMP was not found to expose any self-update mechanism in the 18.2.6 CLI surface already inventoried in Phase 4/8; none was invented. All three runtimes are now covered: Codex and Claude by an explicit disable, OMP by the absence of any self-update path to disable.
+
+## ADR-082 Retention stays conservative: side-by-side installation never overwrites, nothing beyond the active and known-good versions is ever deleted automatically
+
+Status: **Accepted** (Phase 11 Part 2)
+
+Matches the plan's own explicit instruction (2.27) not to build aggressive cleanup yet. `activateArcRuntimeVersion` never removes the directory a version it supersedes lives in (tested directly: after activating 0.156.0 over an active 0.155.1, the 0.155.1 version directory is untouched and its executable remains chmod-accessible). `rollbackArcRuntimeVersion` never deletes the version it rolls back *from* either — a version directory is removed only by the plan's own future retention-policy phase, never as a side effect of activation, promotion, or rollback. `cleanAbandonedArcRuntimeStaging` (plan 2.7) is the one place this phase does delete anything, and it is scoped exclusively to `runtimePaths.stagingRoot` — scratch space that, by construction, never holds an active or known-good runtime (those live under `runtimePaths.runtimeRoot`, a disjoint directory tree) — swept once at every server startup so a crash mid-download or mid-verification never accumulates disk usage across restarts, verified directly not to touch the runtimes tree in the same test that proves it clears staging.

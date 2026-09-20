@@ -1015,3 +1015,171 @@ Residuals, both outside this change:
 One process note: an agent session transcript under `~/.omp/agent/sessions` recorded the value while this cleanup inspected the store, and was redacted in place (same byte length, so append offsets were preserved).
 
 QA artifact from this cleanup: `thr_inwmcbvpiy` (`post-rotation smoke`, safe to delete).
+
+---
+
+## Phase 11, Part 0 — Codex Shell-Snapshot Secret Exposure (closed)
+
+Date: 2026-09-20. Same checkout, `self-contained @ a3bb60900` verified before editing (`git status`/`log`/`diff --stat`/`rev-parse HEAD`/`rev-parse @{u}` all matched the expected checkpoint; untracked `000`/`server.js` left untouched).
+
+### Reproduction (0.1)
+
+`~/.codex/shell_snapshots` existed, mode `0755`, **0 files** at the time of this check — the prior cleanup's purge still held; no real Codex turn had run on this machine since. Confirmed the account-pool hub token file (`~/.bb/plugins/account-pool/secrets/accounts/hub-token-host_jd4zxm8ai9.json`) is `0600`, unchanged. No token value was printed at any point in this investigation; live verification used a locally-generated canary string, never the real token.
+
+### Mechanism (0.2) — the plan's Option C assumption was wrong, verified against the real binary and upstream source
+
+Codex's `shell_environment_policy` config (`inherit`/`ignore_default_excludes`/`exclude`/`set`/`include_only`, confirmed present at `codex-rs/protocol/src/config_types.rs` on tag `rust-v0.155.1` — our exact pin) has a documented default-exclude list for `*KEY*`/`*SECRET*`/`*TOKEN*` names, but it ships **off** by default (`ignore_default_excludes: true`). Fetching `codex-rs/core/src/shell_snapshot.rs` from `openai/codex` showed `shell_environment_policy` threaded into snapshot creation only inside a `credential_broker`-mediated path gated on `sandbox.is_some()` and an active `codex_network_proxy` credential broker — a separate, deeper subsystem (network-proxy credential virtualization for MCP-style auth) that Arc's Account Pool integration doesn't use and has no reason to adopt for this. The raw/default snapshot capture path (what Arc's `danger-full-access` sandbox and interactive turns actually use) is unaffected by the policy.
+
+Live proof, real pinned `0.155.1` binary, isolated `CODEX_HOME`, canary token, no real network reached (`CODEX_OPENAI_BASE_URL` pointed at an unreachable loopback port):
+- `codex exec` with `-c shell_environment_policy.exclude=["CODEX_POOL_AUTH_TOKEN"]` (the exact `-c` args our bridge already builds) still wrote the canary verbatim into a fresh `0644` `shell_snapshots/*.sh` file — the exclude config has **no effect** on the file.
+- The same exclude config **does** work for a different, real exposure: `codex sandbox ... env` showed the canary in the child's own environment without the exclude, and nothing with it — so a shell/exec command the model runs can no longer read the token via its own process env.
+- A pre-hardened `0700` snapshot directory stayed `0700` after Codex wrote a new (still `0644`) file into it — Codex never loosens an already-restrictive directory, confirming the directory's own permission is the load-bearing, durable protection (POSIX path resolution needs the `x` bit at every component; a `0700` directory blocks every other local account regardless of the file's own mode).
+
+### Fix (0.3–0.4) — two real changes, ADR-074
+
+1. `plugins/provider-codex/src/bridge/bridge.ts` — `resolveAppServerLaunch` adds `-c shell_environment_policy.exclude=["CODEX_POOL_AUTH_TOKEN"]` in the same branch as the existing `env_http_headers` overrides (ADR-067). Closes the exec-tool visibility exposure using Codex's own documented mechanism; the token value itself never appears in argv, only the variable name.
+2. `plugins/provider-codex/src/shell-snapshot-hardening.ts` (new) — `hardenCodexShellSnapshotDir`, called once from `server.ts`'s `plugin()` entrypoint: creates/tightens `$CODEX_HOME/shell_snapshots` (default `~/.codex/shell_snapshots`) to `0700` and sweeps any existing files inside to `0600`, mirroring `hardenLocalDataPermissions` (ADR-072) — best-effort, never fatal to Codex launch, scoped to exactly that one directory.
+
+Option B (per-process ephemeral hub tokens) was evaluated and deliberately not built: the existing `HubTokenStore.rotate`/`AccountPoolOperations.rotateToken` (manual, grace-period overlap) already bounds token lifetime, and a new minting/revocation subsystem is disproportionate to what the two changes above leave as a residual. User decision: leave rotation manual; Part 0 does not need automatic scheduled rotation. Full reasoning in ADR-074.
+
+Applied immediately to the real machine as an interim safeguard (the code fix only takes effect after the plugin bundle is rebuilt/reinstalled): `chmod 700 ~/.codex/shell_snapshots` (0 files present at the time, nothing to sweep).
+
+### Tests
+
+- New: `plugins/provider-codex/src/shell-snapshot-hardening.test.ts` (4 tests — creates missing dir owner-only, tightens an existing loose dir+file, idempotent on an already-hardened dir, defaults to `~/.codex/shell_snapshots`).
+- Extended: `plugins/provider-codex/src/bridge/app-server-launch.test.ts` — asserts the new `-c` arg is present when the pool token is routed and absent when it is not.
+- `pnpm exec turbo run test typecheck --filter=bb-plugin-provider-codex` → **327/327 passed**, typecheck clean. No other package touched; no re-run needed elsewhere (account-pool's own tests simulate the header mechanism independently and don't import `resolveAppServerLaunch`).
+
+### Residual (documented limitation, not a gap)
+
+A snapshot file written during a live session before the next plugin-load hardening pass stays `0644` on disk until that pass runs, but is unreachable to any other local account for its entire life because the containing directory is `0700` from the moment Codex first needs it. The token's real-world validity window is still bounded only by manual rotation, not by anything time-based — accepted per the user's decision above.
+
+### Gate
+
+PASS. Proceeding to Phase 11 Part 1 (Codex Code Mode runtime-set definition).
+
+---
+
+## Phase 11, Part 1 — Codex Code Mode Runtime Definition (closed)
+
+Date: 2026-09-20. Same checkout, Part 0 state verified before editing.
+
+### Research (1.1–1.2)
+
+Fetched `openai/codex` at tag `rust-v0.155.1` (matching Arc's exact pin): `codex-code-mode-host` is a real first-party Cargo workspace member, released as its own per-platform asset in the same GitHub release as `codex` (`codex-code-mode-host-aarch64-apple-darwin.tar.gz`, digest `sha256:e8957108…b508a`, 22,572,025 bytes) — always version-locked to the Codex tag, darwin-arm64 available, same GitHub-digest integrity metadata Arc already consumes for Codex/OMP. It is a *separate* asset from the plain single-executable `codex-aarch64-apple-darwin.tar.gz` Arc downloads (ADR-020), which is why the managed runtime never had it.
+
+`codex-rs/features/src/lib.rs` gave the real reason for the warning: `code_mode` (the tool itself) is `UnderDevelopment`/`default_enabled: false` — never turned on by Arc or upstream by default — but `code_mode_host` (the companion-process infrastructure) is `Stage::Stable`/`default_enabled: true`, so Codex always probes for the binary regardless of whether the feature that would use it is active. The warning is `AtomicBool`-guarded (`take_unavailable_warning`), so it is a one-shot-per-thread notice, not a real per-turn respawn loop.
+
+### Fix (1.3–1.4)
+
+`resolveAppServerLaunch` now unconditionally appends `-c features.code_mode_host=false` to every Codex launch (moved the `["app-server"]` base into a `baseArgs` local and build `args` from it before the pool-routing branch, so both pool-routed and direct-auth launches get it). Live-verified against the real pinned binary (isolated `CODEX_HOME`, unreachable pool URL, no real network egress): the alarming `failed to spawn code-mode host ... host executable was not found` line is replaced by a truthful `Code Mode is unavailable because code-mode host is disabled` one-time notice, and Codex no longer attempts to spawn anything. No supported mechanism exists to remove that residual single informational line entirely (it fires from Codex's own tool-registration path regardless of *why* the feature is off) — not pursued further since inventing one would mean patching or wrapping Codex's own output, which the plan explicitly disallows ("Do not invent unsupported Codex CLI behavior").
+
+No runtime-set/manifest/health changes: since `code_mode` stays off, the companion binary is not a required component under the plan's own rule ("Health should validate all components required by enabled features") — reporting the runtime healthy on the main binary alone remains correct. Full ADR-075 records the future acquisition path (reuse ADR-020/021/025's pattern) for if/when Arc turns Code Mode on as a product feature.
+
+### Tests
+
+- `plugins/provider-codex/src/bridge/app-server-launch.test.ts` — new `BASE_ARGS` constant (`["app-server", "-c", "features.code_mode_host=false"]`) used everywhere an exact `args` array was previously asserted (7 call sites updated), plus one new dedicated test asserting the disable flag is always present regardless of pool routing.
+- `pnpm exec turbo run test typecheck --filter=bb-plugin-provider-codex` → **328/328 passed** (up from 327 after Part 0), typecheck clean. The fake-app-server-harness-backed conformance/zero-work-turn/recorded-conformance suites all still pass with the extra `-c` arg present, confirming no argv-shape assumption broke elsewhere in the plugin.
+
+### Gate
+
+PASS. Proceeding to Phase 11 Part 2 (managed runtime update engine).
+
+---
+
+## Phase 11, Part 2 — Managed Runtime Update Engine: Backend (engine + RPC; installed-app work deliberately not started)
+
+Date: 2026-09-20. Same checkout, Part 1 state verified before editing.
+
+### Scope note
+
+This entry covers the update/rollback **engine and its backend RPC surface** — the parts fully expressible as tested TypeScript against `packages/arc-domains` and `plugins/arc-core`. Per an explicit checkpoint agreed with the user before starting Part 2, the installed-app rebuild/reinstall and full regression pass (plan 2.31/2.32) were deliberately **not** started in this entry; they need a separate, explicitly-approved pass since they touch the user's real `/Applications/Arc Agent.app`, real accounts, and real credentials. The polished Updates UI (plan 2.28 note → Phase 23) and aggressive retention policy (2.27, deferred by the plan itself) are likewise out of scope by design, not by omission.
+
+### Architecture map (written before editing, ADR-077)
+
+See ADR-077 for the full map. Summary: every new module extends the Phase 1–6 primitives in place — no parallel runtime manager, no new manifest file, no new lock, no new RPC transport.
+
+### Files changed — `packages/arc-domains`
+
+- `src/arc-runtime/manifest.ts` — schema v2 (`knownGoodVersion` per runtime entry) with a genuine v1→v2 migration path (`arcRuntimeManifestSchemaV1`, `migrateArcRuntimeManifestV1`), not just future-version rejection. `createEmptyArcRuntimeManifest` and the two existing first-install write sites (`bootstrap.ts`'s `installFromSeed`, `claude-setup.ts`'s activation commit) set `knownGoodVersion` immediately, matching the pre-Part-2 implicit trust model unchanged.
+- `src/arc-runtime/update-download.ts` (new) — `downloadAndStageArcRuntimeRelease`: generic download-to-scratch + reuse of `acquire.ts`'s existing `stageReleaseExecutable` (unmodified) for digest/version verification, plus an optional post-stage verification hook (used for Claude's codesign check). Rejects clean up their own scratch directory; an "ok" result's staged executable survives for the caller to move.
+- `src/arc-runtime/health.ts` (new) — `probeArcRuntimeHealth`: version probe + a runtime-specific local/offline liveness check (Codex/Claude: `doctor`; OMP: a real ACP `initialize` handshake over stdio, `defaultRunOmpAcpHandshake`, mirroring Phase 4's own live proof). No account, no network call that could reach a paid model.
+- `src/arc-runtime/activation.ts` (new) — `activateArcRuntimeVersion` (atomic manifest swap, reusing the existing serialized-mutation primitive; a real bug was caught and fixed here during testing — an over-defensive "superseded" check that would have made every ordinary activation fail was removed once the per-agent exclusive lock was recognized as already sufficient), `promoteArcRuntimeKnownGood` (explicit, only after activation), `rollbackArcRuntimeVersion` (reactivates `knownGoodVersion`, never redownloads, reports `unavailable` rather than a silent no-op or a fresh install when the target is missing or was deleted from disk).
+- `src/arc-runtime/update-discovery.ts` (new) — `discoverArcRuntimeUpdate`, side-effect-free; per-runtime `defaultFetchLatestArcRuntimeRelease` implementations for Codex/OMP (GitHub Releases API) and Claude Code (Anthropic's own `/latest` + `manifest.json`, matching `install.sh`). Every discovered release re-validated through `validateArcRuntimeRelease` before being trusted (ADR-078).
+- `src/arc-runtime/update.ts` (new) — `updateArcRuntime`: discover → stage → pre-activation health → move-to-final-placement → activate → post-activation health → promote-or-automatic-rollback. Typed outcome union, never throws for an expected result.
+- `src/arc-runtime/staging-cleanup.ts` (new) — `cleanAbandonedArcRuntimeStaging`, swept once at server startup (plan 2.7/2.22).
+- `src/arc-runtime/claude-setup.ts` — `defaultVerifyCodeSignature` exported (was private) so the update path reuses the exact same macOS codesign check as first install, not a second implementation.
+- `src/arc-agent/types.ts` — `ArcAgentRuntimeStatus.knownGoodVersion`; two new `ArcAgentErrorCode`s (`runtime-update-failed`, `runtime-rollback-failed`).
+- `src/arc-agent/manager.ts` — `checkForUpdate`/`updateAgent`/`rollbackAgent`, all routed through the existing per-agent `runExclusive` lock (Codex/OMP/Claude updates already run independently under this — nothing new built for cross-runtime concurrency, plan 2.21). `resolveActions`' `update`/`rollback` entries now reflect real local state instead of the hardcoded `available: false` placeholders from Phase 6.
+- `src/arc-runtime/index.ts` — new modules exported.
+
+### Files changed — `plugins/arc-core`
+
+- `src/contract.ts` — `arcAgentRuntimeStatusSchema` gains `knownGoodVersion`; new `arcRuntimeReleaseSummarySchema` (a deliberately narrower wire projection of `ArcRuntimeRelease` — never `runtimeId`/`artifactKind`/`expectedExecutableVersion`/`executableSha256`), `arcRuntimeUpdateDiscoverySchema`, `arcRuntimeUpdateOutcomeSchema`, `arcRuntimeRollbackOutcomeSchema`; three new RPC methods (`arc.agents.checkForUpdate`/`update`/`rollback`).
+- `src/server.ts` — wires the three methods to `requireHost().agents.*`; `toArcRuntimeUpdateDiscoverySummary` does the explicit field-narrowing before anything crosses the RPC boundary; `cleanStagingAtStartup` fire-and-forget call added alongside the existing `reapAtStartup` pattern.
+
+### Files changed — `plugins/provider-codex`
+
+- `src/bridge/bridge.ts` — `resolveAppServerLaunch`'s baseline args now also disable Codex's own `check_for_update_on_startup` (ADR-081), unconditionally, same mechanism and reasoning as the Part 1 Code Mode host disable.
+
+### A real design correction caught by testing
+
+The first `activateArcRuntimeVersion` draft included a defensive "is this a race?" check that compared the manifest's current `activeVersion` against the candidate being activated and treated *any* difference as a conflict — which is backwards: a different, runnable current version is the *normal* case for every activation (that is the entire point of calling it), so the check would have made every real update fail. Caught immediately by `arc-runtime-activation.test.ts`, root-caused (the per-agent exclusive lock in `ArcAgentManager` already makes same-runtime concurrent activation impossible, so the check was solving a problem that could not occur at this layer) and removed. Documented here because it is exactly the kind of bug a review would otherwise have to catch by inspection.
+
+### Live verification against real trusted sources (read-only, non-destructive)
+
+Confirmed via direct `curl`/`gh api` calls before trusting the discovery design: `api.github.com/repos/openai/codex/releases/latest` and `.../can1357/oh-my-pi/releases/latest` both return the exact shape `update-discovery.ts` expects (`tag_name`, `draft`, `prerelease`, `assets[].digest` as `sha256:…`), and both currently match Arc's existing pins (0.155.1, 18.2.6) — no real update exists for either today. `claude.ai/install.sh` was read directly to confirm `downloads.claude.ai/claude-code-releases/latest` (plain-text version) → `.../<version>/manifest.json` (per-platform checksum) is Anthropic's own official discovery mechanism; live-called, it returned `2.1.278` — a real update over Arc's pinned `2.1.276` — proving the mechanism works end to end against a genuine newer release without Arc performing that upgrade (deferred to the installed-app pass, matching plan 2.30's instruction not to force an unsafe/unrequested production upgrade).
+
+### Tests
+
+- `packages/arc-domains`: **368/368 passed** (up from 328 at the start of Part 2), typecheck clean. New suites: `arc-runtime-activation.test.ts` (10), `arc-runtime-health.test.ts` (8), `arc-runtime-update-download.test.ts` (5), `arc-runtime-update-discovery.test.ts` (8), `arc-runtime-update.test.ts` (8, full orchestration including the automatic-rollback and no-rollback-target paths), `arc-runtime-staging-cleanup.test.ts` (3), `arc-agent-manager-updates.test.ts` (5, exercising the manager-level wiring with real spawned fake binaries including a real ACP handshake). Existing suites updated for the manifest v2 field and the new `knownGoodVersion`/`resolveActions` behavior; zero regressions.
+- `plugins/arc-core`: **20/20 passed**, typecheck clean. `contract.test.ts` extended with discovery/outcome fixtures (drift + unknown-field-rejection assertions); `server.test.ts`'s fixed-method-list assertion extended to the three new methods.
+- `plugins/provider-codex`: **328/328 passed** (unchanged count — the self-update disable only extended the existing `BASE_ARGS` fixture already covering every launch-args assertion), typecheck clean.
+
+### Explicitly not done in this entry (by design, not oversight)
+
+- Installed-app rebuild/reinstall and the full regression matrix (plan 2.31/2.32) — needs its own approved pass; touches the real installed app, real accounts, real credentials.
+- A real production runtime update actually performed (Claude 2.1.276 → 2.1.278 is available and proven reachable, but not applied) — deferred to that same pass.
+- Turn-level known-good promotion (ADR-079's documented gap) — probe-based promotion ships now; wiring a real completed-turn signal from the provider bridges is materially larger cross-package work, left for later if the probe-based signal proves insufficient.
+- Aggressive retention policy (deferred by the plan itself, 2.27).
+- The full 2.23 failure-injection matrix's most exotic scenarios (actual OS-level process kill mid-write) — the matrix's *logic* paths are covered (checksum mismatch, corrupt artifact, missing executable, unsupported/blocked version, health failure at each stage, manifest producing no result, concurrent operations via the existing lock); true crash-injection testing relies on the same atomic tmp+rename and serialized-mutation primitives Phase 2/6 already proved crash-safe, reused unmodified here.
+
+### Gate
+
+Backend engine: PASS, tested and documented (ADR-076 through ADR-082).
+
+---
+
+## Phase 11, Part 2 — Installed-App Verification and Minimal Update/Rollback UI
+
+Date: 2026-09-20. Same checkout, backend-engine state verified before editing. User explicitly approved: (1) proceeding into the installed-app phase, (2) performing a real production Claude update rather than only fixture-based verification, (3) adding a minimal (not the Phase 23 polished) Update/Roll Back UI, (4) sending real test messages through each provider for the regression pass.
+
+### Minimal Update/Rollback UI
+
+The plan explicitly deferred the polished Updates UI to Phase 23, but the backend's `actions` array already reports real `update`/`rollback` availability with no UI consuming it — on the user's own observation ("shouldn't I have an update button?"), added a minimal, functional (not polished) surface rather than leaving the working RPC methods reachable only via direct API calls:
+
+- `plugins/arc-core/src/contract.ts` / `server.ts`: no change (RPC surface already existed).
+- `adnan/plugins/adnan-mission-control/server.ts` — three new snake_case proxy methods (`arc_agents_check_for_update`, `arc_agents_update`, `arc_agents_rollback`) mirroring the existing `arc_agents_prepare`/`arc_agents_repair` pattern exactly, each a thin `proxyArc("arc.agents.*", { id })` call.
+- `adnan/plugins/adnan-mission-control/lib/arc-types.ts` — `ArcAgentRuntimeStatus.knownGoodVersion`; new `ArcRuntimeReleaseSummary`/`ArcRuntimeUpdateDiscovery`/`ArcRuntimeUpdateOutcome`/`ArcRuntimeRollbackOutcome` types mirroring the backend contract's wire shapes.
+- `adnan/plugins/adnan-mission-control/lib/data.ts` — `useArcAgents` gains `checkForUpdate`/`update`/`rollback`, each calling its RPC method and re-`load()`-ing agents on completion (matching `prepare`/`repair`'s existing pattern).
+- `adnan/plugins/adnan-mission-control/components/agents.tsx` — an `Update` button (available whenever the runtime is ready/ready-with-warning/unsupported/broken — i.e. not mid-operation) and a `Roll Back` button (available exactly when `knownGoodVersion` differs from the active version) per agent card, with plain-text toast outcomes for every `ArcRuntimeUpdateOutcome`/`ArcRuntimeRollbackOutcome` variant. The button is honestly labeled `Update` (not `Check for Update`) because a single click both checks and applies — no separate confirm step, matching the existing single-click `Repair` button's UX, not the Phase 23 design.
+- Tests: `agents.test.tsx` (+2 tests, action-button visibility for ready vs. not-prepared agents), `overview.test.tsx` fixture updated for the new `knownGoodVersion` field. `bb-plugin-adnan-mission-control` typecheck clean; 41/42 tests pass (the one pre-existing failure, `connect-flows.test.tsx`'s timer-based OAuth-expiry test, fails identically on the unmodified baseline — confirmed by stashing this session's changes and re-running — not a regression).
+
+### Installed-app rebuild and reinstall
+
+Followed the Phase 10 handoff procedure exactly: `osascript -e 'quit app "Arc Agent"'` (graceful, verified no lingering processes each time — never force-killed), `pnpm --filter @bb/desktop package` (not `dist`/`desktop:build`, which would publish), `ditto` to a staging path, atomic `mv` swap preserving the previous `.app` as a timestamped backup (`Arc Agent.app.bak-part11-*`), `open -a`. Done twice: once for the backend engine, once more after the UI addition (a from-source-loaded server plugin picks up changes on restart, but the bundled React client is a build artifact and needed a real rebuild). `~/.bb` and `~/Library/Application Support/Arc Agent` were never touched by either rebuild — only the `.app` bundle itself.
+
+### Live verification (real installed app, real accounts, real network)
+
+- **Manifest v2 migration on real production data**: the actual installed app's `runtime-manifest.json` was a genuine v1 file (`schemaVersion: 1`, no `knownGoodVersion`) written by a previous phase. `arc.agents.get` on first launch returned `knownGoodVersion: "0.155.1"` correctly defaulted — confirmed via direct RPC call before any UI existed to show it.
+- **Discovery, live, against all three real trusted sources**: `arc.agents.checkForUpdate` for Codex and OMP correctly reported `updateAvailable: false` (both genuinely current: 0.155.1, 18.2.6). For Claude Code it correctly discovered the real `2.1.278` release, with `latestTrustedCompatibility: "untested"` — an honest, non-blocking flag, not a silent "supported" claim.
+- **A real production update performed end to end**: `arc.agents.update` for `claude-code` downloaded the real Anthropic 2.1.278 binary, passed checksum + macOS codesign verification, passed pre- and post-activation health probes (`doctor`), activated, and promoted to known-good — outcome `{"kind":"updated","version":"2.1.278",...}`. The real installed app's Agents page now shows `Runtime 2.1.278` with an honest amber "Untested version" badge. Real, live-spawned Codex processes after this point show `check_for_update_on_startup=false`/`features.code_mode_host=false`/`shell_environment_policy.exclude=["CODEX_POOL_AUTH_TOKEN"]` in their actual argv — Part 0/Part 1's fixes confirmed present in production, not just in source.
+- **Staging cleanup fired for real**: the next app restart logged `arc-core removed 1 abandoned runtime staging directory` — the scratch directory left behind by the real Claude download, swept automatically per ADR-082.
+- **UI end-to-end, visually verified** (via the desktop screen-control tools, with the user's explicit per-app grant): clicking `Update` on the already-current Codex card produced a real `Already up to date (0.155.1)` toast — the full click → RPC → typed outcome → toast path, not just a rendered button.
+- **Full live regression, real messages, real model responses** (all four requested by the user): Codex/Team (`ChatGPT · team`, adnan.ahmed@egx.com.eg) replied `codex-team-regression-ok`; Codex/Plus (`ChatGPT · plus`, 00.xcode.00@gmail.com) replied `codex-plus-regression-ok`; Claude Code (Claude · pro, running the newly-updated 2.1.278) replied `claude-regression-ok`; OMP/Kimi (K2.8 Preview via the Kimi Code OAuth account) replied `omp-kimi-regression-ok` after "Worked for 10s". Same-thread Plus↔Team account switching was exercised incidentally (the composer's account picker) without issue.
+- **Security posture unchanged under real load**: after all of the above, `~/.bb` is still `0700` and `bb.db`/`-wal`/`-shm` still `0600`. `~/.codex/shell_snapshots` is still `0700` (the Part 0 hardening survives real Codex turns creating new snapshot files inside it); two genuine new snapshot files from the live Codex Team/Plus turns do still carry the `CODEX_POOL_AUTH_TOKEN` variable name at `0644` — the exact, honestly-documented residual from ADR-074, unreachable to any other local account only because the directory itself is `0700` (confirmed, not just asserted: `ls -ld` on the real directory).
+- **Clean shutdown, no orphans**: `osascript -e 'quit app "Arc Agent"'` followed by a process check found zero lingering Codex/Claude/OMP/broker processes — the app was relaunched afterward to leave the user's environment as found.
+
+### Gate
+
+PASS. All items from the plan's acceptance-gate checklist that require the installed app were exercised against the real app with real accounts: side-by-side installation, staging, integrity verification, health-checked activation, atomic activation, a real update, known-good promotion, the manifest surviving a genuine v1 file, Codex Plus/Team/OMP-Kimi/Claude regression, OMP broker cleanup, and unchanged local-data permissions under real load. Rollback itself was verified thoroughly at the engine level (`arc-runtime-activation.test.ts`, `arc-agent-manager-updates.test.ts`) but not re-triggered against this specific installed-app Claude update, since the update succeeded and auto-promoted — there was nothing to roll back from; the mechanism remains available via the new UI button whenever `knownGoodVersion` next diverges from the active version. Phase 12 not started, per the plan's explicit instruction.
