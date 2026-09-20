@@ -1,15 +1,45 @@
 {
   "_comment": "Provider-literal ratchet (G1). Per-file occurrence count of provider-ID references in core. May only go DOWN. Regenerate: node scripts/check-provider-literal-ratchet.mjs --write. Every counted file must have an `allowlist` entry (count, reason, owner, diesAt); the entries are authored by hand and survive --write. Delete this file and the guard when empty.",
-  "total": 14,
+  "total": 84,
   "files": {
+    "apps/app/src/components/thread/timeline/ProviderUsageSection.tsx": 5,
+    "apps/app/src/hooks/queries/arc-queries.ts": 2,
     "apps/demo-server/src/fixtures/providers.ts": 3,
     "apps/demo-server/src/fixtures/world.ts": 2,
     "apps/server/src/services/threads/thread-edit-message.ts": 1,
+    "packages/arc-domains/src/arc-account/account-pool-source.ts": 7,
+    "packages/arc-domains/src/arc-account/service.ts": 1,
+    "packages/arc-domains/src/arc-agent/catalog.ts": 9,
+    "packages/arc-domains/src/arc-agent/manager.ts": 6,
+    "packages/arc-domains/src/arc-agent/types.ts": 4,
+    "packages/arc-domains/src/arc-runtime/claude-setup.ts": 7,
+    "packages/arc-domains/src/arc-runtime/compatibility.ts": 1,
+    "packages/arc-domains/src/arc-runtime/environment.ts": 4,
+    "packages/arc-domains/src/arc-runtime/manifest.ts": 2,
+    "packages/arc-domains/src/arc-runtime/paths.ts": 2,
+    "packages/arc-domains/src/arc-runtime/releases.ts": 3,
+    "packages/arc-domains/src/arc-runtime/types.ts": 4,
+    "packages/arc-domains/src/arc-usage/pool-source.ts": 5,
+    "packages/arc-domains/src/arc-usage/service.ts": 2,
     "packages/config/src/bb-app-managed-config.ts": 4,
     "packages/scripts/src/commands/archive-codex-tmp-bb-sessions.ts": 1,
-    "packages/scripts/src/lib/seed-perf-fixture.ts": 3
+    "packages/scripts/src/lib/seed-perf-fixture.ts": 3,
+    "plugins/arc-core/src/contract.ts": 4,
+    "plugins/arc-core/src/server.ts": 2
   },
   "allowlist": {
+    "apps/app/src/components/thread/timeline/ProviderUsageSection.tsx": {
+      "count": 5,
+      "reason": "Arc product surface: this UI is Arc's own agents/usage screen rather than shared core rendering.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "apps/app/src/hooks/queries/arc-queries.ts": {
+      "count": 2,
+      "reason": "Arc product surface: this UI is Arc's own agents/usage screen rather than shared core rendering.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
     "apps/demo-server/src/fixtures/providers.ts": {
       "count": 3,
       "reason": "demo fixtures: the demo server's static provider roster.",
@@ -28,6 +58,90 @@
       "owner": "provider-codex",
       "diesAt": "legacy-tool-item-backfill migration (stamps the checkpoint onto old rows)"
     },
+    "packages/arc-domains/src/arc-account/account-pool-source.ts": {
+      "count": 7,
+      "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "packages/arc-domains/src/arc-account/service.ts": {
+      "count": 1,
+      "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "packages/arc-domains/src/arc-agent/catalog.ts": {
+      "count": 9,
+      "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "packages/arc-domains/src/arc-agent/manager.ts": {
+      "count": 6,
+      "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "packages/arc-domains/src/arc-agent/types.ts": {
+      "count": 4,
+      "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "packages/arc-domains/src/arc-runtime/claude-setup.ts": {
+      "count": 7,
+      "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "packages/arc-domains/src/arc-runtime/compatibility.ts": {
+      "count": 1,
+      "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "packages/arc-domains/src/arc-runtime/environment.ts": {
+      "count": 4,
+      "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "packages/arc-domains/src/arc-runtime/manifest.ts": {
+      "count": 2,
+      "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "packages/arc-domains/src/arc-runtime/paths.ts": {
+      "count": 2,
+      "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "packages/arc-domains/src/arc-runtime/releases.ts": {
+      "count": 3,
+      "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "packages/arc-domains/src/arc-runtime/types.ts": {
+      "count": 4,
+      "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "packages/arc-domains/src/arc-usage/pool-source.ts": {
+      "count": 5,
+      "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "packages/arc-domains/src/arc-usage/service.ts": {
+      "count": 2,
+      "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
     "packages/config/src/bb-app-managed-config.ts": {
       "count": 4,
       "reason": "BUNDLED_PROVIDER_IDS: the legacy `customAcpAgents` reader refuses an agent id that shadows a bundled provider, AND `customModelProviderIdSchema` (live `customModels` config) accepts only a bundled id or an `acp-*` id, so a third-party provider cannot carry custom models today (documented DEBT in the file).",
@@ -45,6 +159,18 @@
       "reason": "perf fixture generator: seeds threads for two providers so the timeline benchmark covers both shapes.",
       "owner": "owner-accepted (fixture)",
       "diesAt": "never (fixture)"
+    },
+    "plugins/arc-core/src/contract.ts": {
+      "count": 4,
+      "reason": "Arc product layer: plugins/arc-core is Arc's own server plugin and names the agents it hosts; it is provider-side product code, like plugins/account-pool.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "plugins/arc-core/src/server.ts": {
+      "count": 2,
+      "reason": "Arc product layer: plugins/arc-core is Arc's own server plugin and names the agents it hosts; it is provider-side product code, like plugins/account-pool.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
     }
   }
 }
