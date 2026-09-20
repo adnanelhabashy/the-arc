@@ -1009,8 +1009,8 @@ Post-change evidence: the tool's dry run reports 0 rows with credential values a
 
 Residuals, both outside this change:
 
-- **Every Codex turn re-creates a 0644 snapshot holding the current hub token.** The purge removes today's copies; the next turn writes another, exactly as the verification turn did. Codex's shell-snapshot cache is not Arc-owned, so the fix belongs either in how the pool contributes `CODEX_POOL_AUTH_TOKEN` to a turn or in Codex's own file mode — worth deciding before Phase 11 rather than after.
-- The grace entry keeps the old token valid, by design, until `2026-09-20T11:48:30Z`, and nothing prunes it earlier.
+- **Every Codex turn re-creates a 0644 snapshot holding the current hub token.** The purge removes today's copies; the next turn writes another. This was observed rather than inferred: an unrelated Codex turn at `11:46Z` wrote a fresh snapshot holding the then-current token, which was purged like the others. Codex's shell-snapshot cache is not Arc-owned, so the fix belongs either in how the pool contributes `CODEX_POOL_AUTH_TOKEN` to a turn or in Codex's own file mode — worth deciding before Phase 11 rather than after.
+- A rotation's grace entry keeps the previous token valid for ten minutes by design, and nothing prunes it before it expires. The entry holding the leaked value was therefore removed by rotating once more after it expired, which drops expired entries from `previous`. A final 30,562-file scan finds the leaked value in no file at all, the intermediate token only in the store's grace entry, and the current token only in the store.
 
 One process note: an agent session transcript under `~/.omp/agent/sessions` recorded the value while this cleanup inspected the store, and was redacted in place (same byte length, so append offsets were preserved).
 
