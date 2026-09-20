@@ -2,6 +2,7 @@ import type {
   AgentRuntimeContributedEnvEntry,
   AgentRuntimeShellEnvironment,
 } from "./types.js";
+import { redactEnvValue } from "@bb/domain";
 
 interface ThreadShellEnvironmentArgs {
   environmentId: string;
@@ -56,7 +57,11 @@ export function resolveThreadEnvironment(args: ResolveThreadEnvironmentArgs): {
   const envVars = buildThreadShellEnvironment(args);
   const droppedContributions: DroppedThreadEnvironmentContribution[] = [];
   const entries: ResolvedThreadEnvironmentEntry[] = Object.entries(envVars).map(
-    ([name, value]) => ({ name, source: "shell", value }),
+    ([name, value]) => ({
+      name,
+      source: "shell",
+      value: redactEnvValue(name, value),
+    }),
   );
   for (const contribution of args.contributedEnv) {
     let value: string;
@@ -90,7 +95,10 @@ export function resolveThreadEnvironment(args: ResolveThreadEnvironmentArgs): {
     entries.push({
       name: contribution.name,
       source: contribution.source,
-      value: "core" in contribution.source ? { masked: true } : value,
+      value:
+        "core" in contribution.source
+          ? { masked: true }
+          : redactEnvValue(contribution.name, value),
       reason: contribution.reason,
     });
   }
