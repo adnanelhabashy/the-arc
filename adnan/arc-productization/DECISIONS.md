@@ -362,3 +362,46 @@ Live evidence (single account, real binary, real stored Kimi credential): with `
 Status: **Accepted, deviation recorded** (Phase 10.2/10.2.3)
 
 The repository rule is that every end-user feature is usable through the SDK and `bb` CLI as well as the UI. Account selection satisfies the SDK half — `threads.spawn`/`threads.update` carry `accountKey`, and the server route schema validates it — and the composer drives exactly those calls. The CLI does not expose it: `bb thread spawn`/`update` have no `--account` flag, so a CLI-created thread starts on Auto. This is a deliberate deferral, not an oversight: the CLI spawn path also needs an account *listing* surface to be useful (`bb account list`), and that belongs with the account-management surface rather than bolted onto the spawn flag set. Until then, scripted runs pin accounts through the SDK. Anyone adding `--account` must add the listing command in the same change, and the discoverable-surface docs listed in `docs/cli-guide-and-skill.md`.
+
+## ADR-070 Arc names its managed runtime executables explicitly; PATH never decides which binary executes
+
+Status: **Accepted** (pre-Phase-11 hardening)
+
+Arc manages three runtimes, and until now only Claude Code had an explicit hand-off: the desktop built `<userData>/arc-runtimes`, prepended those directories to the child `PATH`, and the providers resolved `codex`/`claude`/`omp` by name. On a machine where the user also has these tools installed, PATH order decided execution — measured on this Mac: the Codex provider ran `~/.codex/packages/standalone/releases/0.154.0-*/bin/codex` while the manifest activated 0.155.1, and the OMP provider ran `~/.local/bin/omp-real` (a user shim) while the manifest activated `arc-runtimes/runtimes/omp/18.2.6/omp`. The provider environment's PATH had the user's shell directories ahead of Arc's, so "Arc manages its own runtimes" was not true for the executables that actually ran.
+
+Decision: Arc publishes the resolved managed executable for every active runtime and each provider consumes it explicitly — `BB_CODEX_BRIDGE_APP_SERVER_COMMAND` (Codex bridge, existing variable), `BB_CLAUDE_CODE_EXECUTABLE` (existing), and `BB_OMP_EXECUTABLE` (new; the ACP provider rewrites the shipped `acp-omp` launch command from it). PATH stays as the resolution mechanism for *children* of an agent, never for the agent executable itself.
+
+The contract is fail-closed in Arc mode: when `BB_ARC_RUNTIME_ROOT` is present (the desktop started this server) and the executable variable is missing or not executable, the provider refuses to launch and says the managed runtime is unavailable and must be repaired in Arc's agents view. Falling back to PATH there would silently run a binary Arc does not control, which is the exact failure this decision removes. Standalone bb (no Arc declaration) keeps PATH discovery, and external installations remain *informational*: `discoverClaudeInstall` still classifies them for diagnostics, and the ACP agent roster still probes for them, but nothing executes them inside Arc.
+
+The Codex bridge also gained one semantic clarification while implementing this: `BB_CODEX_BRIDGE_APP_SERVER_ARGS` defaults to `["app-server"]` when unset, so overriding the *executable* no longer silently drops the subcommand. That defect was observed live: the first hardened build launched the managed Codex with no argv and it exited with "stdin is not a terminal".
+
+## ADR-071 Arc owns its OMP broker process: recorded ownership, disposal on shutdown, verified reaping of leftovers
+
+Status: **Accepted** (pre-Phase-11 hardening)
+
+The OMP auth broker is a loopback child of the bb server, and its only terminator (`OmpAccountSource.shutdown()`) had no production caller. The in-process idle timer was therefore the whole lifecycle: any exit that beat the 60 s idle window — normal quit, plugin reload, crash, force-kill — left the broker reparented to PID 1. Two such leftovers were found running on this machine from an earlier app instance, still holding their (dead) tokens.
+
+Decision: ownership is explicit and verifiable.
+
+- `arc-core` registers `bb.onDispose` and disposes the OMP source (broker plus any interactive login child). An open login is deliberately *not* killed by idle shutdown, because an interactive login can outlive the idle window.
+- `OmpAccountSource` stops the broker gracefully — SIGTERM, bounded wait (5 s), SIGKILL only if the process ignores it — instead of fire-and-forget SIGTERM.
+- While a broker is alive, `<userData>/omp/broker-ownership.json` (0600) records the pid, the managed executable path, the start time and the owning server instance id. The record is cleared on shutdown, and any runtime repair/prepare resets the broker so a replaced binary is not served by the old process.
+- At startup, arc-core reaps a recorded broker from a *previous* instance only when all three checks pass: the pid is alive, its `ps` command line contains the recorded executable path *and* the `auth-broker` marker, and the process start time agrees with the record within 60 s. Anything else is left running and reported as "could not be proven to belong to Arc". A process with no record (the two legacy leftovers) is never touched, and the record can never target the current instance because it carries the instance id.
+
+## ADR-072 Local data is owner-only, enforced at startup
+
+Status: **Accepted** (pre-Phase-11 hardening)
+
+`~/.bb` was 0755 and `~/.bb/bb.db` 0644 on this machine, and that database holds thread history together with the provider environment values of every turn (see ADR-073). Any local account could read it.
+
+Decision: `hardenLocalDataPermissions` runs from `initDb` before and after the database is opened, and restricts only Arc-owned paths: the data directory to 0700 and `bb.db` plus its `-wal`/`-shm` sidecars to 0600. It never walks arbitrary user files, tolerates missing targets, is idempotent, and reports failures through the server logger by target label and errno only — never by echoing file contents. A repair the process cannot perform is reported, not fatal.
+
+## ADR-073 Credential-shaped environment values are withheld from the diagnostic view, never from the child
+
+Status: **Accepted** (pre-Phase-11 hardening)
+
+`provider.env-resolved` records the environment a turn resolved, and it was persisted verbatim: 20 raw values across 11 rows in this machine's database, covering `ANTHROPIC_AUTH_TOKEN`, `BB_ACCOUNT_POOL_PARENT_TOKEN`, `CODEX_POOL_AUTH_TOKEN` and `OMP_AUTH_BROKER_TOKEN`. The event is the diagnostic artifact; the child process environment is separate, so redaction belongs only on the event side.
+
+Decision: one policy, one place. `isSensitiveEnvName`/`redactEnvValue` live in `@bb/domain` and mark a value `{masked: true}` when the name carries a credential word (`TOKEN`, `SECRET`, `PASSWORD`, `PASSWD`, `CREDENTIAL(S)`, `API_KEY`, `KEY`) or is `AUTHORIZATION`/`COOKIE`/`*_AUTH`. Word-boundary matching keeps useful diagnostics intact: `OMP_AUTH_BROKER_URL`, `CODEX_ACCOUNT_POOL_PIN`, `ANTHROPIC_BASE_URL` and `PATH` stay readable. `resolveThreadEnvironment` applies it to the entries it emits while leaving `envVars` — what the provider process actually receives — untouched, which a test asserts in both directions.
+
+Historical rows are handled by an explicit, opt-in tool: `bb-script-redact-stored-env-secrets` is dry-run by default, rewrites only `entries[].value` for credential-shaped names, preserves event identity, names, sources and ordering, prints counts rather than values, and requires `--apply`. It is not run automatically.

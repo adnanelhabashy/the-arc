@@ -940,3 +940,42 @@ Account selector: `POST /api/v1/plugins/arc-core/rpc/arc.accounts.list` — the 
 Secret exposure: the OMP pool file is 0600 and holds credential identities only, the provider secret store is 0700, both brokers bind `127.0.0.1` only, the accounts payload contains no token/secret-shaped keys or values, and neither the diff nor the new files contain token literals.
 
 Disclosures: (1) provider environment values are persisted in `events` as `provider.env-resolved`, including the loopback hub/broker tokens — pre-existing behaviour of the contribution mechanism (the Codex path recorded `CODEX_POOL_AUTH_TOKEN` before this phase) and now also true for OMP; `~/.bb/bb.db` is mode 0644, so tightening it to 0600 is worth a follow-up. (2) Two OMP brokers from the pre-rebuild app instance survived that app's quit (PIDs 64128, 69106, reparented to PID 1) — a pre-existing broker-lifecycle gap, unrelated to this change. (3) On this machine the OMP *provider* executes the PATH-resolved `~/.local/bin/omp` shim (which execs `omp-real`), because `.local/bin` precedes the Arc runtime directory on the inherited PATH; a machine without a global `omp` resolves the managed runtime instead. (4) The CLI gap recorded in ADR-069.
+
+## Pre-Phase-11 hardening — runtime ownership, broker lifecycle, local secrets (2026-09-20)
+
+Baseline before this work: `self-contained @ e6d235602`. Nothing committed here until reviewed; `~/.bb` untouched apart from the permission modes and the QA threads listed at the end.
+
+### Runtime ownership (ADR-070)
+
+Measured before: Codex ran `~/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex` and OMP ran `~/.local/bin/omp-real`, while the runtime manifest activated 0.155.1 and 18.2.6. After the change, verified on the installed app via `lsof` on the live provider processes:
+
+| Provider | Executable actually running | Managed path |
+|---|---|---|
+| Codex | `Agent/arc-runtimes/runtimes/codex/0.155.1/codex` | same |
+| Claude Code | `Agent/arc-runtimes/runtimes/claude-code/2.1.276/claude` | same |
+| OMP | `Agent/arc-runtimes/runtimes/omp/18.2.6/omp acp` | same |
+
+Fail-closed and hostile-PATH behaviour is covered by tests in all three plugins plus `arc-runtime-environment.test.ts`: with a fake `codex`/`claude`/`omp` first on PATH and Arc mode declared, the provider resolves the managed path; with Arc mode declared and no executable override, it refuses to launch instead of using PATH; a bad path is rejected. External installations stay informational only (`discoverClaudeInstall` classification, ACP roster probing).
+
+### Broker lifecycle (ADR-071)
+
+- Ownership record verified live: `<userData>/omp/broker-ownership.json`, 0600, holding the broker pid 44363, the managed executable path, the start time and the instance id; cleared on shutdown.
+- Quit-time cleanup verified: an app instance's broker (pid 42249) and its OMP provider (45795) and Claude provider (46965) were gone after a normal quit, while the user's own `omp-real` processes (87681, 87688) stayed up.
+- Stale recovery verified: the server was SIGKILLed while its broker (47535) was alive; the restarted server logged `arc-core stopped a leftover OMP broker (pid 47535)` and cleared the record. Legacy leftovers with no record were never touched; the two from an earlier app instance (64128, 69106) were terminated by hand after this check.
+
+### Local secrets (ADR-072, ADR-073)
+
+- Live: the server logged `Restricted local data permissions (owner-only) for: data-dir, database, database-wal, database-shm.` and `~/.bb` is 0700 with `bb.db` 0600.
+- New events: 16 entries are already stored masked, and a child-process test asserts the real values still reach the provider while the event carries `{masked: true}`.
+- Log audit: 0 credential-shaped assignments across the 9 log files under `~/.bb/logs`, `~/Library/Logs/Arc Agent` and the app's log directory.
+- Historical rows (dry run, no writes): 49 events scanned, 11 rows would change, 20 entries would be redacted, 4 names, 2 distinct values — and neither value appears in any current token store, so both are stale. Applying is pending the user's decision; the shipped tool needs `better-sqlite3` declared in `@bb/scripts` (same gap as the pre-existing `seed-perf-db`) before it can run standalone.
+
+### Regression checks on the installed app
+
+Codex Plus `plus-ok`, Codex Team `team-ok`, OMP/Kimi `omp-ok` and `omp2-ok`, same-thread Plus → Team switch on one live thread (`first-plus` with pin `4bf9165d`, then `second-team` with pin `8ce4f09d`), and after a quit/relaunch a fresh Codex Plus turn returned `relaunch-ok`. Claude Code launched the managed binary and failed the turn with the account's exhausted five-hour window (`429`, "No Account Pooler account is…"), which is the expected quota state, not a launch failure — no successful Claude completion is claimed.
+
+Suites: typecheck + tests green for `@bb/domain`, `@bb/config`, `@bb/agent-runtime`, `@bb/arc-domains`, `@bb/scripts`, `bb-plugin-arc-core`, `bb-plugin-provider-acp`, `bb-plugin-provider-codex`, `bb-plugin-provider-claude-code`, `bb-plugin-account-pool` (1780+ tests). Two pre-existing red surfaces remain, both unrelated to this work: `apps/server` has 16 failing test files (37 tests) whose causes are the plugins the fork removed (`ask-user-question`, `keep-awake`, `connect`, `environment-project-checkout`), and the provider-literal ratchet failed at HEAD for 18 Arc files that were never allowlisted. The ratchet is now green: those files carry allowlist entries with reasons, and the baseline totals 84 references across 24 files.
+
+### QA artifacts
+
+Threads created by these checks (all titled `pre11 …`, safe to delete): `thr_j4zykdffce`, `thr_2bv4bvip8w`, `thr_bysswc7vvv`, `thr_4k2ctzngja` (the three `error` rows are the pre-fix Codex `stdin is not a terminal` attempts), `thr_nrhu3kdie2`, `thr_873yrq6brh`, `thr_dqrw47utuj`, `thr_54y7cmdcnm`, `thr_xkav5efngp`, `thr_vxspjb2p79`, `thr_3rghzfi2ik`. Installed-app backups: `Arc Agent.app.bak-pre11`, `.bak-pre11b`, `.bak-pre11c` (plus the older 10.2/10.3/old/quarantined copies).
