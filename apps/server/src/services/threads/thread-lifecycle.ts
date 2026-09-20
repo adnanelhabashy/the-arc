@@ -106,6 +106,7 @@ import {
 import { cancelAbandonedProviderCreations } from "./thread-environment-providers.js";
 import { scheduleThreadProvisioningAdvance } from "./thread-provisioning.js";
 import { isPreStartThreadStatus } from "./thread-status.js";
+import { resolveThreadHostCommandEnvironment } from "./thread-command-environment.js";
 import { settleDanglingBackgroundTasksForStoppedThreadInTransaction } from "./background-task-reconciliation.js";
 
 type ThreadStartCommand = Awaited<ReturnType<typeof buildThreadStartCommand>>;
@@ -1531,6 +1532,82 @@ export async function stopThreadForCurrentState(
   ) {
     throw failure.error;
   }
+}
+
+const ACCOUNT_CHANGE_RUNTIME_RELEASE_RETRY_MS = 5_000;
+// A running turn keeps the runtime it is using, so the release below waits for
+// it to settle. 24 attempts at 5s covers two minutes, matching the account
+// auto-resolution poll, and then gives up rather than retrying forever.
+const ACCOUNT_CHANGE_RUNTIME_RELEASE_MAX_ATTEMPTS = 24;
+
+/**
+ * `threads.accountKey` reaches a provider process only through the environment
+ * its runtime was launched with, and a Codex/Claude process is launched once
+ * per loaded runtime and then keeps that environment for its whole life.
+ * Without dropping the runtime here, the process keeps announcing the account
+ * it was launched with, the hub keeps honouring it, and the thread silently
+ * stays on its previous account — the switch the user made in the account
+ * picker never reaches the provider. A turn that is already running keeps its
+ * runtime until it settles, so this never changes the account under a response
+ * that is already in flight.
+ */
+export function releaseThreadRuntimeForAccountChange(
+  deps: RequestThreadStopForCurrentStateDeps,
+  threadId: string,
+  attempt = 0,
+): void {
+  void runAccountChangeRuntimeRelease(deps, threadId, attempt).catch(
+    (error) => {
+      deps.logger.debug(
+        { err: error, threadId },
+        "Account change runtime release failed",
+      );
+    },
+  );
+}
+
+async function runAccountChangeRuntimeRelease(
+  deps: RequestThreadStopForCurrentStateDeps,
+  threadId: string,
+  attempt: number,
+): Promise<void> {
+  const thread = getThread(deps.db, threadId);
+  if (thread === null || thread.deletedAt !== null) return;
+  const retry = (): void => {
+    if (attempt + 1 >= ACCOUNT_CHANGE_RUNTIME_RELEASE_MAX_ATTEMPTS) {
+      deps.logger.warn(
+        { threadId },
+        "Gave up releasing this thread's runtime after its account changed; the new account applies at the next runtime load",
+      );
+      return;
+    }
+    const timer = setTimeout(() => {
+      releaseThreadRuntimeForAccountChange(deps, threadId, attempt + 1);
+    }, ACCOUNT_CHANGE_RUNTIME_RELEASE_RETRY_MS);
+    timer.unref?.();
+  };
+  if (hasLiveThreadRuntime(deps, thread)) {
+    retry();
+    return;
+  }
+  const environment = resolveThreadHostCommandEnvironment({
+    db: deps.db,
+    thread,
+  });
+  if (environment === null) return;
+  const args = manualThreadStopArgs(threadId, environment);
+  const released = await runAwaitedThreadStopCommand(deps, {
+    command: buildThreadStopCommand({ ...args, intent: "release" }),
+    hostId: args.hostId,
+  });
+  if (released.failure !== null) {
+    deps.logger.debug(
+      { threadId },
+      "Host daemon refused the runtime release after an account change",
+    );
+    return;
+  }
+  if (released.result?.activeTurnRetained === true) retry();
 }
 
 function manualThreadStopArgs(

@@ -6,6 +6,7 @@ import {
   countThreads,
   getEnvironment,
   getThread,
+  getThreadAccountState,
   getThreadSectionById,
   listThreadMentionRowsByIds,
   listThreadsWithPendingInteractionState,
@@ -49,7 +50,10 @@ import {
 } from "../../services/lib/entity-lookup.js";
 import { listRunningThreadsWithIntendedHosts } from "../../services/threads/dispatch-attempt.js";
 import { dispatchThreadRenameCommand } from "../../services/threads/thread-commands.js";
-import { requestThreadStorageDeletion } from "../../services/threads/thread-lifecycle.js";
+import {
+  releaseThreadRuntimeForAccountChange,
+  requestThreadStorageDeletion,
+} from "../../services/threads/thread-lifecycle.js";
 import { createThreadFromRequest } from "../../services/threads/thread-create.js";
 import { createThreadForkFromRequest } from "../../services/threads/thread-fork.js";
 import { requireChildThreadsConfirmation } from "../../services/threads/child-thread-confirmation.js";
@@ -400,11 +404,21 @@ export function registerThreadBaseRoutes(app: Hono, deps: AppDeps): void {
     }
 
     if ("accountKey" in payload) {
+      const nextAccountKey = payload.accountKey ?? null;
+      const previousAccountKey =
+        getThreadAccountState(deps.db, thread.id)?.accountKey ?? null;
       setThreadAccount(deps.db, {
         threadId: thread.id,
-        accountKey: payload.accountKey ?? null,
-        accountResolved: payload.accountKey !== null,
+        accountKey: nextAccountKey,
+        accountResolved: nextAccountKey !== null,
       });
+      // The running provider process keeps announcing the account it was
+      // launched with, so the change only reaches the provider once its
+      // runtime is dropped: without this the thread answers on its previous
+      // account while the app shows the new one.
+      if (nextAccountKey !== previousAccountKey) {
+        releaseThreadRuntimeForAccountChange(deps, thread.id);
+      }
     }
 
     const metadataUpdate: UpdateThreadInput = {};
