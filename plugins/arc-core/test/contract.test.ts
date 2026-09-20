@@ -52,6 +52,7 @@ const account: ArcAccount = {
   providerFamily: "openai",
   providerLabel: "ChatGPT",
   accountKey: "openai:chatgpt:acc-1",
+  identityKey: null,
   email: "adn***@example.com",
   planLabel: "Plus",
   authState: "connected",

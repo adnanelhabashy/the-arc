@@ -44,6 +44,10 @@ export interface ArcServiceHost {
   readonly agents: ArcAgentManager;
   readonly accounts: ArcAccountService;
   readonly usage: ArcUsageService;
+  // The OMP credential source itself, for the one caller that needs more than
+  // the account list: the pinned-execution env contribution, which holds the
+  // loopback broker open for the provider process it pins.
+  readonly ompAccounts: OmpAccountSource;
 }
 
 export interface CreateArcServiceHostArgs {
@@ -98,7 +102,7 @@ export function createArcServiceHost(
       }),
     ],
   });
-  return { agents, accounts, usage };
+  return { agents, accounts, usage, ompAccounts: ompSource };
 }
 
 export class ArcUnavailableError extends Error {

@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { arcRpcContract } from "./contract.js";
 import {
@@ -6,6 +7,10 @@ import {
   resolveArcHostConfig,
   type ArcServiceHost,
 } from "./host.js";
+import {
+  describeArcOmpExecutionPin,
+  resolveArcOmpExecutionEnv,
+} from "./omp-execution-env.js";
 import { ARC_CHANGED_CHANNEL, type ArcChangedKind } from "./realtime.js";
 
 // Arc Core: the fixed renderer-facing boundary over the Arc domain services
@@ -27,6 +32,53 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
     });
     return host;
   };
+
+  // One entry per pinned OMP execution. Auto threads (no accountKey) get
+  // nothing, so OMP keeps its own account selection for them; a pinned thread
+  // gets Arc's loopback broker plus a credential allowlist naming exactly its
+  // account, and an unroutable pin gets an allowlist for none instead of
+  // falling through to whichever stored account OMP would pick. The allowlist
+  // file lives in Arc's private OMP state root (<userData>/omp), next to the
+  // store it narrows, and holds credential identities only — never a secret.
+  bb.providers.experimental_contributeEnv("acp-omp", async (context) => {
+    if (config === null || context.accountKey === null) return [];
+    const host = requireHost();
+    try {
+      const { entries, pin } = await resolveArcOmpExecutionEnv({
+        accountKey: context.accountKey,
+        accounts: await host.accounts.listArcAccounts(),
+        poolFileDirectory: path.join(config.runtimeRoot, "omp", "account-pool"),
+        holdBroker: () => host.ompAccounts.holdBrokerForExecution(),
+      });
+      const warning = describeArcOmpExecutionPin(pin);
+      if (warning !== null) {
+        bb.log.warn(
+          `arc-core acp-omp pin: thread ${context.threadId} ${warning}`,
+        );
+      }
+      return entries;
+    } catch (error) {
+      bb.log.warn(
+        `arc-core acp-omp pin: thread ${context.threadId} could not be pinned to ${context.accountKey} (${
+          error instanceof Error ? error.message : String(error)
+        }); OMP falls back to its own account selection`,
+      );
+      return [];
+    }
+  });
+
+  // Doubles as the broker hold renewal for pinned executions: a live hold is
+  // what keeps the loopback broker up while the provider process it serves is
+  // running, and the OMP provider health row is exactly that fact.
+  bb.providers.experimental_contributeEnvHealth("acp-omp", () => {
+    if (config === null) return null;
+    if (!requireHost().ompAccounts.renewBrokerHold()) return null;
+    return {
+      label: "Pinned",
+      statusMessage:
+        "Credentials come from Arc's OMP broker, restricted to the accounts Arc resolved per thread.",
+    };
+  });
 
   const publish = (kind: ArcChangedKind): void => {
     void Promise.resolve(

@@ -103,6 +103,7 @@ export const arcAccountSchema = z
     providerFamily: z.string(),
     providerLabel: z.string(),
     accountKey: z.string().nullable(),
+    identityKey: z.string().nullable(),
     email: z.string().nullable(),
     planLabel: z.string().nullable(),
     authState: arcAccountAuthStateSchema,
