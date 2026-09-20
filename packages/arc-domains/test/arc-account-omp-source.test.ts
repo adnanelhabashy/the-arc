@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   OmpAccountSource,
   type ArcOmpRuntime,
+  type OmpBrokerOwnership,
+  type OmpBrokerOwnershipRecord,
   type OmpChildProcess,
   type OmpSpawnArgs,
 } from "../src/arc-account/omp-account-source.js";
@@ -32,6 +34,8 @@ interface SpawnScript {
   // own). Omit and set stayAlive for long-running processes.
   exitCode?: number;
   stayAlive?: boolean;
+  // Ignores SIGTERM so only SIGKILL can end it (a wedged broker).
+  ignoreSigterm?: boolean;
 }
 
 interface FetchCall {
@@ -53,6 +57,7 @@ class FakeOmp {
   snapshotPayload: unknown = { credentials: [] };
   private scripts: (args: OmpSpawnArgs) => SpawnScript;
   private controllers: ProcessController[] = [];
+  private nextPid = 1_000;
 
   constructor(scripts: (args: OmpSpawnArgs) => SpawnScript) {
     this.scripts = scripts;
@@ -93,6 +98,7 @@ class FakeOmp {
       },
       kill: (signal) => {
         this.killed.push({ signal });
+        if (script.ignoreSigterm === true && signal !== "SIGKILL") return;
         resolveExit({ code: null, signal: signal ?? "SIGTERM" });
       },
     };
@@ -105,6 +111,7 @@ class FakeOmp {
       });
     }
     return {
+      pid: (this.nextPid += 1),
       onStdoutData(listener) {
         stdoutListeners.add(listener);
         // Flush synchronously on first attach so successful starts are
@@ -215,8 +222,10 @@ function makeSource(
     resolveRuntime?: () => Promise<ArcOmpRuntime | null>;
     brokerIdleTtlMs?: number;
     brokerHoldTtlMs?: number;
+    brokerStopTimeoutMs?: number;
     snapshotTtlMs?: number;
     now?: () => number;
+    brokerOwnership?: OmpBrokerOwnership;
   } = {},
 ) {
   const source = new OmpAccountSource({
@@ -229,10 +238,27 @@ function makeSource(
     scheduler,
     brokerIdleTtlMs: args.brokerIdleTtlMs ?? 60_000,
     brokerHoldTtlMs: args.brokerHoldTtlMs ?? 1_800_000,
+    brokerStopTimeoutMs: args.brokerStopTimeoutMs ?? 5_000,
     snapshotTtlMs: args.snapshotTtlMs ?? 5_000,
     loginStartTimeoutMs: 500,
+    ...(args.brokerOwnership === undefined
+      ? {}
+      : { brokerOwnership: args.brokerOwnership }),
   });
   return { source, scheduler };
+}
+
+class FakeBrokerOwnership implements OmpBrokerOwnership {
+  records: OmpBrokerOwnershipRecord[] = [];
+  cleared: number[] = [];
+
+  async record(record: OmpBrokerOwnershipRecord): Promise<void> {
+    this.records.push(record);
+  }
+
+  async clear(pid: number): Promise<void> {
+    this.cleared.push(pid);
+  }
 }
 
 const SECRET_ACCESS = "sk-live-access-token-AAA";
@@ -492,6 +518,76 @@ describe("OmpAccountSource broker lifecycle and security", () => {
     // permanent OMP process behind.
     await source.listAccounts();
     expect(fake.spawnCalls.filter((c) => c.argv[1] === "serve")).toHaveLength(2);
+  });
+
+  it("records who owns the broker and clears the record on shutdown", async () => {
+    const fake = new FakeOmp(brokerServeScript);
+    const ownership = new FakeBrokerOwnership();
+    const { source } = makeSource(fake, new ManualScheduler(), {
+      brokerOwnership: ownership,
+    });
+
+    await source.listAccounts();
+    expect(ownership.records).toEqual([
+      {
+        executablePath: "/arc/managed/omp",
+        pid: 1_001,
+        startedAt: expect.any(String),
+      },
+    ]);
+
+    await source.shutdown();
+    expect(ownership.cleared).toEqual([1_001]);
+    expect(fake.killed.some((k) => k.signal === "SIGTERM")).toBe(true);
+  });
+
+  it("escalates to SIGKILL when a broker ignores SIGTERM", async () => {
+    const fake = new FakeOmp((args) => {
+      const script = brokerServeScript(args);
+      return args.argv[1] === "serve"
+        ? { ...script, ignoreSigterm: true }
+        : script;
+    });
+    const scheduler = new ManualScheduler();
+    const { source } = makeSource(fake, scheduler, { brokerStopTimeoutMs: 500 });
+
+    await source.listAccounts();
+    const stopping = source.shutdown();
+    await flushMicrotasks();
+    expect(fake.killed).toEqual([{ signal: "SIGTERM" }]);
+    scheduler.fireAll();
+    await stopping;
+    expect(fake.killed).toEqual([
+      { signal: "SIGTERM" },
+      { signal: "SIGKILL" },
+    ]);
+  });
+
+  it("kills an in-flight login child only on disposal, not on idle shutdown", async () => {
+    const fake = new FakeOmp((args) => {
+      if (args.argv[1] === "login") {
+        return {
+          lines: [
+            "Open this URL in your browser:",
+            "https://kimi.example.com/authorize?client=omp",
+          ],
+          stayAlive: true,
+        };
+      }
+      return brokerServeScript(args);
+    });
+    const scheduler = new ManualScheduler();
+    const { source } = makeSource(fake, scheduler, { brokerIdleTtlMs: 1_000 });
+
+    const login = await source.startOmpLogin("kimi-code");
+    expect(login.sessionId.length).toBeGreaterThan(0);
+
+    scheduler.fireAll();
+    await flushMicrotasks();
+    expect(fake.killed).toEqual([]);
+
+    await source.dispose();
+    expect(fake.killed).toEqual([{ signal: "SIGTERM" }]);
   });
 
   it("keeps the broker alive while a pinned execution holds it", async () => {

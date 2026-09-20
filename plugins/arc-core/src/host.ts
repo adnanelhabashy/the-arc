@@ -15,6 +15,9 @@ import {
   ArcUsageService,
 } from "@bb/arc-domains/arc-usage";
 import { createNodeOmpSpawn } from "./node-spawn.js";
+import { createNodeOmpBrokerOwnership } from "./broker-ownership.js";
+import { randomUUID } from "node:crypto";
+import { join } from "node:path";
 
 // Arc mode is declared by the desktop shell through environment variables on
 // the server process it spawns. Absent (standalone bb) → no host; every RPC
@@ -57,6 +60,7 @@ export interface CreateArcServiceHostArgs {
   serverOrigin: string;
   platform?: string;
   env?: NodeJS.ProcessEnv;
+  instanceId?: string;
 }
 
 export function createArcServiceHost(
@@ -79,6 +83,10 @@ export function createArcServiceHost(
       env: args.env,
     }),
     spawn: createNodeOmpSpawn(),
+    brokerOwnership: createNodeOmpBrokerOwnership({
+      instanceId: args.instanceId ?? randomUUID(),
+      ompStateRoot: join(args.config.runtimeRoot, "omp"),
+    }),
   });
   const accounts = new ArcAccountService({
     sources: [poolSource, ompSource],

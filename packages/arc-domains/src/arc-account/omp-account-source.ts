@@ -52,6 +52,7 @@ const DEFAULT_BROKER_IDLE_TTL_MS = 60_000;
 // health check for that provider; past this window without one, the broker
 // returns to its normal idle shutdown rather than living forever.
 const DEFAULT_BROKER_HOLD_TTL_MS = 30 * 60 * 1_000;
+const DEFAULT_BROKER_STOP_TIMEOUT_MS = 5_000;
 const DEFAULT_SNAPSHOT_TTL_MS = 5_000;
 const LOGIN_START_TIMEOUT_MS = 15_000;
 
@@ -130,6 +131,7 @@ export function createArcOmpRuntimeResolver(
 // ─── Process seam ─────────────────────────────────────────────────────────
 
 export interface OmpChildProcess {
+  pid: number | null;
   writeLine(line: string): void;
   kill(signal?: NodeJS.Signals): void;
   // Raw stdout/stderr chunks (not line-buffered): interactive prompts such
@@ -147,6 +149,17 @@ export interface OmpSpawnArgs {
 }
 
 export type OmpSpawn = (args: OmpSpawnArgs) => OmpChildProcess;
+
+export interface OmpBrokerOwnershipRecord {
+  pid: number;
+  executablePath: string;
+  startedAt: string;
+}
+
+export interface OmpBrokerOwnership {
+  record(record: OmpBrokerOwnershipRecord): Promise<void>;
+  clear(pid: number): Promise<void>;
+}
 
 // Splits a raw chunk stream into newline-terminated lines while keeping the
 // unterminated tail accessible — interactive prompts ("Paste your API key:
@@ -384,9 +397,11 @@ export interface OmpAccountSourceArgs {
   now?: () => number;
   brokerIdleTtlMs?: number;
   brokerHoldTtlMs?: number;
+  brokerStopTimeoutMs?: number;
   snapshotTtlMs?: number;
   scheduler?: Scheduler;
   loginStartTimeoutMs?: number;
+  brokerOwnership?: OmpBrokerOwnership;
 }
 
 export interface ArcOmpBrokerConnection {
@@ -415,9 +430,11 @@ export class OmpAccountSource implements ArcAccountSource {
   private readonly now: () => number;
   private readonly brokerIdleTtlMs: number;
   private readonly brokerHoldTtlMs: number;
+  private readonly brokerStopTimeoutMs: number;
   private readonly snapshotTtlMs: number;
   private readonly scheduler: Scheduler;
   private readonly loginStartTimeoutMs: number;
+  private readonly brokerOwnership: OmpBrokerOwnership | null;
 
   private brokerPromise: Promise<OmpBrokerSession> | null = null;
   private brokerIdleTimer: unknown = null;
@@ -435,6 +452,9 @@ export class OmpAccountSource implements ArcAccountSource {
     this.brokerIdleTtlMs = args.brokerIdleTtlMs ?? DEFAULT_BROKER_IDLE_TTL_MS;
     this.brokerHoldTtlMs =
       args.brokerHoldTtlMs ?? DEFAULT_BROKER_HOLD_TTL_MS;
+    this.brokerStopTimeoutMs =
+      args.brokerStopTimeoutMs ?? DEFAULT_BROKER_STOP_TIMEOUT_MS;
+    this.brokerOwnership = args.brokerOwnership ?? null;
     this.snapshotTtlMs = args.snapshotTtlMs ?? DEFAULT_SNAPSHOT_TTL_MS;
     this.scheduler = args.scheduler ?? {
       setTimer: (fn, ms) => setTimeout(fn, ms),
@@ -865,7 +885,49 @@ export class OmpAccountSource implements ArcAccountSource {
     if (broker === null) return;
     const session = await broker.catch(() => null);
     if (session === null) return;
+    await this.terminateBroker(session);
+  }
+
+  // Full teardown for plugin disposal: the broker plus any interactive login
+  // child. Idle shutdown deliberately leaves login children alone, because an
+  // interactive login can outlive the idle window.
+  async dispose(): Promise<void> {
+    for (const session of this.loginSessions.values()) {
+      session.process.kill("SIGTERM");
+    }
+    await this.shutdown();
+  }
+
+  private async terminateBroker(session: OmpBrokerSession): Promise<void> {
+    const { pid } = session.process;
     session.process.kill("SIGTERM");
+    const exited = await this.waitForChildExit(
+      session.process,
+      this.brokerStopTimeoutMs,
+    );
+    if (!exited) {
+      session.process.kill("SIGKILL");
+    }
+    if (pid === null || this.brokerOwnership === null) return;
+    await this.brokerOwnership.clear(pid).catch(() => undefined);
+  }
+
+  private async waitForChildExit(
+    child: OmpChildProcess,
+    timeoutMs: number,
+  ): Promise<boolean> {
+    let timer: unknown = null;
+    const timedOut = new Promise<boolean>((resolveTimeout) => {
+      timer = this.scheduler.setTimer(() => resolveTimeout(false), timeoutMs);
+    });
+    const exited = await Promise.race([
+      child.wait().then(() => true),
+      timedOut,
+    ]);
+    if (timer !== null) {
+      this.scheduler.clearTimer(timer);
+    }
+    return exited;
   }
 
   // ── internals ───────────────────────────────────────────────────────
@@ -1090,6 +1152,15 @@ export class OmpAccountSource implements ArcAccountSource {
         `OMP auth broker did not become healthy: ${error instanceof Error ? error.message : String(error)}`,
       );
     });
+    if (child.pid !== null && this.brokerOwnership !== null) {
+      await this.brokerOwnership
+        .record({
+          executablePath: runtime.executablePath,
+          pid: child.pid,
+          startedAt: new Date(this.now()).toISOString(),
+        })
+        .catch(() => undefined);
+    }
     return { url, token, wire, process: child };
   }
 

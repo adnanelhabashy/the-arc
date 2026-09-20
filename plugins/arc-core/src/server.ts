@@ -1,5 +1,7 @@
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
+import { reapStaleOmpBroker } from "./broker-ownership.js";
 import { arcRpcContract } from "./contract.js";
 import {
   ArcUnavailableError,
@@ -20,6 +22,8 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
   const config = resolveArcHostConfig(process.env);
   let host: ArcServiceHost | null = null;
 
+  const instanceId = randomUUID();
+
   const requireHost = (): ArcServiceHost => {
     if (config === null) {
       throw new ArcUnavailableError(
@@ -29,9 +33,38 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
     host ??= createArcServiceHost({
       config,
       serverOrigin: bb.server.loopbackBaseUrl,
+      instanceId,
     });
     return host;
   };
+
+  // Arc leaves no OMP broker behind: the previous server's broker is claimed
+  // back at startup (only when its recorded pid, argv and start time still
+  // match, so an unrelated process is never signalled), and this server's
+  // broker plus any interactive login child is stopped on disposal.
+  const reapAtStartup = async (): Promise<void> => {
+    if (config === null) return;
+    const result = await reapStaleOmpBroker({
+      instanceId,
+      ompStateRoot: path.join(config.runtimeRoot, "omp"),
+    });
+    if (result.kind === "stopped") {
+      bb.log.info(
+        `arc-core stopped a leftover OMP broker (pid ${String(result.pid)}).`,
+      );
+    }
+    if (result.kind === "unverified" || result.kind === "still-running") {
+      bb.log.warn(
+        `arc-core left a recorded OMP broker process alone (pid ${String(result.pid)}, ${result.kind}); it could not be proven to belong to Arc.`,
+      );
+    }
+  };
+  void reapAtStartup().catch(() => undefined);
+
+  bb.onDispose(async () => {
+    if (host === null) return;
+    await host.ompAccounts.dispose().catch(() => undefined);
+  });
 
   // One entry per pinned OMP execution. Auto threads (no accountKey) get
   // nothing, so OMP keeps its own account selection for them; a pinned thread
@@ -102,12 +135,14 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
     }),
     "arc.agents.prepare": async ({ id }) => {
       const agent = await requireHost().agents.prepareAgent(id);
+      if (id === "omp") await requireHost().ompAccounts.shutdown();
       publish("agents");
       publish("accounts");
       return { agent };
     },
     "arc.agents.repair": async ({ id }) => {
       const agent = await requireHost().agents.repairAgent(id);
+      if (id === "omp") await requireHost().ompAccounts.shutdown();
       publish("agents");
       publish("accounts");
       return { agent };

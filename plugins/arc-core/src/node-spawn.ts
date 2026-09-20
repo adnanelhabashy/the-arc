@@ -25,6 +25,7 @@ export function createNodeOmpSpawn(): OmpSpawn {
     });
 
     const process: OmpChildProcess = {
+      pid: child.pid ?? null,
       writeLine(line: string): void {
         child.stdin.write(`${line}\n`);
       },
