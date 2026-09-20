@@ -736,7 +736,23 @@ function dropMarketplaceStatsColumn(db: DbConnection): void {
  * nothing here. Every rewind that clears 0110's journal row also clears
  * 0108's, so the replay recreates the table before 0110 drops it again.
  */
+function dropThreadAccountColumnsIfPresent(db: DbConnection): void {
+  const columns = db.$client
+    .prepare<[], TableInfoRow>("PRAGMA table_info(threads)")
+    .all()
+    .map((column) => column.name);
+  if (columns.includes("account_key")) {
+    db.$client.prepare("ALTER TABLE threads DROP COLUMN account_key").run();
+  }
+  if (columns.includes("account_resolved")) {
+    db.$client
+      .prepare("ALTER TABLE threads DROP COLUMN account_resolved")
+      .run();
+  }
+}
+
 function rewindEnvironmentProvisioningMigration(db: DbConnection): void {
+  dropThreadAccountColumnsIfPresent(db);
   db.$client.exec("DROP TRIGGER IF EXISTS threads_lifecycle_owner_insert");
   db.$client.exec("DROP TRIGGER IF EXISTS threads_lifecycle_owner_immutable");
   db.$client.exec("DROP INDEX IF EXISTS threads_lifecycle_owner_idx");
@@ -854,6 +870,7 @@ function rewindEnvironmentRowFactsMigration(db: DbConnection): void {
 }
 
 function rewindMachineProvidersMigration(db: DbConnection): void {
+  dropThreadAccountColumnsIfPresent(db);
   db.$client.exec("DROP TABLE IF EXISTS thread_pruning_cursors");
   db.$client.exec("DROP TABLE IF EXISTS project_attachment_threads");
   db.$client.exec("DROP TABLE IF EXISTS project_attachments");
@@ -1089,6 +1106,7 @@ function dropQueuedMessageSenderThreadIdColumn(db: DbConnection): void {
 }
 
 function dropPost0023Tables(db: DbConnection): void {
+  dropThreadAccountColumnsIfPresent(db);
   dropEventParentToolCallIdColumn(db);
   dropQueueReworkSchema(db);
   dropEnvironmentRetireRequestedAtColumn(db);
@@ -1260,6 +1278,7 @@ function runMigrationFile(args: RunMigrationFileArgs): void {
 }
 
 function markEventLargeValuesMigrationUnapplied(db: DbConnection): void {
+  dropThreadAccountColumnsIfPresent(db);
   db.$client.prepare("DROP TABLE IF EXISTS event_large_values").run();
   restoreEnvironmentCleanupModeColumn(db);
   restoreEnvironmentCleanupRequestedAtColumn(db);

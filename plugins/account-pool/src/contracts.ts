@@ -288,7 +288,7 @@ export const loginStartSchema = z
 export const loginCompleteInputSchema = z
   .object({
     sessionId: z.string().uuid(),
-    pasted: z.string().trim().min(1),
+    code: z.string().trim().min(1),
   })
   .strict();
 

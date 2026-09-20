@@ -1541,6 +1541,8 @@ export function createAgentRuntime(options: AgentRuntimeOptions): AgentRuntime {
             envVars: resolvedEnvironment.envVars,
             execOpts,
             instructions,
+            providerId,
+            threadId,
           });
           const adapterCommand: AdapterCommand = fork
             ? {
@@ -1702,6 +1704,8 @@ export function createAgentRuntime(options: AgentRuntimeOptions): AgentRuntime {
                 envVars: resolvedEnvironment.envVars,
                 execOpts,
                 instructions,
+                providerId,
+                threadId,
               }),
               dynamicTools,
               disallowedTools,
@@ -1871,6 +1875,8 @@ export function createAgentRuntime(options: AgentRuntimeOptions): AgentRuntime {
               envVars: resolvedEnvironment.envVars,
               execOpts,
               instructions,
+              providerId,
+              threadId,
             }),
             dynamicTools,
             disallowedTools,
@@ -1979,6 +1985,8 @@ export function createAgentRuntime(options: AgentRuntimeOptions): AgentRuntime {
               envVars: resolvedEnvironment.envVars,
               execOpts,
               instructions,
+              providerId: pid,
+              threadId,
             }),
           };
           const cmd = requireProviderRequestPlan({
@@ -2096,6 +2104,8 @@ export function createAgentRuntime(options: AgentRuntimeOptions): AgentRuntime {
               envVars: resolvedEnvironment.envVars,
               execOpts,
               instructions,
+              providerId: pid,
+              threadId,
             }),
           };
           const cmd = requireProviderRequestPlan({

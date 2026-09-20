@@ -164,6 +164,8 @@ function toPublicThread(thread: Thread): Thread {
     projectId: thread.projectId,
     environmentId: thread.environmentId,
     providerId: thread.providerId,
+    accountKey: thread.accountKey,
+    accountResolved: thread.accountResolved,
     title: thread.title,
     titleFallback: thread.titleFallback,
     sectionId: thread.sectionId,

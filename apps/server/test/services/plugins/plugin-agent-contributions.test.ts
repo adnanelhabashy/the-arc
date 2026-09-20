@@ -263,6 +263,8 @@ describe("plugin agent contributions reach thread runtime config", () => {
         threadId: "thread-timeout",
         projectId: "project-timeout",
         hostId: "host-timeout",
+        accountKey: null,
+        accountResolved: false,
       };
 
       await expect(

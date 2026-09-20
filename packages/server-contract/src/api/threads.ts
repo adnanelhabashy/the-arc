@@ -130,6 +130,7 @@ export const createThreadRequestSchema = z
     pluginSubmission: z
       .object({ pluginId: pluginIdSchema, data: jsonValueSchema })
       .optional(),
+    accountKey: z.string().min(1).nullable().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.origin === "plugin" && value.originPluginId === undefined) {
@@ -629,6 +630,7 @@ export const updateThreadRequestSchema = z
     model: z.string().min(1).nullable(),
     reasoningLevel: reasoningLevelSchema.nullable(),
     visibility: threadVisibilitySchema,
+    accountKey: z.string().min(1).nullable(),
   })
   .partial()
   .refine(
@@ -638,7 +640,8 @@ export const updateThreadRequestSchema = z
       value.parentThreadId !== undefined ||
       value.model !== undefined ||
       value.reasoningLevel !== undefined ||
-      value.visibility !== undefined,
+      value.visibility !== undefined ||
+      value.accountKey !== undefined,
     "At least one field must be provided",
   );
 export type UpdateThreadRequest = z.infer<typeof updateThreadRequestSchema>;

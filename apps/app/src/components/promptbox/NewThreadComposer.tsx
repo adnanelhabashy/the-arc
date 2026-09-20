@@ -5,6 +5,7 @@ import {
   getPluginConfigurationRoutePath,
   getSettingsRoutePath,
 } from "@/lib/route-paths";
+import { providerIdToAgentId } from "@/components/thread/timeline/ProviderUsageSection";
 import {
   useCallback,
   useEffect,
@@ -196,6 +197,7 @@ export function resolveSubmittedExecutionSources(
 export interface NewThreadComposerSubmission extends NewThreadRequest {
   pluginSubmission?: CreateThreadRequest["pluginSubmission"];
   sendAt?: number;
+  accountKey?: string | null;
 }
 
 export interface NewThreadComposerProps {
@@ -1172,6 +1174,9 @@ export function NewThreadComposer({
     if (!initialPromptDraft?.text) return;
     seedInitialPrompt(initialPromptDraft);
   }, [initialPromptDraft, seedInitialPrompt]);
+  const [selectedAccountKey, setSelectedAccountKey] = useState<string | null>(
+    null,
+  );
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isCopyingAttachments, setIsCopyingAttachments] = useState(false);
@@ -1482,6 +1487,7 @@ export function NewThreadComposer({
           ? {}
           : { sendAt: submitOptions.sendAt }),
         ...(pluginSubmission === undefined ? {} : { pluginSubmission }),
+        ...(selectedAccountKey === null ? {} : { accountKey: selectedAccountKey }),
       };
       isSubmittingRef.current = true;
       setIsSubmitting(true);
@@ -1511,6 +1517,7 @@ export function NewThreadComposer({
       promptDraft,
       reasoningLevel,
       seededExecutionInputSources,
+      selectedAccountKey,
       submitDisabledReason,
       submissionEnvironment,
       selectedProviderId,
@@ -1742,6 +1749,23 @@ export function NewThreadComposer({
               options: reasoningOptions,
               onChange: handleReasoningChange,
             },
+            account: {
+              agentId: providerIdToAgentId(selectedProviderId),
+              // OMP accounts belong to an underlying provider (Kimi, OpenRouter,
+              // ...); the selected model already carries that as
+              // routeProviderId, so the account list narrows to accounts
+              // compatible with what's actually selected, not every OMP
+              // account regardless of provider.
+              providerFamily:
+                selectedProviderId === "omp"
+                  ? ([...modelOptions, ...moreModelOptions].find(
+                      (option) => option.value === selectedThreadModel,
+                    )?.routeProviderId ?? null)
+                  : null,
+              value: selectedAccountKey,
+              onChange: setSelectedAccountKey,
+              onManageAccounts: () => navigate(getSettingsRoutePath("providers")),
+            },
           }}
         />
       );
@@ -1794,8 +1818,10 @@ export function NewThreadComposer({
       reasoningOptions,
       reuseEnvironmentId,
       reuseThreadOptions,
+      selectedAccountKey,
       selectedModel,
       selectedProviderId,
+      selectedThreadModel,
       serviceTier,
       serviceTierSupportByProvider,
       sidebarNavigationSettled,

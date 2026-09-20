@@ -272,10 +272,10 @@ export class ArcAccountService {
     }).then((session) => session.challenge as ArcAccountLoginChallenge);
   }
 
-  async completeClaudeLogin(sessionId: string, pasted: string) {
+  async completeClaudeLogin(sessionId: string, code: string) {
     const source = this.poolSource();
     try {
-      return await source.completeClaudeLogin(sessionId, pasted);
+      return await source.completeClaudeLogin(sessionId, code);
     } finally {
       this.pendingSessions.delete("anthropic");
     }

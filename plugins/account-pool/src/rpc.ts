@@ -102,6 +102,10 @@ export const accountPoolRpcContract = defineRpcContract({
     input: z.null(),
     output: routedThreadStatusListSchema,
   },
+  "account.getResolved": {
+    input: z.object({ threadId: z.string().min(1) }).strict(),
+    output: z.object({ accountId: z.string().uuid().nullable() }).strict(),
+  },
   "token.rotate": {
     input: tokenRotateInputSchema,
     output: hubTokenSummarySchema,
@@ -155,6 +159,8 @@ export function createRpcHandlers(
     }),
     "status.get": () => operations.status(),
     "status.routedThreads": () => operations.routedThreadsWithoutLocalLogin(),
+    "account.getResolved": ({ threadId }) =>
+      operations.getResolvedAccount(threadId),
     "token.rotate": ({ machine }) => operations.rotateToken(machine),
     "bypass.set": ({ threadId, bypassed }) =>
       operations.setBypass(threadId, bypassed),

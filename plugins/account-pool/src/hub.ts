@@ -30,6 +30,7 @@ import {
 } from "./quota.js";
 import type {
   AccountBinding,
+  AccountResolutionStore,
   AccountStore,
   HubTokenStore,
   PoolAffinityStore,
@@ -38,6 +39,10 @@ import type {
 import { parentRequestHeaders, type ParentPool } from "./parent-pool.js";
 
 const ROUTE = "/api/v1/plugins/account-pool/http";
+export const PINNED_ACCOUNT_HEADER = "x-bb-account-pool-pin";
+export const THREAD_CORRELATION_HEADER = "x-bb-account-pool-thread-id";
+const SELECTED_ACCOUNT_HEADER = "x-bb-account-pool-selected-account-id";
+const PIN_UNAVAILABLE_HEADER = "x-bb-account-pool-pin-unavailable";
 const DEFAULT_REFRESH_URL = "https://platform.claude.com/v1/oauth/token";
 const DEFAULT_USAGE_URL = "https://api.anthropic.com/api/oauth/usage";
 const DEFAULT_PROFILE_URL = "https://api.anthropic.com/api/oauth/profile";
@@ -68,6 +73,7 @@ interface HubOptions {
   affinity: PoolAffinityStore;
   maxAffinityBindings: number;
   hubTokens: HubTokenStore;
+  resolution: AccountResolutionStore;
   getSettings: () => AccountPoolConfig;
   adapters: ReadonlyMap<PoolProvider, ProviderAdapter>;
   fetch: typeof fetch;
@@ -103,6 +109,7 @@ interface UpstreamResult {
   response: Response;
   controller: AbortController;
   release: () => void;
+  selectedAccountId?: string | null;
 }
 
 interface RefreshBackoff {
@@ -176,6 +183,11 @@ export class AccountPoolHub {
     request: Request,
     provider: PoolProvider,
     routePath: string,
+    options?: {
+      pinnedAccountId?: string;
+      correlationThreadId?: string;
+      onCorrelated?: () => void;
+    },
   ): Promise<Response> {
     const adapter = this.adapter(provider);
     const hostId = await this.authenticate(request);
@@ -196,6 +208,9 @@ export class AccountPoolHub {
       new Uint8Array(await request.arrayBuffer()),
       adapter,
       hostId,
+      options?.pinnedAccountId ?? null,
+      options?.correlationThreadId ?? null,
+      options?.onCorrelated,
     );
   }
 
@@ -366,6 +381,9 @@ export class AccountPoolHub {
     body: Uint8Array,
     adapter: ProviderAdapter,
     hostId: string,
+    explicitPinnedAccountId: string | null,
+    explicitCorrelationThreadId: string | null = null,
+    onCorrelated?: () => void,
   ): Promise<Response> {
     const signal = AbortSignal.any([request.signal, this.stopped.signal]);
     const attempted = new Set<string>();
@@ -380,7 +398,35 @@ export class AccountPoolHub {
     const accounts = (await this.options.accounts.list()).filter(
       (account) => account.provider === adapter.provider,
     );
-    const candidateIds = new Set(accounts.map((account) => account.id));
+    let candidateIds = new Set(accounts.map((account) => account.id));
+    // An explicit pin delivered as a registered URL path segment (used by
+    // providers whose CLI cannot send custom headers, e.g. Codex) takes
+    // precedence over the header-based pin (used by Claude Code).
+    const pinnedAccountId =
+      explicitPinnedAccountId ?? request.headers.get(PINNED_ACCOUNT_HEADER);
+    const correlationThreadId =
+      explicitCorrelationThreadId ??
+      (pinnedAccountId === null
+        ? request.headers.get(THREAD_CORRELATION_HEADER)
+        : null);
+    if (pinnedAccountId !== null) {
+      const pinned = accounts.find((account) => account.id === pinnedAccountId);
+      if (pinned === undefined) {
+        return adapter.errorResponse(
+          409,
+          "The pinned Account Pooler account is no longer available.",
+          { [PIN_UNAVAILABLE_HEADER]: "removed" },
+        );
+      }
+      if (!pinned.enabled) {
+        return adapter.errorResponse(
+          409,
+          "The pinned Account Pooler account is disabled.",
+          { [PIN_UNAVAILABLE_HEADER]: "disabled" },
+        );
+      }
+      candidateIds = new Set([pinnedAccountId]);
+    }
     const parsed = adapter.parseRequest(body, request.headers);
     const family = parsed.family;
     const affinityKey =
@@ -621,6 +667,13 @@ export class AccountPoolHub {
             break;
           }
           if (response.ok) selected.accept();
+          upstream.selectedAccountId = selected.account.id;
+          if (response.ok && correlationThreadId !== null) {
+            this.options.resolution
+              .recordResolved(correlationThreadId, selected.account.id)
+              .catch(() => {})
+              .finally(() => onCorrelated?.());
+          }
           return this.clientResponse(upstream);
         }
       }
@@ -1076,6 +1129,8 @@ export class AccountPoolHub {
       if (!DROPPED_RESPONSE_HEADERS.has(name.toLowerCase()))
         headers.append(name, value);
     }
+    if (upstream.selectedAccountId)
+      headers.set(SELECTED_ACCOUNT_HEADER, upstream.selectedAccountId);
     if (upstream.response.body === null) {
       upstream.release();
       return new Response(null, {
@@ -1212,6 +1267,7 @@ export function createHub(options: {
   quotas: QuotaStore;
   affinity: PoolAffinityStore;
   hubTokens: HubTokenStore;
+  resolution: AccountResolutionStore;
   getSettings: () => AccountPoolConfig;
   fetch?: typeof fetch;
   now?: () => number;
@@ -1253,6 +1309,7 @@ export function createHub(options: {
     affinity: options.affinity,
     maxAffinityBindings: options.maxAffinityBindings ?? MAX_AFFINITY_BINDINGS,
     hubTokens: options.hubTokens,
+    resolution: options.resolution,
     getSettings: options.getSettings,
     adapters,
     fetch: options.fetch ?? fetch,

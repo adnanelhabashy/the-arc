@@ -15,6 +15,7 @@ export const bridgeExecutionOptionsSchema = z
     instructions: z.string().optional(),
     envVars: z.record(z.string(), z.string()).optional(),
     providerOptions: z.record(z.string(), z.unknown()).optional(),
+    accountKey: z.string().nullable().optional(),
   })
   .and(runtimePermissionPolicySchema);
 

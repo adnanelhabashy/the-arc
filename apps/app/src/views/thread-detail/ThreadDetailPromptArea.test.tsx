@@ -83,6 +83,7 @@ const mocks = vi.hoisted(() => ({
   supportsServiceTier: false,
   toastError: vi.fn(),
   unarchiveThreadMutate: vi.fn(),
+  updateThreadMutate: vi.fn(),
   uploadPromptAttachmentMutateAsync: vi.fn(),
   updateQueuedMessageMutateAsync: vi.fn(),
   useThreadDefaultExecutionOptions: vi.fn(),
@@ -696,6 +697,11 @@ vi.mock("@/hooks/mutations/thread-state-mutations", () => ({
   useUnarchiveThread: () => ({
     isPending: false,
     mutate: mocks.unarchiveThreadMutate,
+    variables: null,
+  }),
+  useUpdateThread: () => ({
+    isPending: false,
+    mutate: mocks.updateThreadMutate,
     variables: null,
   }),
 }));

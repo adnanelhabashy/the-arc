@@ -138,18 +138,18 @@ describe("Claude OAuth login", () => {
       expect(authorize.searchParams.get("response_type")).toBe("code");
       expect(authorize.searchParams.get("code_challenge_method")).toBe("S256");
       expect(authorize.searchParams.get("redirect_uri")).toBe(
-        "https://console.anthropic.com/oauth/code/callback",
+        "https://platform.claude.com/oauth/code/callback",
       );
       const state = authorize.searchParams.get("state");
       if (state === null) throw new Error("Missing OAuth state.");
-      const pasted =
+      const code =
         shape === "url"
-          ? `https://console.anthropic.com/oauth/code/callback?code=code-url&state=${state}`
+          ? `https://platform.claude.com/oauth/code/callback?code=code-url&state=${state}`
           : shape === "hash"
             ? `code-hash#${state}`
             : "code-bare";
       await expect(
-        login.complete({ sessionId: started.sessionId, pasted }),
+        login.complete({ sessionId: started.sessionId, code }),
       ).resolves.toMatchObject({
         label: "Personal Claude",
         email: "person@example.com",
@@ -194,7 +194,7 @@ describe("Claude OAuth login", () => {
     await expect(
       login.complete({
         sessionId: started.sessionId,
-        pasted: "authorization-code#wrong-state",
+        code: "authorization-code#wrong-state",
       }),
     ).rejects.toThrow("OAuth state mismatch. Start again.");
     expect(tokenRequests).toBe(0);
@@ -209,7 +209,7 @@ describe("Claude OAuth login", () => {
     const started = login.start();
     now += 10 * 60 * 1_000;
     await expect(
-      login.complete({ sessionId: started.sessionId, pasted: "code" }),
+      login.complete({ sessionId: started.sessionId, code: "code" }),
     ).rejects.toThrow("Code expired, start again.");
   });
 
@@ -224,10 +224,10 @@ describe("Claude OAuth login", () => {
     });
     const started = login.start();
     await expect(
-      login.complete({ sessionId: started.sessionId, pasted: "bad-code" }),
+      login.complete({ sessionId: started.sessionId, code: "bad-code" }),
     ).rejects.toThrow("Claude token exchange failed (HTTP 400). Start again.");
     await expect(
-      login.complete({ sessionId: started.sessionId, pasted: "bad-code" }),
+      login.complete({ sessionId: started.sessionId, code: "bad-code" }),
     ).rejects.toThrow("Login session was not found. Start again.");
   });
 
@@ -243,13 +243,66 @@ describe("Claude OAuth login", () => {
     const started = login.start();
     const completion = login.complete({
       sessionId: started.sessionId,
-      pasted: "authorization-code",
+      code: "authorization-code",
     });
 
     await expect(completion).rejects.toThrow(
       "Claude token exchange returned an invalid response. Start again.",
     );
     await expect(completion).rejects.not.toThrow("sensitive-token");
+  });
+
+  it("joins a still-fresh session instead of replacing it", () => {
+    const login = new ClaudeOAuthLogin({
+      addAccount: async (authenticated) => savedAccount(authenticated),
+    });
+    const first = login.start();
+    const second = login.start();
+    expect(second.sessionId).toBe(first.sessionId);
+    const firstUrl = new URL(first.authorizeUrl);
+    const secondUrl = new URL(second.authorizeUrl);
+    // The same PKCE challenge/state are reused, so a code obtained from the
+    // first URL still completes against the joined session.
+    expect(secondUrl.searchParams.get("code_challenge")).toBe(
+      firstUrl.searchParams.get("code_challenge"),
+    );
+    expect(secondUrl.searchParams.get("state")).toBe(
+      firstUrl.searchParams.get("state"),
+    );
+  });
+
+  it("starts a new session after the previous one expired", () => {
+    let now = 1_000;
+    const login = new ClaudeOAuthLogin({
+      now: () => now,
+      addAccount: async (authenticated) => savedAccount(authenticated),
+    });
+    const first = login.start();
+    now += 10 * 60 * 1_000;
+    const second = login.start();
+    expect(second.sessionId).not.toBe(first.sessionId);
+  });
+
+  it("builds the Claude Code 2.1.x authorize URL (manual code flow)", () => {
+    const login = new ClaudeOAuthLogin({
+      addAccount: async (authenticated) => savedAccount(authenticated),
+    });
+    const started = login.start();
+    const authorize = new URL(started.authorizeUrl);
+    expect(authorize.origin + authorize.pathname).toBe(
+      "https://claude.com/cai/oauth/authorize",
+    );
+    expect(authorize.searchParams.get("code")).toBe("true");
+    expect(authorize.searchParams.get("redirect_uri")).toBe(
+      "https://platform.claude.com/oauth/code/callback",
+    );
+    expect(authorize.searchParams.get("scope")?.split(" ")).toEqual(
+      expect.arrayContaining([
+        "user:plugins",
+        "user:sessions:claude_code",
+        "org:create_api_key",
+      ]),
+    );
   });
 });
 

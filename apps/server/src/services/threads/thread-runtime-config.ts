@@ -2,7 +2,12 @@ import {
   resolveHostEnvironment,
   mergeHostAndProviderEnvironment,
 } from "../hosts/host-environment.js";
-import { getEnvironment, getHost, getProject } from "@bb/db";
+import {
+  getEnvironment,
+  getHost,
+  getProject,
+  getThreadAccountState,
+} from "@bb/db";
 import type {
   DynamicTool,
   InstructionMode,
@@ -194,6 +199,7 @@ export async function resolveThreadRuntimeCommandConfig(
     },
     skillIdsByPlugin,
   });
+  const threadAccountState = getThreadAccountState(deps.db, args.thread.id);
   const contributedEnv = mergeHostAndProviderEnvironment(
     await resolveHostEnvironment(deps, {
       hostId: host.id,
@@ -205,6 +211,8 @@ export async function resolveThreadRuntimeCommandConfig(
         threadId: args.thread.id,
         projectId: project.id,
         hostId: host.id,
+        accountKey: threadAccountState?.accountKey ?? null,
+        accountResolved: threadAccountState?.accountResolved ?? false,
       },
     }),
   );

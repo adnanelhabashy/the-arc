@@ -93,7 +93,13 @@ import {
   useClearThreadGoal,
   useStopThread,
 } from "@/hooks/mutations/thread-runtime-mutations";
-import { useUnarchiveThread } from "@/hooks/mutations/thread-state-mutations";
+import {
+  useUnarchiveThread,
+  useUpdateThread,
+} from "@/hooks/mutations/thread-state-mutations";
+import { getSettingsRoutePath } from "@/lib/route-paths";
+import { providerIdToAgentId } from "@/components/thread/timeline/ProviderUsageSection";
+import { useAccountRequiresResolution } from "@/components/pickers/AccountPicker";
 import {
   getLatestPendingInteraction,
   useThreadQueuedMessages,
@@ -470,6 +476,14 @@ export function ThreadDetailPromptArea({
   const clearThreadGoal = useClearThreadGoal();
   const unarchiveThread = useUnarchiveThread();
   const createThread = useCreateThread();
+  const updateThread = useUpdateThread();
+  const handleAccountChange = useCallback(
+    (accountKey: string | null) => {
+      if (accountKey === null) return;
+      updateThread.mutate({ id: thread.id, accountKey });
+    },
+    [thread.id, updateThread],
+  );
   const projectName = useProjectDisplayName(
     thread.projectId === PERSONAL_PROJECT_ID ? undefined : thread.projectId,
   );
@@ -882,7 +896,16 @@ export function ThreadDetailPromptArea({
   const handleClearGoal = useCallback(() => {
     clearThreadGoal.mutate(thread.id);
   }, [clearThreadGoal, thread.id]);
-  const submitMode = useMemo<FollowUpSubmitMode>(() => {
+  const accountRequiresResolution = useAccountRequiresResolution(
+    providerIdToAgentId(thread.providerId),
+    undefined,
+    {
+      accountKey: thread.accountKey,
+      accountResolved: thread.accountResolved,
+      hasHistory: thread.updatedAt !== thread.createdAt,
+    },
+  );
+  const baseSubmitMode = useMemo<FollowUpSubmitMode>(() => {
     if (isHandoffSelection && !isStopRequested) {
       if (effectiveSelectedModel.length > 0) {
         return { kind: "ready" };
@@ -911,6 +934,13 @@ export function ThreadDetailPromptArea({
     isStopRequested,
     runtimeDisplayStatus,
   ]);
+  const submitMode = useMemo<FollowUpSubmitMode>(
+    () =>
+      accountRequiresResolution && baseSubmitMode.kind === "ready"
+        ? { kind: "blocked", reason: "unavailable" }
+        : baseSubmitMode,
+    [accountRequiresResolution, baseSubmitMode],
+  );
   const promptPlaceholder = getFollowUpPromptPlaceholder(
     isStopRequested ? "stopping" : runtimeDisplayStatus,
   );
@@ -1437,10 +1467,28 @@ export function ThreadDetailPromptArea({
         onExit: exitHandoff,
         onSelect: handleHandoffSelect,
       },
+      account: {
+        agentId: providerIdToAgentId(thread.providerId),
+        providerFamily:
+          thread.providerId === "omp"
+            ? ([...modelOptions, ...moreModelOptions].find(
+                (option) => option.value === effectiveSelectedModel,
+              )?.routeProviderId ?? null)
+            : null,
+        value: thread.accountKey,
+        onChange: handleAccountChange,
+        onManageAccounts: () => navigate(getSettingsRoutePath("providers")),
+        existingThreadState: {
+          accountKey: thread.accountKey,
+          accountResolved: thread.accountResolved,
+          hasHistory: thread.updatedAt !== thread.createdAt,
+        },
+      },
     }),
     [
       effectiveSelectedModel,
       executionOptionsRouting,
+      handleAccountChange,
       hasMultipleProviders,
       handleHandoffSelect,
       beginHandoff,
@@ -1453,10 +1501,15 @@ export function ThreadDetailPromptArea({
       modelLoadError,
       modelOptions,
       moreModelOptions,
+      navigate,
       providerOptions,
       reasoningLevel,
       reasoningOptions,
       selectedModel,
+      thread.accountKey,
+      thread.accountResolved,
+      thread.createdAt,
+      thread.updatedAt,
       selectedProviderId,
       serviceTier,
       serviceTierSupportByProvider,

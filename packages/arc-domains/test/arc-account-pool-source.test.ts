@@ -346,22 +346,21 @@ describe("AccountPoolSource login flows", () => {
     });
   });
 
-  it("completes a Claude login by pasting the provider callback", async () => {
+  it("completes a Claude login by submitting the entered authentication code", async () => {
     const rpc = new StubRpc();
-    const pastes: unknown[] = [];
+    const submissions: unknown[] = [];
     rpc.handlers.set("login.complete", (input) => {
-      pastes.push(input);
+      submissions.push(input);
       return poolSummary();
     });
     const account = await makeSource(rpc).completeClaudeLogin(
       "claude-session-1",
-      "https://console.anthropic.com/oauth/code/callback?code=abc&state=xyz",
+      "WXYZ-1234",
     );
-    expect(pastes).toEqual([
+    expect(submissions).toEqual([
       {
         sessionId: "claude-session-1",
-        pasted:
-          "https://console.anthropic.com/oauth/code/callback?code=abc&state=xyz",
+        code: "WXYZ-1234",
       },
     ]);
     expect(account.accountKey).toBe(

@@ -269,6 +269,8 @@ export interface CreateThreadInput {
   originPluginId?: string | null;
   pluginMetadata?: { pluginId: string; metadata: JsonObject } | null;
   visibility?: ThreadVisibility;
+  accountKey?: string | null;
+  accountResolved?: boolean | null;
 }
 
 export class InvalidLifecycleOwnerError extends Error {
@@ -327,6 +329,8 @@ export function createThread(
           originKind,
           originPluginId: input.originPluginId ?? null,
           visibility,
+          accountKey: input.accountKey ?? null,
+          accountResolved: input.accountResolved ?? null,
           lastReadAt: now,
           latestAttentionAt: now,
           createdAt: now,
@@ -1825,6 +1829,50 @@ export function setThreadExecutionOverride(
     .returning()
     .get();
   return updated ?? null;
+}
+
+export interface ThreadAccountState {
+  accountKey: string | null;
+  accountResolved: boolean | null;
+}
+
+export function getThreadAccountState(
+  db: ThreadWriteConnection,
+  id: string,
+): ThreadAccountState | null {
+  const row = db
+    .select({
+      accountKey: threads.accountKey,
+      accountResolved: threads.accountResolved,
+    })
+    .from(threads)
+    .where(eq(threads.id, id))
+    .get();
+  return row ?? null;
+}
+
+export interface SetThreadAccountInput {
+  threadId: string;
+  accountKey: string | null;
+  accountResolved: boolean;
+}
+
+export function setThreadAccount(
+  db: ThreadWriteConnection,
+  input: SetThreadAccountInput,
+) {
+  return (
+    db
+      .update(threads)
+      .set({
+        accountKey: input.accountKey,
+        accountResolved: input.accountResolved,
+        updatedAt: Date.now(),
+      })
+      .where(eq(threads.id, input.threadId))
+      .returning()
+      .get() ?? null
+  );
 }
 
 export interface SetThreadStartupContextInput {

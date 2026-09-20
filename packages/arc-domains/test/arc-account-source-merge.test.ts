@@ -111,6 +111,8 @@ class FakeOmpSource extends FakeSource {
       provider,
       sessionId: `session-${provider}`,
       kind: "oauth",
+      flow: "browser",
+      userCode: null,
       authorizeUrl: "https://provider.example.com/authorize",
       instructions: null,
       expiresAt: null,

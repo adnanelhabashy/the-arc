@@ -90,7 +90,10 @@ a literal string or a server-relative path that the host expands against its
 authenticated `BB_SERVER_URL`. Contributions override the shell environment and
 their values are reported as-is in provider environment events. The resolver
 receives `ExperimentalPluginProviderEnvContext` and returns
-`ExperimentalPluginProviderEnvEntry` values.
+`ExperimentalPluginProviderEnvEntry` values. The context also carries the
+thread's account-pool `accountKey` (`null` when unresolved/Auto) and
+`accountResolved`, so a contributor can route a specific execution to the
+thread's already-pinned account instead of re-selecting one every turn.
 
 **Audit before stabilizing.**
 
@@ -105,6 +108,8 @@ receives `ExperimentalPluginProviderEnvContext` and returns
    stable machine-readable purpose beside it.
 6. Decide whether the context and entry types should stabilize with the method
    or remain experimental for a longer compatibility window.
+7. Confirm `accountKey`/`accountResolved` are the right shape for account-pool
+   style per-thread pinning, versus a more generic per-thread key-value bag.
 
 Every public plugin API member ships with an `experimental_` prefix and an
 entry here (see [AGENTS.md](../AGENTS.md), "Plugin API"). Dropping the prefix
@@ -3102,3 +3107,20 @@ new unprefixed public API member is introduced. Audit before stabilization:
 immutable cross-project ownership, cross-host cleanup, archive/delete retries,
 creation races, and preservation of existing unowned threads. The Plugin Guide SDK card
 describes the public behavior.
+
+## `PluginHttp.experimental_unroute`
+
+Removes a route previously registered with `bb.http.route`, matched by exact
+method and path, mirroring `normalizeHttpRouteRegistration`'s own matching.
+No-op when the route is not currently registered. Added so a plugin can
+register short-lived, per-thread or per-execution routes (e.g. the
+account-pool plugin's per-thread Codex auto-resolution correlation route)
+without growing the route table for the lifetime of the plugin process.
+Existing `route` registration and dispatch (`normalizeHttpRouteRegistration`,
+`getHttpRoute`, `invokeHttpRoute`) are unchanged; this only removes an entry
+from the same in-memory list.
+
+Audit before stabilization: whether plugins need bulk/prefix removal, whether
+removing a route mid-flight should cancel or let in-flight requests to it
+complete, and whether the same primitive should extend to
+`experimental_websocket`.

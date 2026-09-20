@@ -771,3 +771,122 @@ PASS.
 ### Gate
 
 PASS (with documented pre-existing baselines: 3 desktop failures, 1 apps/app story import).
+
+## Phase 10.x — Post-gate live fixes (Kimi onboarding + usage honesty)
+
+Found during the installed-app deploy verification with a real Kimi Code
+account connected:
+
+- **Kimi device URL rewrite** (`arc-domains/arc-account/omp-account-source`):
+  Kimi's device flow sends users to `www.kimi.com` (mainland site, WeChat
+  QR / phone login). The challenge `authorizeUrl` host is rewritten to
+  `kimi.ai` for `kimi-code` so users land on the international site where
+  their accounts live. Scoped per provider; other providers and non-Kimi
+  hosts untouched.
+- **Amount-with-limit usage bars** (`Mission Control usage-limits`): Kimi
+  reports `usedAmount/limitAmount/remainingAmount` (e.g. 88/100, 12
+  remaining) with no percents. The row renderer previously showed a bare
+  amount and hid the reset line; with a known limit it now derives the bar
+  from amounts and renders the reset countdown. Unknown-limit windows still
+  render amount-only (a bar would fabricate a percentage).
+- **Device-flow dialog copy** (`Mission Control connect-flows`): the OMP
+  device dialog said "confirm the code matches", reading like a code-entry
+  field exists. Kimi's page is two-step (sign in, then confirm the prefilled
+  code); the copy now says so. No code entry exists by design.
+- **No re-login eviction bug**: `startExclusive` returns an existing pending
+  session rather than replacing it; investigated and cleared.
+
+Tests: +1 arc-domains (URL rewrite + negative scoping), +1 MC (amount-with-
+limit bar/reset). Suites re-run green: arc-domains 304 passed, MC 38 passed.
+
+## Phase 10.2 — Per-thread account selection (2026-09-20)
+
+Implements explicit Agent → Model → Account selection per thread, replacing the previous fully-transparent, pool-global account choice.
+
+### Architecture (ADR-061..063)
+
+- `threads.accountKey`/`threads.accountResolved` (migration `0126_add_thread_account.sql`), nullable, additive.
+- `accountKey` threaded through the wire schema, `agent-runtime`'s `ProviderExecutionContext`, and thread start/resume restore logic (`thread-commands.ts`).
+- Account Pool hub (`plugins/account-pool/src/hub.ts`) accepts an explicit pin (header for Claude Code, URL-path form for Codex — its bridge has no custom-header passthrough) that bypasses priority/affinity for that request only; disabled/removed pins fail closed (HTTP 409, distinct reason, no fallback).
+- Auto-resolve-once: the hub records which account it actually picked for an unpinned/Auto thread via a bounded, self-expiring per-thread correlation route; the server reads it once and pins the thread permanently.
+- Composer `AccountPicker` (Agent/Model/Account, four states: Auto / resolved+explicit-confirm-to-change / legacy-unknown-blocks-send / unavailable-blocks-send), wired into both `NewThreadComposer` (new threads, via `PATCH /threads` `accountKey`) and `ThreadDetailPromptArea` (existing threads, via `useUpdateThread`).
+- Mission Control thread list and the thread-scoped usage popup (`ProviderUsageSection`) read the bound account from the thread row; unresolved renders "Account unknown" / "Active account unknown", never zero.
+
+### Known limitation
+
+Codex account pinning and Auto-resolve-once are architecturally complete and tested via the hub's path-based correlation mechanism, but end-to-end verification against the real Codex CLI/bridge and two live ChatGPT accounts requires the installed app and real OAuth sessions — not verifiable from this environment. Claude Code's path is verified against the real bridge's documented `ANTHROPIC_CUSTOM_HEADERS` behavior.
+
+### Era-matched dependency repair (ADR-064)
+
+Restored `plugins/provider-codex`, `plugins/provider-claude-code`, `plugins/provider-acp`, `plugins/provider-pi`, `plugins/secrets`, `plugins/environment-modal-sandbox` from `git merge-base HEAD upstream/main` (not upstream's tip — see ADR-064) to fix test/typecheck failures the account-selection work surfaced as pre-existing baseline gaps. All six typecheck and test clean; none conflict with or duplicate `agent-runtime`'s generic provider-bridge architecture. `apps/server`'s remaining ~35 failing tests (2861/2897 passing) trace to roughly two dozen further missing bundled plugins unrelated to this feature (`workflows`, `docs`, `connect`, `side-chat`, `provider-retry`, `provider-usage`, etc.) — restoring the full set was evaluated and deliberately deferred as a separate, larger fork-sync task.
+
+### Tests
+
+`@bb/db` 574/574 · `bb-plugin-account-pool` 154/154 (+18 new: explicit pin, path-pin, disabled/removed 409, auto-correlation, concurrency) · `@bb/agent-runtime` 336/336 (was 331/336, the 5 pre-existing failures now fixed by the provider-pi restore) · `@bb/host-daemon-contract` 59/59 · `@bb/provider-bridge-protocol` 282/282 · `bb-plugin-arc-core` 8/8 · `@bb/arc-domains` 304/304 · `bb-plugin-adnan-mission-control` 40/40 · `@bb/client-core` 291/291 · `@bb/server-contract` 79/79 · `@bb/domain` 213/213 · `bb-plugin-provider-codex` 317/317 · `bb-plugin-provider-claude-code` 364/364 · `bb-plugin-provider-acp` 84/84 · `bb-plugin-provider-pi` 167/168 (1 pre-existing skip) · `bb-plugin-secrets` 8/8 · `bb-plugin-environment-modal-sandbox` 61/61 · `@bb/app` 4809/4809 (3 pre-existing skips), typecheck clean. `apps/server` 2861/2897 (documented gap above).
+
+### Gate
+
+Backend architecture, hub pinning, Auto-resolve-once, and all touched-package tests: PASS. Full end-to-end installed-app verification with real accounts: not performed (requires the user's hardware/accounts). `apps/server`'s residual ~35 test failures: documented pre-existing gap, out of scope for this phase (ADR-064).
+
+## Phase 10.2.1 — Account pinning fix + composer UX cleanup (2026-09-20)
+
+Fixes two real defects found in the installed app after Phase 10.2.
+
+### Problem 1: ChatGPT account pinning always 409'd (root cause, ADR-065)
+
+Traced the full identity chain end to end. Root cause: `threads.accountKey` (arc-domains' stable canonical identity, `openai:chatgpt:<codexAccountId>`) was sent directly as the Account Pooler hub's pin value, but the hub matches pins against `Account.id` — its own internally-generated row UUID, a different identifier space entirely. Every pin failed "removed" regardless of whether the account was actually connected. Fixed by resolving `accountKey` → the *current* pool row id inside `account-pool`'s own `contributeFor` (which has live access to the account list), for both Codex (URL path) and Claude Code (moved the pin-header injection here from `agent-runtime`, which never had the account data needed to do this correctly). Unresolvable keys fall through unchanged, so genuinely stale accounts still 409 deterministically — no silent fallback. Verified reconnect safety explicitly: a reconnect creates a new pool row with a new id for the same real account, and the stable `accountKey` still resolves to it correctly since resolution happens fresh on every execution rather than being cached at pin time.
+
+### Problem 2: composer UX showed raw internal values and giant warnings (root cause, ADR-066)
+
+`AccountPicker` delegated to the generic `OptionPicker`, which falls back to rendering its raw `value` prop when no option matches — and in every non-new-thread state (legacy, unavailable, resolved) the `__auto__` sentinel had no corresponding option, so it rendered literally. Rebuilt `AccountPicker` directly on the shared `DropdownMenu` primitives: the trigger always shows a real label (Auto / account name / "Select account" / "Account unavailable"), legacy and unavailable explanations moved from permanent banners into ordinary popover text, "Manage accounts…" moved from a floating adjacent button into the popover's own footer item, and switching a resolved thread's account now stages a Confirm/Cancel step inside the same open popover instead of separate floating UI. Also fixed a real functional gap: `providerFamily` (needed to filter OMP accounts to the selected provider) was declared in the type but never actually computed or passed from either composer — now derived from the selected model's existing `routeProviderId` and wired through both `NewThreadComposer` and `ThreadDetailPromptArea`.
+
+### Mission Control
+
+`accountLabel` was hard-coded to always stay `null` (a stale comment claimed `bb.sdk.threads.list` didn't return the underlying fields — it does, per Phase 10.2's domain schema change; the comment predated that landing). Added a small resolver in Mission Control's `server.ts` that fetches the accounts list once per request and joins by `accountKey` to produce a real label, degrading gracefully to "Account unknown" if Arc Core is unreachable. Also removed a raw-`accountKey` tooltip from the thread row (no internal ids surfaced to the UI at all now).
+
+### Tests
+
+New: `plugins/account-pool/src/server-pin-identity.test.ts` (6 tests) — connected account resolves to the live pool row id, two accounts pin independently, a reconnect (new pool row, same real account) keeps working, a genuinely stale account 409s with zero upstream fetches (no silent fallback), two concurrently-starting threads don't leak, and reselecting the current account is idempotent. Removed `packages/agent-runtime/src/execution-options.test.ts` (5 tests) — it covered the removed, buggy header-injection mechanism; the equivalent behavior for Claude Code now shares the exact same `resolvePoolAccountId` function exercised by the Codex tests, but does not yet have its own dedicated OAuth-flow test harness (a disclosed gap, not a regression — the underlying function is identical). Rewrote `AccountPicker.test.tsx` for the new dropdown-based component (11 tests, including an explicit `__auto__`-never-rendered assertion). Re-ran and confirmed no regressions across `@bb/db` (574), `bb-plugin-account-pool` (160), `@bb/agent-runtime` (331), `@bb/host-daemon-contract` (59), `@bb/provider-bridge-protocol` (282), `bb-plugin-arc-core` (8), `@bb/arc-domains` (304), `@bb/client-core` (291), `@bb/server-contract` (79), `@bb/domain` (213), `@bb/app` (545 files / 4811 tests). Mission Control: 39/40, the one failure is a pre-existing timer-isolation flake in `connect-flows.test.tsx` (untouched by this phase, reproduces identically before and after).
+
+### Installed-app verification
+
+Rebuilt and reinstalled `/Applications/Arc Agent.app` (unchanged version 0.43.1, code-only change), confirmed it launches with all expected processes, `~/.bb` untouched, prior build backed up to Desktop. Visually reviewed the redesigned `AccountPicker` live via Ladle in both themes across all required states (Auto, explicit pick, disabled account, resolved+confirm, legacy, unavailable, zero-accounts). **Not performed**: sending real messages through two live ChatGPT accounts end-to-end in the installed app — that requires the user's own OAuth sessions and hands-on interaction.
+
+### Known remaining gaps
+
+- No separate "Provider" row in the composer's collapsed view for OMP (e.g. a literal "Provider: Kimi Code" label) — the provider is visible today via the model picker's existing `routeProviderId` qualifier, and the account list correctly filters by it, but restructuring `ModelReasoningPicker`'s compact display to add an explicit provider row was judged out of proportion to this phase's risk budget.
+- Claude Code's identity-resolution path shares the exact same function as Codex's (verified by direct code reading) but lacks a dedicated test using a real OAuth-flow harness; building one requires mocking a full PKCE HTTP exchange, deferred as disclosed, not hidden.
+- Mission Control's new `accountLabel` resolver has no dedicated server-side unit test (no existing test harness for this plugin's `server.ts` to build on cheaply); covered by manual code review and the pre-existing component-level rendering tests.
+
+## Phase 10.2.2 — Real ChatGPT account execution E2E repair (2026-09-20)
+
+Reopened Phase 10.2.1 after the user reported "Provider error" for both real ChatGPT accounts in the installed app, despite Phase 10.2.1's tests passing. Investigated against the actual running `/Applications/Arc Agent.app` and `~/.bb` — no unit tests, no Ladle, no synthetic fixtures.
+
+### Reproduction and trace
+
+Confirmed via `curl` and direct filesystem inspection that Phase 10.2.1's identity-resolution fix (`resolvePoolAccountId`) was present and correct in the packaged app's bundled `account-pool` plugin (verified by grepping the actual `dist/server.js` inside `Contents/Resources/.../builtin-plugins/account-pool/`, matching source content and rebuild timestamp) — ruling out a stale-bundle/packaging mismatch. Found the user's own real thread events (`GET /api/v1/threads/:id/events` against the live server) showing the actual underlying error for both accounts: `404 Not Found` with a `cf-ray` response header — impossible on a genuine `127.0.0.1` loopback response, proving the real Codex CLI's request never reached our local Account Pooler hub, even though a direct `curl` to the exact same URL correctly reached the hub's own auth check (401, not 404).
+
+### Root cause and fix (ADR-067)
+
+The `/pin/<accountId>` / `/auto/<threadId>` URL path segments Phase 10.2's Codex mechanism appended to `CODEX_OPENAI_BASE_URL` made the real Codex CLI's requests never route through our hub at all — a production-only failure mode the fake-plugin-host test harness could not surface, since it dispatches to registered routes by exact in-memory path match and has no way to exercise the real Codex binary's own request handling. Fixed by moving the pin/thread-id marker onto Codex's own proven `env_http_headers` CLI mechanism (already used successfully for the hub auth token) instead of the URL, restoring `CODEX_OPENAI_BASE_URL` to the same flat shape Account Pooler always used before per-thread selection existed. Deleted the now-unnecessary dynamic route registration/cleanup machinery for Codex entirely (`ensureCodexPinRoutesRegistered`/`ensureCodexAutoRouteRegistered`) — the header-based path needs no server-side per-thread route state to register or leak.
+
+### Real E2E verification (mandatory gate, performed via CLI against the actual installed app)
+
+Since driving the Electron UI directly was not available, exercised the identical server-side path a UI click would via `bb thread spawn` / `bb thread tell` and direct `PATCH /threads/:id` calls against the real running packaged server (`~/.bb`, real accounts, real Codex CLI child processes) — this is the same HTTP API surface the app's own UI calls, not a synthetic shortcut:
+- Account A (Plus, Auto-resolved): real Codex response `ACCOUNT-A-OK`.
+- Account B (Team, explicitly pinned before dispatch): real Codex response `ACCOUNT-B-OK`.
+- Concurrent dispatch of two threads pinned to Plus and Team simultaneously: `CONCURRENT-A-PLUS` / `CONCURRENT-B-TEAM`, no cross-account leakage.
+- Full app restart, then a follow-up message to each of the two concurrent threads: both bindings survived (`accountKey` unchanged) and both continued executing correctly (`AFTER-RESTART-A-PLUS` / `AFTER-RESTART-B-TEAM`).
+- Usage RPC (`arc.usage.current`) queried per account returns distinct, non-merged resources scoped to each `accountKey`; Codex does not expose usage window data via this path, honestly reported as `status: "unknown"` with empty `windows`, never a fabricated zero.
+
+### Tests
+
+Rewrote `plugins/account-pool/src/server-pin-identity.test.ts` and `server-auto-route.test.ts` to assert the header/env-var delivery mechanism instead of URL-path routes (11 tests, same coverage intent as Phase 10.2.1: connected-account resolution, two independent accounts, reconnect safety, stale-key rejection with zero fallback, concurrency isolation, re-selection idempotency). Added 2 new cases to `plugins/provider-codex/src/bridge/app-server-launch.test.ts` asserting the CLI args carry the pin/thread-id header config and never a URL segment. All packages re-verified green: `bb-plugin-account-pool` 158/158, `bb-plugin-provider-codex` 319/319, `@bb/agent-runtime` 331/331, plus the full previously-verified matrix (db, host-daemon-contract, provider-bridge-protocol, arc-core, arc-domains, client-core, server-contract, domain, app 545/545) with zero new regressions.
+
+### Installed-app verification
+
+Rebuilt and reinstalled `/Applications/Arc Agent.app` twice this phase (once to confirm the packaged-bundle theory, once with the real fix), `~/.bb` untouched both times, prior builds backed up to Desktop. All real E2E checks above were run against this final rebuild.
+
+### Remaining limitation
+
+The E2E verification above was driven through the same server API the Electron UI calls, not through literal mouse clicks in the app window (no UI automation access in this environment) — the user may still want to click through the composer themselves to confirm the visual flow, though the underlying execution path is identical either way.

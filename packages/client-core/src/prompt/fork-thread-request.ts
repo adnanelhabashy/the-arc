@@ -27,6 +27,7 @@ interface BuildForkThreadRequestArgs extends ForkThreadCreateSeed {
   input: PromptInput[];
   pluginSubmission: AppCreateThreadRequest["pluginSubmission"];
   providerSupportsFork: boolean;
+  accountKey?: string | null;
 }
 
 type ForkableThread = Pick<Thread, "archivedAt" | "environmentId" | "providerId">;
@@ -58,6 +59,7 @@ export function buildForkThreadRequest({
   serviceTier,
   sourceSeqEnd,
   sourceThreadId,
+  accountKey,
 }: BuildForkThreadRequestArgs): AppCreateThreadRequest | null {
   if (!providerSupportsFork) {
     return null;
@@ -77,5 +79,6 @@ export function buildForkThreadRequest({
     ...(sourceSeqEnd !== undefined ? { sourceSeqEnd } : {}),
     sourceThreadId,
     startedOnBehalfOf: null,
+    ...(accountKey === undefined ? {} : { accountKey }),
   };
 }

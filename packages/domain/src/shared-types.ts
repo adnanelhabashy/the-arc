@@ -534,6 +534,10 @@ const runtimeThreadExecutionBaseOptionsSchema = z.object({
   reasoningLevel: reasoningLevelSchema,
   promptMode: promptModeSchema.optional(),
   providerOptions: jsonObjectSchema,
+  // Absent/undefined on the wire is treated the same as null by older
+  // daemons/servers that don't know this field, so no protocol bump is
+  // required for its addition.
+  accountKey: z.string().nullable().optional(),
 });
 
 export const runtimeThreadExecutionOptionsSchema =

@@ -5,11 +5,15 @@ import {
 } from "./upstream-transport.js";
 import path from "node:path";
 import { z } from "zod";
-import type { BbPluginApi } from "@get-bb/plugin-sdk";
+import type {
+  BbPluginApi,
+  ExperimentalPluginProviderEnvContext,
+} from "@get-bb/plugin-sdk";
 import {
   accountPoolConfigSchema,
   accountPoolConfigSetInputSchema,
   poolAvailabilitySchema,
+  type Account,
   type AccountPoolConfigController,
   type PoolProvider,
   type PoolStatus,
@@ -26,7 +30,11 @@ import type {
   ImportedClaudeCredentials,
   ImportedCodexCredentials,
 } from "./credentials.js";
-import { createHub } from "./hub.js";
+import {
+  createHub,
+  PINNED_ACCOUNT_HEADER,
+  THREAD_CORRELATION_HEADER,
+} from "./hub.js";
 import { PoolOperations } from "./operations.js";
 import { accountPoolRpcContract, createRpcHandlers } from "./rpc.js";
 import { ClaudeOAuthLogin } from "./oauth-login.js";
@@ -36,6 +44,7 @@ import {
   ACCOUNT_POOL_CONFIG_CHANGED,
 } from "./realtime.js";
 import {
+  AccountResolutionStore,
   AccountStore,
   HubTokenStore,
   PoolAffinityStore,
@@ -67,6 +76,13 @@ export interface AccountPoolPluginOptions {
 const DISPOSE_INSPECTION_TIMEOUT_MS = 2_000;
 const DISPOSE_INSPECTION_TIMEOUT = Symbol("dispose-inspection-timeout");
 const HUB_BASE_PATH = "/api/v1/plugins/account-pool/http";
+const CODEX_POST_ROUTES = [
+  "/v1/responses",
+  "/v1/images/generations",
+  "/v1/images/edits",
+  "/v1/alpha/search",
+];
+const CODEX_MODELS_ROUTE = "/v1/models";
 
 const PROVIDER_ROUTING_ENV: Record<PoolProvider, readonly string[]> = {
   claude: ["ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN"],
@@ -127,6 +143,7 @@ export function createAccountPoolPlugin(
     const enrolledHosts = await bb.sdk.hosts.list();
     await hubTokens.prune(enrolledHosts.map((host) => host.id));
     const routing = new RoutingStore(bb.storage.kv, now);
+    const resolution = new AccountResolutionStore(bb.storage.kv, now);
     const parentPool = readParentPool(options.env ?? process.env);
     const proxyingParent = (): ParentPool | null =>
       parentPool !== null && currentSettings.parentMode === "proxy"
@@ -143,6 +160,7 @@ export function createAccountPoolPlugin(
       quotas,
       affinity: new PoolAffinityStore(db),
       hubTokens,
+      resolution,
       getSettings: () => currentSettings,
       fetch: upstreamFetch,
       now,
@@ -198,6 +216,7 @@ export function createAccountPoolPlugin(
       hub,
       hubTokens,
       routing,
+      resolution,
       () => bb.sdk.hosts.list(),
       async (hostId) =>
         (await bb.sdk.system.providerStates({ hostId })).providers,
@@ -257,18 +276,53 @@ export function createAccountPoolPlugin(
           "Account Pooler is isolated from the parent bb server's pool on this instance",
       }));
     const contributeFor =
-      (provider: PoolProvider, serving: (token: string) => PoolEnvEntry[]) =>
-      async (context: { threadId: string; hostId: string }) => {
+      (
+        provider: PoolProvider,
+        serving: (
+          token: string,
+          context: ExperimentalPluginProviderEnvContext,
+        ) => PoolEnvEntry[] | Promise<PoolEnvEntry[]>,
+      ) =>
+      async (context: ExperimentalPluginProviderEnvContext) => {
         const bypassed = await routing.isBypassed(context.threadId);
         if (!bypassed && (await canServe(provider))) {
           const token = await hubTokens.forHost(context.hostId);
           if (provider === "claude") {
             await routing.recordRouted(context.threadId, context.hostId);
           }
-          return [...serving(token), ...markerEntries(token)];
+          return [...(await serving(token, context)), ...markerEntries(token)];
         }
         return parentPool === null ? [] : neutralized(provider);
       };
+    // `threads.accountKey` is the arc-domains canonical identity
+    // (`openai:chatgpt:<codexAccountId>` / `anthropic:account:<accountUuid>`),
+    // chosen deliberately so it survives a reconnect that creates a fresh
+    // Account Pooler row for the same real account. The Account Pooler hub's
+    // pin/select logic matches on its own row id (`Account.id`, a UUID it
+    // assigns internally) — a completely different identifier space. Resolve
+    // the stable key to the *current* row id right before it reaches the hub;
+    // never persist the raw row id, or a reconnect would orphan the thread's
+    // selection. When nothing currently matches (the account was genuinely
+    // disconnected/replaced), the caller is meant to fall through to the
+    // original key unchanged so the hub's own "removed" 409 fires — never
+    // silently pin a different account.
+    const resolvePoolAccountId = async (
+      provider: PoolProvider,
+      accountKey: string,
+    ): Promise<string | null> => {
+      const prefix =
+        provider === "codex" ? "openai:chatgpt:" : "anthropic:account:";
+      if (!accountKey.startsWith(prefix)) return null;
+      const providerIssuedId = accountKey.slice(prefix.length);
+      if (providerIssuedId.length === 0) return null;
+      const match = (await accounts.list()).find((candidate: Account) => {
+        if (candidate.provider !== provider) return false;
+        return provider === "codex"
+          ? candidate.codexAccountId === providerIssuedId
+          : candidate.accountUuid === providerIssuedId;
+      });
+      return match?.id ?? null;
+    };
     const proxiedHealth = async (provider: PoolProvider) =>
       (await canServe(provider))
         ? {
@@ -281,42 +335,99 @@ export function createAccountPoolPlugin(
         : null;
     bb.providers.experimental_contributeEnv(
       "claude-code",
-      contributeFor("claude", (token) => [
-        {
-          name: "ANTHROPIC_BASE_URL",
-          value: { serverPath: HUB_BASE_PATH },
-          reason: "Routed through the Account Pooler hub",
-        },
-        {
-          name: "ANTHROPIC_AUTH_TOKEN",
-          value: token,
-          reason: "Account Pooler hub token for this machine",
-        },
-        {
-          name: "ENABLE_TOOL_SEARCH",
-          value: "true",
-          reason:
-            "Claude Code turns tool search off behind a custom base URL; the hub forwards tool_reference blocks",
-        },
-      ]),
+      contributeFor("claude", async (token, context) => {
+        // Claude Code's CLI already parses ANTHROPIC_CUSTOM_HEADERS
+        // (newline-separated "Header: value" pairs) into outbound request
+        // headers, so the pin/correlation marker rides along with no
+        // bridge-side change needed.
+        let pinHeader: string;
+        if (context.accountKey !== null) {
+          const poolAccountId = await resolvePoolAccountId(
+            "claude",
+            context.accountKey,
+          );
+          pinHeader = `${PINNED_ACCOUNT_HEADER}: ${poolAccountId ?? context.accountKey}`;
+        } else {
+          pinHeader = `${THREAD_CORRELATION_HEADER}: ${context.threadId}`;
+        }
+        return [
+          {
+            name: "ANTHROPIC_BASE_URL",
+            value: { serverPath: HUB_BASE_PATH },
+            reason: "Routed through the Account Pooler hub",
+          },
+          {
+            name: "ANTHROPIC_AUTH_TOKEN",
+            value: token,
+            reason: "Account Pooler hub token for this machine",
+          },
+          {
+            name: "ANTHROPIC_CUSTOM_HEADERS",
+            value: pinHeader,
+            reason:
+              context.accountKey !== null
+                ? "Pinned to this thread's resolved account"
+                : "Correlated to this thread for one-time account resolution",
+          },
+          {
+            name: "ENABLE_TOOL_SEARCH",
+            value: "true",
+            reason:
+              "Claude Code turns tool search off behind a custom base URL; the hub forwards tool_reference blocks",
+          },
+        ];
+      }),
     );
     bb.providers.experimental_contributeEnvHealth("claude-code", () =>
       proxiedHealth("claude"),
     );
     bb.providers.experimental_contributeEnv(
       "codex",
-      contributeFor("codex", (token) => [
-        {
-          name: "CODEX_OPENAI_BASE_URL",
-          value: { serverPath: `${HUB_BASE_PATH}/v1` },
-          reason: "Routed through the Account Pooler hub",
-        },
-        {
-          name: "CODEX_POOL_AUTH_TOKEN",
-          value: token,
-          reason: "Account Pooler hub token for this machine",
-        },
-      ]),
+      contributeFor("codex", async (token, context) => {
+        // The pin/thread-id marker rides as a custom HTTP header via Codex's
+        // own env_http_headers CLI config (the same passthrough already used
+        // for CODEX_POOL_AUTH_TOKEN), not as an extra CODEX_OPENAI_BASE_URL
+        // path segment: a `/pin/<id>` or `/auto/<threadId>` suffix made the
+        // real Codex CLI's requests never reach this hub at all (confirmed
+        // against the packaged app with two live ChatGPT accounts — see
+        // ADR-067). Keeping the base URL exactly as flat as it was before
+        // per-thread selection existed is what makes this reliable.
+        let pinEntry: PoolEnvEntry | null = null;
+        if (context.accountKey !== null) {
+          const poolAccountId = await resolvePoolAccountId(
+            "codex",
+            context.accountKey,
+          );
+          // Falls through to the raw key (never a live pool row id) when
+          // unresolved, so the hub's existing "removed" 409 fires — never
+          // silently pins a different account.
+          pinEntry = {
+            name: "CODEX_ACCOUNT_POOL_PIN",
+            value: poolAccountId ?? context.accountKey,
+            reason: "Pinned to this thread's resolved account",
+          };
+        } else {
+          pinEntry = {
+            name: "CODEX_ACCOUNT_POOL_THREAD_ID",
+            value: context.threadId,
+            reason:
+              "Correlated to this thread for one-time account resolution",
+          };
+        }
+        return [
+          {
+            name: "CODEX_OPENAI_BASE_URL",
+            value: { serverPath: `${HUB_BASE_PATH}/v1` },
+            reason: "Routed through the Account Pooler hub",
+          },
+          {
+            name: "CODEX_POOL_AUTH_TOKEN",
+            value: token,
+            reason: "Account Pooler hub token for this machine",
+          },
+          pinEntry,
+        ];
+      }),
     );
     bb.providers.experimental_contributeEnvHealth("codex", () =>
       proxiedHealth("codex"),
@@ -357,12 +468,7 @@ export function createAccountPoolPlugin(
         { auth: "none" },
       );
     }
-    for (const route of [
-      "/v1/responses",
-      "/v1/images/generations",
-      "/v1/images/edits",
-      "/v1/alpha/search",
-    ]) {
+    for (const route of CODEX_POST_ROUTES) {
       bb.http.route(
         "POST",
         route,
@@ -372,8 +478,8 @@ export function createAccountPoolPlugin(
     }
     bb.http.route(
       "GET",
-      "/v1/models",
-      (context) => hub.handle(context.req.raw, "codex", "/v1/models"),
+      CODEX_MODELS_ROUTE,
+      (context) => hub.handle(context.req.raw, "codex", CODEX_MODELS_ROUTE),
       { auth: "none" },
     );
     bb.http.route(

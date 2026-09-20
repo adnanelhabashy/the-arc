@@ -2,7 +2,14 @@ import { getNonDestroyedHostByLaunchKey } from "@bb/db";
 import { sweepProviderMachine } from "../machines/provider-orchestration.js";
 import { cancelProviderEnvironmentCreation } from "../environments/environment-engine.js";
 import { getPreparingEnvironment } from "@bb/db";
-import { getThread, type DbTransaction, type EnvironmentRow } from "@bb/db";
+import {
+  getThread,
+  getThreadAccountState,
+  setThreadAccount,
+  type DbTransaction,
+  type EnvironmentRow,
+} from "@bb/db";
+import { createAccountPoolHttpRpcClient } from "@bb/arc-domains";
 import {
   type EnvironmentProviderSelection,
   type PromptInput,
@@ -91,6 +98,56 @@ interface EnvironmentPayloadThreadArgs {
   context: ThreadProvisionContext;
   environment: EnvironmentRow;
   thread: Thread;
+}
+
+const ACCOUNT_AUTO_RESOLUTION_CHECK_DELAY_MS = 4_000;
+const ACCOUNT_AUTO_RESOLUTION_MAX_ATTEMPTS = 2;
+
+// ponytail: a fire-and-forget poll (bounded to two attempts) rather than an
+// event-driven hook, since there is no existing "thread reached running
+// state" signal reachable from here without touching hot per-turn lifecycle
+// paths (explicitly out of scope). The double-write guard makes an extra or
+// skipped poll harmless.
+function scheduleAccountAutoResolutionCheck(
+  deps: ThreadProvisioningDeps,
+  threadId: string,
+  attempt = 0,
+): void {
+  const timer = setTimeout(() => {
+    void checkAccountAutoResolution(deps, threadId, attempt).catch((error) => {
+      deps.logger.debug(
+        { err: error, threadId },
+        "Account auto-resolution check failed",
+      );
+    });
+  }, ACCOUNT_AUTO_RESOLUTION_CHECK_DELAY_MS);
+  timer.unref?.();
+}
+
+export async function checkAccountAutoResolution(
+  deps: ThreadProvisioningDeps,
+  threadId: string,
+  attempt: number,
+): Promise<void> {
+  const rpc = createAccountPoolHttpRpcClient({
+    serverUrl: `http://127.0.0.1:${deps.config.serverPort}`,
+  });
+  const result = (await rpc.call("account.getResolved", { threadId })) as {
+    accountId: string | null;
+  };
+  if (result.accountId === null) {
+    if (attempt < ACCOUNT_AUTO_RESOLUTION_MAX_ATTEMPTS - 1) {
+      scheduleAccountAutoResolutionCheck(deps, threadId, attempt + 1);
+    }
+    return;
+  }
+  const current = getThreadAccountState(deps.db, threadId);
+  if (current === null || current.accountKey !== null) return;
+  setThreadAccount(deps.db, {
+    threadId,
+    accountKey: result.accountId,
+    accountResolved: true,
+  });
 }
 
 function getCurrentProvisioningFailureThread(
@@ -214,6 +271,9 @@ async function startThreadIfEnvironmentReady(
     providerId: args.thread.providerId,
     syncGeneratedTitle: !args.context.request.titleProvided,
   });
+  if (getThreadAccountState(deps.db, args.thread.id)?.accountKey === null) {
+    scheduleAccountAutoResolutionCheck(deps, args.thread.id);
+  }
 }
 
 export function requestThreadProvision(

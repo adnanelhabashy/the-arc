@@ -101,12 +101,16 @@ export interface ArcOmpProvider {
 
 // Start of an OMP provider login. `kind` is "oauth" when OMP printed an
 // authorize URL (browser flow) and "api-key" when OMP is waiting for a key
-// to be submitted via submitOmpLoginKey. Presentation data only — never a
-// token or key.
+// to be submitted via submitOmpLoginKey. Within OAuth, `flow` classifies
+// what the live broker output actually is: a plain browser redirect, or a
+// device-code flow (verification URL plus one-time `userCode`, e.g. Kimi's
+// "Enter code: XXXX-XXXX"). Presentation data only — never a token or key.
 export interface ArcOmpLoginChallenge {
   provider: string;
   sessionId: string;
   kind: "oauth" | "api-key";
+  flow: "browser" | "device";
+  userCode: string | null;
   authorizeUrl: string | null;
   instructions: string | null;
   expiresAt: number | null;
@@ -175,5 +179,5 @@ export interface ArcAccountSource {
   pollOpenAiLogin(sessionId: string): Promise<ArcOpenAiLoginPoll>;
   cancelOpenAiLogin(sessionId: string): Promise<void>;
   startClaudeLogin(): Promise<ArcClaudeLoginChallenge>;
-  completeClaudeLogin(sessionId: string, pasted: string): Promise<ArcAccount>;
+  completeClaudeLogin(sessionId: string, code: string): Promise<ArcAccount>;
 }

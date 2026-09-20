@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { request } from "@/lib/api";
 import { toRelativeUrl } from "@/lib/api-server";
 import { appSurfaceRequestInit } from "@/lib/app-surface";
+import { invalidateArcCurrentAgentUsage } from "../cache-owners/arc-usage-cache-owner";
 import { requireEnabledQueryArg } from "./query-helpers";
 
 // Typed client for the Arc Core plugin RPC surface. The wire schemas live in
@@ -94,6 +95,41 @@ export interface ArcCurrentAgentUsage {
   activeAccountUnknown: boolean;
 }
 
+export type ArcAccountSourceKind = "pool" | "omp";
+export type ArcAccountAuthState =
+  | "connected"
+  | "expired"
+  | "disabled"
+  | "error"
+  | "unknown";
+
+export interface ArcAccount {
+  id: string;
+  sourceId: string;
+  sourceKind: ArcAccountSourceKind;
+  providerFamily: string;
+  providerLabel: string;
+  accountKey: string | null;
+  email: string | null;
+  planLabel: string | null;
+  authState: ArcAccountAuthState;
+  enabled: boolean;
+  availableThrough: ArcAgentId[];
+  observedAt: number;
+}
+
+export interface ArcAccountSourceStatus {
+  kind: ArcAccountSourceKind;
+  state: "ready" | "unavailable";
+  detail: string | null;
+  checkedAt: number;
+}
+
+export interface ArcAccountsList {
+  accounts: ArcAccount[];
+  sources: ArcAccountSourceStatus[];
+}
+
 interface ArcRpcEnvelope<T> {
   ok: true;
   result: T;
@@ -127,6 +163,18 @@ export interface ArcStatus {
 
 const ARC_STATUS_QUERY_KEY = "arcStatus" as const;
 const ARC_CURRENT_AGENT_USAGE_QUERY_KEY = "arcCurrentAgentUsage" as const;
+const ARC_ACCOUNTS_QUERY_KEY = "arcAccounts" as const;
+
+export function useArcAccountsList({ enabled = true }: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: [ARC_ACCOUNTS_QUERY_KEY],
+    queryFn: () => arcRpcCall<ArcAccountsList>("arc.accounts.list", null),
+    enabled,
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+}
 
 export function useArcStatus() {
   return useQuery({
@@ -140,16 +188,20 @@ export function useArcStatus() {
 
 export function useArcCurrentAgentUsage({
   agentId,
+  accountKey,
   enabled,
 }: {
   agentId: ArcAgentId | null;
+  // The thread's bound account. Omitted (undefined) means "not known" —
+  // the server reports activeAccountUnknown: true rather than guessing.
+  accountKey?: string | null;
   enabled: boolean;
 }) {
   return useQuery({
     queryKey:
       agentId === null
         ? [ARC_CURRENT_AGENT_USAGE_QUERY_KEY]
-        : [ARC_CURRENT_AGENT_USAGE_QUERY_KEY, agentId],
+        : [ARC_CURRENT_AGENT_USAGE_QUERY_KEY, agentId, accountKey ?? null],
     queryFn: () =>
       arcRpcCall<ArcCurrentAgentUsage>("arc.usage.current", {
         agentId: requireEnabledQueryArg({
@@ -157,6 +209,7 @@ export function useArcCurrentAgentUsage({
           hookName: "useArcCurrentAgentUsage",
           argName: "agentId",
         }),
+        ...(typeof accountKey === "string" ? { activeAccountKey: accountKey } : {}),
       }),
     enabled: enabled && agentId !== null,
     staleTime: 15_000,
@@ -170,9 +223,7 @@ export function useArcUsageRefresh() {
   return useMutation({
     mutationFn: () => arcRpcCall<ArcUsageSnapshot>("arc.usage.refresh", {}),
     onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: [ARC_CURRENT_AGENT_USAGE_QUERY_KEY],
-      });
+      void invalidateArcCurrentAgentUsage(queryClient);
     },
   });
 }

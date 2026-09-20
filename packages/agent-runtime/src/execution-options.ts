@@ -13,6 +13,8 @@ interface ToProviderExecutionContextArgs {
   envVars: Record<string, string>;
   execOpts: AgentRuntimeExecutionOptions;
   instructions: string | undefined;
+  providerId: string;
+  threadId: string;
 }
 
 export function assertProviderSupportsExecutionOptions(
@@ -43,6 +45,7 @@ export function toProviderExecutionContext(
   args: ToProviderExecutionContextArgs,
 ): ProviderExecutionContext {
   const permissionPolicy: RuntimePermissionPolicy = args.execOpts;
+  const accountKey = args.execOpts.accountKey ?? null;
   return {
     model: args.execOpts.model,
     serviceTier: args.execOpts.serviceTier,
@@ -53,6 +56,7 @@ export function toProviderExecutionContext(
     providerOptions: args.execOpts.providerOptions,
     ...permissionPolicy,
     instructions: args.instructions,
+    accountKey,
     envVars: args.envVars,
   };
 }

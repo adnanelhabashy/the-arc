@@ -811,6 +811,14 @@ export interface PluginHttp {
   ): void;
 
   /**
+   * Remove a route previously registered with `route`. No-op if the
+   * method/path is not currently registered. For routes registered
+   * per-execution or per-thread (bounded, short-lived), not for a plugin's
+   * fixed route set.
+   */
+  experimental_unroute(method: string, path: string): void;
+
+  /**
    * Register a WebSocket route in the same `/http/` namespace as `route`.
    * A GET request upgrades only when it carries `Upgrade: websocket`.
    * Auth modes and exact-path matching are identical to HTTP routes.
@@ -1644,6 +1652,14 @@ export interface ExperimentalPluginProviderEnvContext {
   threadId: string;
   projectId: string;
   hostId: string;
+  /**
+   * The thread's pinned account-pool account key, or null when unresolved
+   * (Auto). Lets a provider-env contributor route this specific execution
+   * to the thread's already-resolved account instead of picking a fresh one
+   * every turn.
+   */
+  accountKey: string | null;
+  accountResolved: boolean;
 }
 
 export interface ExperimentalPluginProviderEnvEntry {

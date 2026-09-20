@@ -85,6 +85,35 @@ function WindowRow({ window, now }: { window: ArcUsageWindow; now: number }) {
     );
   }
 
+  // Amount window with a known limit (e.g. Kimi: 88/100 used): derive the
+  // bar from amounts and keep the reset line. Only a window with no known
+  // limit renders a bare amount — a bar there would fabricate a percentage.
+  if (
+    window.limitAmount !== null &&
+    window.limitAmount > 0 &&
+    window.usedAmount !== null
+  ) {
+    const used = clampPercent((window.usedAmount / window.limitAmount) * 100);
+    const remainingAmount =
+      window.remainingAmount !== null
+        ? window.remainingAmount
+        : Math.max(0, window.limitAmount - window.usedAmount);
+    return (
+      <div className="flex flex-col gap-1">
+        <div className="flex items-baseline justify-between gap-2 text-[12px]">
+          <span className="truncate text-muted-foreground">{window.label}</span>
+          <span className="font-medium tabular-nums">{formatRemainingAmount(remainingAmount, window.unit)}</span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+          <div className={cn("h-full rounded-full", percentTone(used))} style={{ width: `${used}%` }} />
+        </div>
+        {window.resetsAt !== null ? (
+          <span className="text-[11px] tabular-nums text-muted-foreground">{resetText(window.resetsAt, now)}</span>
+        ) : null}
+      </div>
+    );
+  }
+
   // Amount-only window: render the amount + unit, never a percent or a bar.
   return (
     <div className="flex items-baseline justify-between gap-2 text-[12px]">
@@ -110,7 +139,9 @@ function ResourceBody({
   if (resource.status === "error") {
     return (
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] text-red-400">Usage temporarily unavailable</span>
+        <span className="text-[11px] text-red-400">
+          {resource.message ?? "Usage temporarily unavailable"}
+        </span>
         <button
           type="button"
           onClick={onRetry}
@@ -130,7 +161,12 @@ function ResourceBody({
           : resource.unavailableReason === "not-connected"
             ? "Connect an account to see usage"
             : "Usage temporarily unavailable";
-    return <span className="text-[11px] text-muted-foreground">{label}</span>;
+    return (
+      <span className="text-[11px] text-muted-foreground">
+        {label}
+        {resource.message !== null && resource.unavailableReason === "not-exposed" ? ` — ${resource.message}` : ""}
+      </span>
+    );
   }
   if (resource.status === "unknown") {
     return <span className="text-[11px] text-muted-foreground">Usage unavailable</span>;
@@ -226,12 +262,23 @@ function AgentGroup({
 }
 
 export function UsageLimitsPage() {
-  const { data, isLoading, isFetching, error, refresh, refreshResource } = useArcUsage();
+  const { data, isLoading, isFetching, error, refresh, refreshAll, refreshResource } = useArcUsage();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(interval);
   }, []);
+
+  // The snapshot alone is metadata-only (no windows). Opening the page
+  // triggers one real provider fetch so limits actually appear; the
+  // Refresh button re-runs the same full refresh. Usage state is separate
+  // from login state — this never touches authentication flows.
+  useEffect(() => {
+    void refreshAll().catch(() => {
+      // The page-level error path already renders from `error`; a failed
+      // refresh keeps the last snapshot visible.
+    });
+  }, [refreshAll]);
 
   if (isLoading && data === null) {
     return (
@@ -278,7 +325,7 @@ export function UsageLimitsPage() {
         </div>
         <button
           type="button"
-          onClick={refresh}
+          onClick={() => void refreshAll().catch(() => {})}
           aria-label="Refresh usage and limits"
           className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
         >

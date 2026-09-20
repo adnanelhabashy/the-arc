@@ -395,6 +395,8 @@ export const threadSchema = z.object({
   projectId: z.string(),
   environmentId: z.string().nullable(),
   providerId: z.string(),
+  accountKey: z.string().nullable(),
+  accountResolved: z.boolean().nullable(),
   title: z.string().nullable(),
   titleFallback: z.string().nullable(),
   sectionId: z.string().nullable(),

@@ -46,6 +46,8 @@ export function threadListEntry(
     projectId: DEMO_PROJECT_ID,
     environmentId: null,
     providerId: "codex",
+    accountKey: null,
+    accountResolved: null,
     title: seed.title,
     titleFallback: seed.title,
     sectionId: null,

@@ -758,6 +758,8 @@ const INTENTIONAL_OPTIONAL_HOST_DAEMON_FIELDS: Record<string, string> = {
     "thread runtime context may omit provider-specific built-in tool removals for providers that do not need them.",
   "hostDaemonCommandSchema.options.promptMode":
     "thread runtime options carry a prompt mode only when the prompt entered one through the provider's declared composer action.",
+  "hostDaemonCommandSchema.options.accountKey":
+    "thread runtime options carry an account pool pin only for threads with a resolved or pinned account; absent/null means the pool picks any usable account, and an older daemon that ignores the field simply skips pinning.",
   "hostDaemonCommandSchema.resumeContext.disallowedTools":
     "turn.submit resume context may omit provider-specific built-in tool removals for providers that do not need them.",
 };

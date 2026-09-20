@@ -2,13 +2,24 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Account } from "./contracts.js";
 
-const OAUTH_AUTHORIZE_URL = "https://claude.ai/oauth/authorize";
+// Claude Code 2.1.x OAuth ("paste the authentication code" flow), verified
+// against the Arc-managed claude 2.1.276 binary: it builds
+// https://claude.com/cai/oauth/authorize?code=true&client_id=9d1c250a-...&
+// response_type=code&redirect_uri=https://platform.claude.com/oauth/code/callback
+// &scope=...&code_challenge=...&code_challenge_method=S256&state=..., the
+// sign-in page displays a one-time code ("Paste this into Claude Code"), and
+// the CLI exchanges the code at platform.claude.com/v1/oauth/token with the
+// PKCE verifier. Arc mirrors that protocol exactly: the user pastes the
+// displayed code (never a callback URL, never a password); a raw code, a
+// code#state pair, or a full callback URL are all accepted by
+// parseManualCode for resilience.
+const OAUTH_AUTHORIZE_URL = "https://claude.com/cai/oauth/authorize";
 const OAUTH_TOKEN_URL = "https://platform.claude.com/v1/oauth/token";
 const OAUTH_PROFILE_URL = "https://api.anthropic.com/api/oauth/profile";
 const OAUTH_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 const OAUTH_SCOPES =
-  "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload";
-const OAUTH_REDIRECT_URI = "https://console.anthropic.com/oauth/code/callback";
+  "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload user:plugins";
+const OAUTH_REDIRECT_URI = "https://platform.claude.com/oauth/code/callback";
 const OAUTH_BETA = "oauth-2025-04-20";
 const LOGIN_SESSION_TTL_MS = 10 * 60 * 1_000;
 
@@ -51,6 +62,22 @@ interface LoginSession {
   createdAt: number;
 }
 
+function buildAuthorizeUrl(baseUrl: string, session: LoginSession): URL {
+  const codeChallenge = createHash("sha256")
+    .update(session.codeVerifier)
+    .digest("base64url");
+  const authorizeUrl = new URL(baseUrl);
+  authorizeUrl.searchParams.set("code", "true");
+  authorizeUrl.searchParams.set("client_id", OAUTH_CLIENT_ID);
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("redirect_uri", OAUTH_REDIRECT_URI);
+  authorizeUrl.searchParams.set("scope", OAUTH_SCOPES);
+  authorizeUrl.searchParams.set("code_challenge", codeChallenge);
+  authorizeUrl.searchParams.set("code_challenge_method", "S256");
+  authorizeUrl.searchParams.set("state", session.state);
+  return authorizeUrl;
+}
+
 export interface ClaudeOAuthAccount {
   label: string;
   email: string | null;
@@ -78,24 +105,24 @@ export interface OAuthLoginStart {
 
 export interface OAuthLoginComplete {
   sessionId: string;
-  pasted: string;
+  code: string;
 }
 
 export function parseManualCode(
-  pasted: string,
+  input: string,
   expectedState: string,
 ): { code: string; state: string } {
-  const trimmed = pasted.trim();
+  const trimmed = input.trim();
   if (trimmed.length === 0) throw new Error("Paste the authorization code.");
   try {
     const url = new URL(trimmed);
-    const code = url.searchParams.get("code");
+    const urlCode = url.searchParams.get("code");
     const state = url.searchParams.get("state");
-    if (code !== null) {
+    if (urlCode !== null) {
       if (state !== null && state !== expectedState) {
         throw new Error("OAuth state mismatch. Start again.");
       }
-      return { code, state: state ?? expectedState };
+      return { code: urlCode, state: state ?? expectedState };
     }
   } catch (error) {
     if (
@@ -107,13 +134,15 @@ export function parseManualCode(
   }
   const separator = trimmed.indexOf("#");
   if (separator >= 0) {
-    const code = trimmed.slice(0, separator).trim();
+    const fragmentCode = trimmed.slice(0, separator).trim();
     const state = trimmed.slice(separator + 1).trim();
-    if (code.length === 0) throw new Error("Paste the authorization code.");
+    if (fragmentCode.length === 0) {
+      throw new Error("Paste the authorization code.");
+    }
     if (state.length > 0 && state !== expectedState) {
       throw new Error("OAuth state mismatch. Start again.");
     }
-    return { code, state: state.length > 0 ? state : expectedState };
+    return { code: fragmentCode, state: state.length > 0 ? state : expectedState };
   }
   return { code: trimmed, state: expectedState };
 }
@@ -135,6 +164,17 @@ export class ClaudeOAuthLogin {
   }
 
   start(): OAuthLoginStart {
+    // A still-fresh session is joined, not replaced: repeated starts (a
+    // re-rendered dialog, a double click) must not invalidate the code the
+    // user is currently pasting. Only an expired or consumed session starts
+    // over.
+    const existing = this.session;
+    if (existing !== null && this.now() - existing.createdAt < LOGIN_SESSION_TTL_MS) {
+      return {
+        sessionId: existing.sessionId,
+        authorizeUrl: buildAuthorizeUrl(this.authorizeUrl, existing).toString(),
+      };
+    }
     const codeVerifier = randomBytes(32).toString("base64url");
     const codeChallenge = createHash("sha256")
       .update(codeVerifier)
@@ -147,16 +187,10 @@ export class ClaudeOAuthLogin {
       state,
       createdAt: this.now(),
     };
-    const authorizeUrl = new URL(this.authorizeUrl);
-    authorizeUrl.searchParams.set("code", "true");
-    authorizeUrl.searchParams.set("client_id", OAUTH_CLIENT_ID);
-    authorizeUrl.searchParams.set("response_type", "code");
-    authorizeUrl.searchParams.set("redirect_uri", OAUTH_REDIRECT_URI);
-    authorizeUrl.searchParams.set("scope", OAUTH_SCOPES);
-    authorizeUrl.searchParams.set("code_challenge", codeChallenge);
-    authorizeUrl.searchParams.set("code_challenge_method", "S256");
-    authorizeUrl.searchParams.set("state", state);
-    return { sessionId, authorizeUrl: authorizeUrl.toString() };
+    return {
+      sessionId,
+      authorizeUrl: buildAuthorizeUrl(this.authorizeUrl, this.session).toString(),
+    };
   }
 
   async complete(input: OAuthLoginComplete): Promise<Account> {
@@ -168,7 +202,7 @@ export class ClaudeOAuthLogin {
     if (this.now() - session.createdAt >= LOGIN_SESSION_TTL_MS) {
       throw new Error("Code expired, start again.");
     }
-    const parsed = parseManualCode(input.pasted, session.state);
+    const parsed = parseManualCode(input.code, session.state);
     const tokenResponse = await this.fetch(this.tokenUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },

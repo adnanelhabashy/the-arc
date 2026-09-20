@@ -15,6 +15,9 @@ interface ProviderUsageSectionProps {
   active: boolean;
   providerId: string | undefined;
   modelLabel?: string;
+  // The thread's bound account, when known. Undefined renders "Active
+  // account unknown" instead of guessing from every connected account.
+  accountKey?: string | null;
 }
 
 function isArcUnavailableError(error: unknown): boolean {
@@ -23,7 +26,7 @@ function isArcUnavailableError(error: unknown): boolean {
   return false;
 }
 
-function providerIdToAgentId(providerId: string | undefined): ArcAgentId | null {
+export function providerIdToAgentId(providerId: string | undefined): ArcAgentId | null {
   switch (providerId) {
     case "codex":
       return "codex";
@@ -40,6 +43,7 @@ export function ProviderUsageSection({
   active,
   providerId,
   modelLabel,
+  accountKey,
 }: ProviderUsageSectionProps) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -51,6 +55,7 @@ export function ProviderUsageSection({
   const agentId = providerIdToAgentId(providerId);
   const usageQuery = useArcCurrentAgentUsage({
     agentId,
+    accountKey,
     enabled: active && agentId !== null,
   });
   const refreshMutation = useArcUsageRefresh();
@@ -83,7 +88,7 @@ export function ProviderUsageSection({
   }
 
   const usage = usageQuery.data;
-  if (usage.resources.length === 0 && usage.thread === null) {
+  if (usage.resources.length === 0 && !usage.activeAccountUnknown) {
     return null;
   }
 
@@ -372,21 +377,25 @@ export function ProviderUsagePanel({
 
   return (
     <div className="flex flex-col gap-1.5">
-      {usage.activeAccountUnknown && usage.resources.length > 1 ? (
+      {usage.activeAccountUnknown ? (
         <span className="text-2xs text-muted-foreground">
-          {usage.resources.length} connected accounts · Active account not
-          reported
+          Active account unknown
         </span>
-      ) : null}
-      {usage.resources.map((resource) => (
-        <UsageResourceSection
-          key={resource.id}
-          resource={resource}
-          providerId={providerId}
-          now={now}
-          onRefresh={onRefresh}
-        />
-      ))}
+      ) : usage.resources.length === 0 ? (
+        <span className="text-2xs text-muted-foreground">
+          No usage reported
+        </span>
+      ) : (
+        usage.resources.map((resource) => (
+          <UsageResourceSection
+            key={resource.id}
+            resource={resource}
+            providerId={providerId}
+            now={now}
+            onRefresh={onRefresh}
+          />
+        ))
+      )}
       {modelLabel ? (
         <span className="truncate pl-5 text-2xs text-muted-foreground">
           Model: {modelLabel}

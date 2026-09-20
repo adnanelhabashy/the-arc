@@ -14,6 +14,7 @@ import type {
 } from "@bb/server-contract";
 
 export interface ThreadCreateServiceRequestInput {
+  accountKey?: CreateThreadRequest["accountKey"];
   environment: CreateThreadEnvironmentArgs;
   executionInputSources?: CreateThreadRequest["executionInputSources"];
   /**

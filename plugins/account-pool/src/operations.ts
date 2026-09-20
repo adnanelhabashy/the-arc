@@ -9,6 +9,7 @@ import type {
 import type { AccountAddInput } from "./contracts.js";
 import type { AccountPoolHub } from "./hub.js";
 import type {
+  AccountResolutionStore,
   AccountStore,
   HubTokenStore,
   QuotaStore,
@@ -37,6 +38,7 @@ export class PoolOperations {
     private readonly hub: AccountPoolHub,
     private readonly hubTokens: HubTokenStore,
     private readonly routing: RoutingStore,
+    private readonly resolution: AccountResolutionStore,
     private readonly listHosts: () => Promise<PoolHost[]>,
     private readonly providerStates: (
       hostId: string,
@@ -279,6 +281,13 @@ export class PoolOperations {
       }
     }
     return false;
+  }
+
+  async getResolvedAccount(threadId: string): Promise<{
+    accountId: string | null;
+  }> {
+    const resolved = await this.resolution.getResolved(threadId);
+    return { accountId: resolved?.accountId ?? null };
   }
 
   async routedThreadsWithoutLocalLogin(): Promise<RoutedThreadStatus[]> {

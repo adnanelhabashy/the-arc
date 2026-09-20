@@ -521,13 +521,16 @@ export function useArcOmpProviders(): {
 /** Arc usage: fetched on demand (tab open / Refresh click). No polling, no
  *  realtime signal — usage is expensive; the page adds its own slow tick for
  *  relative-time rendering. `refreshResource` refetches a single resource
- *  after an inline Retry. */
+ *  after an inline Retry; `refreshAll` forces a real provider fetch for
+ *  every listed resource (the snapshot alone is metadata-only and never
+ *  contains windows). */
 export function useArcUsage(): {
   data: ArcUsageSnapshot | null;
   isLoading: boolean;
   isFetching: boolean;
   error: string | null;
   refresh: () => void;
+  refreshAll: () => Promise<void>;
   refreshResource: (resourceId: string) => Promise<void>;
 } {
   const rpc = useRpc<typeof rpcContract>();
@@ -561,54 +564,115 @@ export function useArcUsage(): {
 
   useEffect(() => load(), [load]);
 
+  const refreshAll = useCallback(async () => {
+    // Server-validated shape (z.unknown() on this boundary); mirrors ArcUsageSnapshot.
+    const result: unknown = await rpc.call("arc_usage_refresh", {});
+    setData(result as ArcUsageSnapshot);
+    setError(null);
+  }, [rpc]);
+
   const refreshResource = useCallback(
     async (resourceId: string) => {
-      const result = (await rpc.call("arc_usage_refresh", { resourceId })) as ArcUsageSnapshot;
-      setData(result);
+      const result: unknown = await rpc.call("arc_usage_refresh", { resourceId });
+      setData(result as ArcUsageSnapshot);
     },
     [rpc],
   );
 
-  return { data, isLoading, isFetching, error, refresh: load, refreshResource };
+  return { data, isLoading, isFetching, error, refresh: load, refreshAll, refreshResource };
 }
 
-/** Login flows (ChatGPT device code, Claude OAuth paste, OMP oauth/api-key).
- *  Raw actions only — the polling state machine lives in the connect-flows
- *  components. Secrets are never stored: the api-key input value is passed
- *  straight through and immediately discarded. */
+/** Login flows (ChatGPT device code, Claude manual auth code, OMP
+ *  browser/device/api-key). Actions are useCallback-stable: dialog effects
+ *  depend on them, and a fresh closure per render would re-run effect-driven
+ *  state machines (the Phase 10.1 flicker root cause). Secrets are never
+ *  stored: the api-key input value is passed straight through and
+ *  immediately discarded. */
 export function useArcLogin(): {
   openaiStart: () => Promise<ArcOpenAiLoginChallenge>;
   openaiPoll: (sessionId: string) => Promise<ArcOpenAiLoginPollResult>;
   openaiCancel: (sessionId: string) => Promise<void>;
   claudeStart: () => Promise<ArcClaudeLoginChallenge>;
-  claudeComplete: (sessionId: string, pasted: string) => Promise<ArcAccount>;
+  claudeComplete: (sessionId: string, code: string) => Promise<ArcAccount>;
   ompStart: (provider: string) => Promise<ArcOmpLoginChallenge>;
   ompPoll: (sessionId: string) => Promise<ArcOmpLoginPoll>;
   ompCancel: (sessionId: string) => Promise<void>;
   ompSubmitKey: (sessionId: string, key: string) => Promise<void>;
 } {
   const rpc = useRpc<typeof rpcContract>();
-  return {
-    openaiStart: async () =>
-      ((await rpc.call("arc_login_openai_start", null)) as { challenge: ArcOpenAiLoginChallenge }).challenge,
-    openaiPoll: async (sessionId) => (await rpc.call("arc_login_openai_poll", { sessionId })) as ArcOpenAiLoginPollResult,
-    openaiCancel: async (sessionId) => {
+  // The MC wire contract types every proxied arc result as z.unknown(); the
+  // arc-core plugin validates the same shapes against its own zod contract
+  // before they reach us. These named consts are the narrow-at-boundary
+  // step (server-validated, structurally mirrored in lib/arc-types).
+  const openaiStart = useCallback(async () => {
+    const result: unknown = await rpc.call("arc_login_openai_start", null);
+    const envelope = result as { challenge: ArcOpenAiLoginChallenge };
+    return envelope.challenge;
+  }, [rpc]);
+  const openaiPoll = useCallback(
+    async (sessionId: string) => {
+      const result: unknown = await rpc.call("arc_login_openai_poll", { sessionId });
+      return result as ArcOpenAiLoginPollResult;
+    },
+    [rpc],
+  );
+  const openaiCancel = useCallback(
+    async (sessionId: string) => {
       await rpc.call("arc_login_openai_cancel", { sessionId });
     },
-    claudeStart: async () =>
-      ((await rpc.call("arc_login_claude_start", null)) as { challenge: ArcClaudeLoginChallenge }).challenge,
-    claudeComplete: async (sessionId, pasted) =>
-      ((await rpc.call("arc_login_claude_complete", { sessionId, pasted })) as { account: ArcAccount }).account,
-    ompStart: async (provider) =>
-      ((await rpc.call("arc_omp_login_start", { provider })) as { challenge: ArcOmpLoginChallenge }).challenge,
-    ompPoll: async (sessionId) =>
-      ((await rpc.call("arc_omp_login_poll", { sessionId })) as { poll: ArcOmpLoginPoll }).poll,
-    ompCancel: async (sessionId) => {
+    [rpc],
+  );
+  const claudeStart = useCallback(async () => {
+    const result: unknown = await rpc.call("arc_login_claude_start", null);
+    const envelope = result as { challenge: ArcClaudeLoginChallenge };
+    return envelope.challenge;
+  }, [rpc]);
+  const claudeComplete = useCallback(
+    async (sessionId: string, code: string) => {
+      const result: unknown = await rpc.call("arc_login_claude_complete", { sessionId, code });
+      const envelope = result as { account: ArcAccount };
+      return envelope.account;
+    },
+    [rpc],
+  );
+  const ompStart = useCallback(
+    async (provider: string) => {
+      const result: unknown = await rpc.call("arc_omp_login_start", { provider });
+      const envelope = result as { challenge: ArcOmpLoginChallenge };
+      return envelope.challenge;
+    },
+    [rpc],
+  );
+  const ompPoll = useCallback(
+    async (sessionId: string) => {
+      const result: unknown = await rpc.call("arc_omp_login_poll", { sessionId });
+      const envelope = result as { poll: ArcOmpLoginPoll };
+      return envelope.poll;
+    },
+    [rpc],
+  );
+  const ompCancel = useCallback(
+    async (sessionId: string) => {
       await rpc.call("arc_omp_login_cancel", { sessionId });
     },
-    ompSubmitKey: async (sessionId, key) => {
+    [rpc],
+  );
+  const ompSubmitKey = useCallback(
+    async (sessionId: string, key: string) => {
       await rpc.call("arc_omp_login_submit_key", { sessionId, key });
     },
+    [rpc],
+  );
+  return {
+    openaiStart,
+    openaiPoll,
+    openaiCancel,
+    claudeStart,
+    claudeComplete,
+    ompStart,
+    ompPoll,
+    ompCancel,
+    ompSubmitKey,
   };
 }
 

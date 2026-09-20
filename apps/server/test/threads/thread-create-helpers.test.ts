@@ -5,6 +5,7 @@ import {
   createProject,
   createThreadSection,
   deleteThreadSection,
+  getThreadAccountState,
   migrate,
   noopNotifier,
   upsertHost,
@@ -168,6 +169,71 @@ describe("createThreadRecord", () => {
           message: "Section not found",
         });
       }
+    } finally {
+      db.$client.close();
+    }
+  });
+
+  it("persists an explicit account pin as resolved, and leaves Auto unresolved", () => {
+    const db = createConnection(":memory:");
+    try {
+      migrate(db);
+      const deps = { db, hub: noopNotifier };
+      const host = upsertHost(db, noopNotifier, { name: "Test Host" });
+      const { project } = createProject(db, noopNotifier, {
+        name: "Test Project",
+        source: {
+          hostId: host.id,
+          path: "/tmp/account-pin-create-project",
+          type: "local_path",
+        },
+      });
+      const environment = createEnvironment(db, noopNotifier, {
+        providerOwnsPath: false,
+        hostId: host.id,
+        path: "/tmp/account-pin-create-project",
+        projectId: project.id,
+        status: "ready",
+      });
+
+      const pinnedThread = createThreadRecord(deps, {
+        environmentId: environment.id,
+        request: {
+          environment: { environmentId: environment.id, type: "reuse" },
+          input: [],
+          origin: "app",
+          pluginMetadata: null,
+          projectId: project.id,
+          providerId: "codex",
+          startedOnBehalfOf: null,
+          titleFallback: null,
+          visibility: "visible",
+          accountKey: "11111111-1111-4111-8111-111111111111",
+        },
+      });
+      expect(getThreadAccountState(db, pinnedThread.id)).toEqual({
+        accountKey: "11111111-1111-4111-8111-111111111111",
+        accountResolved: true,
+      });
+
+      const autoThread = createThreadRecord(deps, {
+        environmentId: environment.id,
+        request: {
+          environment: { environmentId: environment.id, type: "reuse" },
+          input: [],
+          origin: "app",
+          pluginMetadata: null,
+          projectId: project.id,
+          providerId: "codex",
+          startedOnBehalfOf: null,
+          titleFallback: null,
+          visibility: "visible",
+        },
+      });
+      expect(getThreadAccountState(db, autoThread.id)).toEqual({
+        accountKey: null,
+        accountResolved: false,
+      });
     } finally {
       db.$client.close();
     }

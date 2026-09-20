@@ -582,6 +582,8 @@ export const threads = sqliteTable(
     reasoningLevelOverride: text(
       "reasoning_level_override",
     ).$type<ReasoningLevel>(),
+    accountKey: text("account_key"),
+    accountResolved: integer("account_resolved", { mode: "boolean" }),
     title: text("title"),
     titleFallback: text("title_fallback"),
     sectionId: text("section_id").references(() => threadSections.id, {

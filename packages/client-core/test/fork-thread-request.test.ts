@@ -106,6 +106,43 @@ describe("buildForkThreadRequest", () => {
     });
   });
 
+  it("forwards an explicit account pin to the fork request, and omits it when unset", () => {
+    const pinned = buildForkThreadRequest({
+      environmentId: "env_source",
+      input: [{ type: "text", text: "Continue from here", mentions: [] }],
+      model: "gpt-5",
+      permissionMode: "auto",
+      pluginSubmission: undefined,
+      projectId: "proj_test",
+      providerId: "codex",
+      providerSupportsFork: true,
+      reasoningLevel: "medium",
+      serviceTier: undefined,
+      sourceSeqEnd: undefined,
+      sourceThreadId: "thr_source",
+      sourceThreadTitle: "Investigate flaky test",
+      accountKey: "acct_123",
+    });
+    expect(pinned).toHaveProperty("accountKey", "acct_123");
+
+    const unset = buildForkThreadRequest({
+      environmentId: "env_source",
+      input: [{ type: "text", text: "Continue from here", mentions: [] }],
+      model: "gpt-5",
+      permissionMode: "auto",
+      pluginSubmission: undefined,
+      projectId: "proj_test",
+      providerId: "codex",
+      providerSupportsFork: true,
+      reasoningLevel: "medium",
+      serviceTier: undefined,
+      sourceSeqEnd: undefined,
+      sourceThreadId: "thr_source",
+      sourceThreadTitle: "Investigate flaky test",
+    });
+    expect(unset).not.toHaveProperty("accountKey");
+  });
+
   it("returns null when the provider cannot fork sessions", () => {
     expect(
       buildForkThreadRequest({

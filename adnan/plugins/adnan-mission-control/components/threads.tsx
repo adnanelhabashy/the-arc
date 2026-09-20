@@ -54,6 +54,12 @@ function ThreadRow({ thread, depth, providers }: { thread: EnrichedThread; depth
         <span className="hidden items-center gap-1 text-[11px] text-muted-foreground md:flex">
           <span className="max-w-28 truncate">{providerName}</span>
         </span>
+        <span
+          className={`hidden max-w-32 truncate text-[11px] md:inline ${thread.accountKey === null ? "text-muted-foreground/50" : "text-muted-foreground"}`}
+          title={thread.accountLabel ?? undefined}
+        >
+          {thread.accountLabel ?? "Account unknown"}
+        </span>
         {thread.model !== null ? (
           <span className="hidden font-mono text-[11px] text-muted-foreground lg:inline">
             {thread.model}

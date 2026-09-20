@@ -176,6 +176,10 @@ export const arcOmpLoginChallengeSchema = z
     provider: z.string(),
     sessionId: z.string(),
     kind: z.enum(["oauth", "api-key"]),
+    // Classified from the live broker output: browser redirect vs OAuth
+    // device code (verification URL + one-time user code).
+    flow: z.enum(["browser", "device"]),
+    userCode: z.string().nullable(),
     authorizeUrl: z.string().nullable(),
     instructions: z.string().nullable(),
     expiresAt: z.number().nullable(),
@@ -369,7 +373,7 @@ export const arcRpcContract = defineRpcContract({
     output: z.object({ challenge: arcAccountLoginChallengeSchema }).strict(),
   },
   "arc.login.claude.complete": {
-    input: z.object({ sessionId: z.string(), pasted: z.string() }).strict(),
+    input: z.object({ sessionId: z.string(), code: z.string() }).strict(),
     output: z.object({ account: arcAccountSchema }).strict(),
   },
   "arc.omp.providers": {

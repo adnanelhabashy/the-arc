@@ -218,7 +218,7 @@ it("renders a retry line without fabricated zeros when usage errors without data
   expect(screen.queryByText(/0%/)).toBeNull();
 });
 
-it("reports when the active account is unknown across multiple accounts", () => {
+it("reports 'Active account unknown' instead of listing every connected account", () => {
   setCurrentAgentUsage(
     makeUsage({
       activeAccountUnknown: true,
@@ -227,9 +227,33 @@ it("reports when the active account is unknown across multiple accounts", () => 
   );
   renderSection("codex");
 
-  expect(
-    screen.getByText("2 connected accounts · Active account not reported"),
-  ).toBeTruthy();
+  expect(screen.getByText("Active account unknown")).toBeTruthy();
+  expect(screen.queryByText("ChatGPT")).toBeNull();
+});
+
+it("scopes usage to the thread's bound account when accountKey is known", () => {
+  setCurrentAgentUsage(
+    makeUsage({
+      activeAccountUnknown: false,
+      resources: [makeResource({ id: "r1", accountKey: "acct-1" })],
+    }),
+  );
+  refreshMutate = vi.fn();
+  mockUseArcUsageRefresh.mockReturnValue({
+    mutate: refreshMutate,
+    isPending: false,
+  } as unknown as UseMutationResult<ArcUsageSnapshot, Error, void, unknown>);
+  render(
+    <ProviderUsageSection active providerId="codex" accountKey="acct-1" />,
+  );
+
+  expect(mockUseArcCurrentAgentUsage).toHaveBeenCalledWith({
+    agentId: "codex",
+    accountKey: "acct-1",
+    enabled: true,
+  });
+  expect(screen.getByText("ChatGPT")).toBeTruthy();
+  expect(screen.queryByText("Active account unknown")).toBeNull();
 });
 
 it("maps acp-omp to the omp agent", () => {

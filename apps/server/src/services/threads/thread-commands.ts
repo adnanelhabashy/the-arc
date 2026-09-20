@@ -1,4 +1,4 @@
-import { environments, events, threads } from "@bb/db";
+import { environments, events, getThreadAccountState, threads } from "@bb/db";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import {
   PromptInput,
@@ -210,12 +210,14 @@ function toRuntimeExecutionOptions(
       permissionMode,
       ...(promptMode !== undefined ? { promptMode } : {}),
     }) ?? {};
+  const accountState = getThreadAccountState(args.deps.db, args.threadId);
   const base = {
     model: args.execution.model,
     serviceTier: args.execution.serviceTier,
     reasoningLevel: args.execution.reasoningLevel,
     ...(promptMode !== undefined ? { promptMode } : {}),
     providerOptions,
+    accountKey: accountState?.accountKey ?? null,
   };
   if (permissionMode === "full") {
     return {

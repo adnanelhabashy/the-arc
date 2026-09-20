@@ -79,6 +79,8 @@ const ompChallenge: ArcOmpLoginChallenge = {
   provider: "deepseek",
   sessionId: "session-1",
   kind: "api-key",
+  flow: "browser",
+  userCode: null,
   authorizeUrl: null,
   instructions: "Paste an API key.",
   expiresAt: null,

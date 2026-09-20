@@ -30,6 +30,7 @@ export type ProviderExecutionContext = {
   providerOptions: JsonObject;
   instructions?: string;
   envVars?: Record<string, string>;
+  accountKey?: string | null;
 } & RuntimePermissionPolicy;
 
 export type AdapterCommand =

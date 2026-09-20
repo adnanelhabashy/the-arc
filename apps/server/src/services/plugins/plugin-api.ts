@@ -761,6 +761,14 @@ export function createPluginApi(options: {
       );
       httpRoutes.push({ ...route, handler });
     },
+    experimental_unroute(method, path) {
+      assertLive();
+      const normalizedMethod = String(method).toUpperCase();
+      const index = httpRoutes.findIndex(
+        (route) => route.method === normalizedMethod && route.path === path,
+      );
+      if (index !== -1) httpRoutes.splice(index, 1);
+    },
     experimental_websocket(path, handler, opts) {
       assertLive();
       const route = normalizeWebSocketRouteRegistration(

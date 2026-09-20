@@ -139,7 +139,7 @@ const OPTIONAL_SERVER_FIELD_GROUPS: readonly OptionalServerFieldGroup[] = [
   },
   {
     reason:
-      "Thread creation may omit root-thread presentation and execution fields so the server can resolve project/provider defaults.",
+      "Thread creation may omit root-thread presentation and execution fields so the server can resolve project/provider or account-pool defaults.",
     fields: [
       "createThreadRequestSchema.sectionId",
       "createThreadRequestSchema.model",
@@ -151,6 +151,7 @@ const OPTIONAL_SERVER_FIELD_GROUPS: readonly OptionalServerFieldGroup[] = [
       "createThreadRequestSchema.sourceSeqEnd",
       "createThreadRequestSchema.sourceThreadId",
       "createThreadRequestSchema.title",
+      "createThreadRequestSchema.accountKey",
     ],
   },
   {
@@ -218,6 +219,7 @@ const OPTIONAL_SERVER_FIELD_GROUPS: readonly OptionalServerFieldGroup[] = [
     reason:
       "Thread PATCH requests omit fields that should be left unchanged; null explicitly clears nullable values.",
     fields: [
+      "updateThreadRequestSchema.accountKey",
       "updateThreadRequestSchema.model",
       "updateThreadRequestSchema.sectionId",
       "updateThreadRequestSchema.parentThreadId",
@@ -947,6 +949,8 @@ describe("server-contract canonical schemas", () => {
           projectId: "proj_123",
           environmentId: null,
           providerId: "codex",
+          accountKey: null,
+          accountResolved: null,
           title: "Pending thread",
           titleFallback: "Pending thread",
           sectionId: null,

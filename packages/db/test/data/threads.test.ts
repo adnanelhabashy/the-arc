@@ -11,8 +11,10 @@ import {
   countNonDeletedAssignedChildThreads,
   getThread,
   getThreadExecutionOverride,
+  getThreadAccountState,
   hasActiveThreadAttention,
   setThreadExecutionOverride,
+  setThreadAccount,
   listHostThreadIds,
   listActiveVisiblePinnedThreadRoots,
   listThreadMentionRowsByIds,
@@ -301,6 +303,40 @@ describe("threads", () => {
     expect(getThreadExecutionOverride(db, thread.id)).toEqual({
       modelOverride: null,
       reasoningLevelOverride: null,
+    });
+  });
+
+  it("defaults account state to unresolved and persists an explicit pin", () => {
+    const { db, project } = setup();
+    const thread = createThread(db, noopNotifier, {
+      projectId: project.id,
+      providerId: "codex",
+    });
+
+    expect(getThreadAccountState(db, thread.id)).toEqual({
+      accountKey: null,
+      accountResolved: null,
+    });
+
+    setThreadAccount(db, {
+      threadId: thread.id,
+      accountKey: "openai:chatgpt:acct-1",
+      accountResolved: true,
+    });
+    expect(getThreadAccountState(db, thread.id)).toEqual({
+      accountKey: "openai:chatgpt:acct-1",
+      accountResolved: true,
+    });
+
+    const other = createThread(db, noopNotifier, {
+      projectId: project.id,
+      providerId: "codex",
+      accountKey: "openai:chatgpt:acct-2",
+      accountResolved: true,
+    });
+    expect(getThreadAccountState(db, other.id)).toEqual({
+      accountKey: "openai:chatgpt:acct-2",
+      accountResolved: true,
     });
   });
 

@@ -6,6 +6,11 @@ import type {
 } from "@bb/server-contract";
 import { formatModelLabel } from "@/hooks/useThreadCreationOptions";
 import {
+  AccountPicker,
+  type ExistingThreadAccountState,
+} from "@/components/pickers/AccountPicker";
+import type { ArcAgentId } from "@/hooks/queries/arc-queries";
+import {
   ModelReasoningPicker,
   type ModelReasoningPickerHandoff,
 } from "@/components/pickers/ModelReasoningPicker";
@@ -52,12 +57,22 @@ export interface ExecutionPermissionConfig {
   supported: boolean;
 }
 
+export interface ExecutionAccountConfig {
+  agentId: ArcAgentId | null;
+  providerFamily?: string | null;
+  value: string | null;
+  onChange: (accountKey: string | null) => void;
+  onManageAccounts?: () => void;
+  existingThreadState?: ExistingThreadAccountState;
+}
+
 export interface ExecutionControlsProps {
   providerRouting?: SystemProvidersQuery;
   provider: ExecutionProviderConfig;
   model: ExecutionModelConfig;
   serviceTier?: ExecutionServiceTierConfig;
   reasoning: ExecutionReasoningConfig;
+  account?: ExecutionAccountConfig;
   handoff?: ModelReasoningPickerHandoff;
   disabled?: boolean;
 }
@@ -68,6 +83,7 @@ export const ExecutionControls = memo(function ExecutionControls({
   model,
   serviceTier,
   reasoning,
+  account,
   handoff,
   disabled,
 }: ExecutionControlsProps) {
@@ -118,6 +134,17 @@ export const ExecutionControls = memo(function ExecutionControls({
           muted
           disabled={disabled}
           handoff={handoff}
+        />
+      ) : null}
+      {account && account.agentId !== null ? (
+        <AccountPicker
+          agentId={account.agentId}
+          providerFamily={account.providerFamily}
+          value={account.value}
+          onChange={account.onChange}
+          onManageAccounts={account.onManageAccounts}
+          existingThreadState={account.existingThreadState}
+          disabled={disabled}
         />
       ) : null}
     </>

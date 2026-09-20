@@ -3,6 +3,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createQueryClientTestHarness } from "@/test/queryClientTestHarness";
+import type { ArcAccount, ArcAccountsList } from "@/hooks/queries/arc-queries";
 import {
   ExecutionControls,
   type ExecutionControlsProps,
@@ -39,8 +40,17 @@ function makeExecutionControlsProps(
   };
 }
 
-function renderExecutionControls(props: ExecutionControlsProps) {
-  const { wrapper } = createQueryClientTestHarness();
+function renderExecutionControls(
+  props: ExecutionControlsProps,
+  seedArcAccounts?: readonly ArcAccount[],
+) {
+  const { wrapper, queryClient } = createQueryClientTestHarness();
+  if (seedArcAccounts !== undefined) {
+    queryClient.setQueryData<ArcAccountsList>(["arcAccounts"], {
+      accounts: [...seedArcAccounts],
+      sources: [],
+    });
+  }
   return render(<ExecutionControls {...props} />, { wrapper });
 }
 
@@ -115,5 +125,49 @@ describe("ExecutionControls", () => {
     fireEvent.click(screen.getByRole("switch", { name: "Fast mode" }));
 
     expect(onServiceTierChange).toHaveBeenCalledWith("default");
+  });
+
+  it("renders no account picker when no agent is resolved", () => {
+    const { container } = renderExecutionControls({
+      ...makeExecutionControlsProps(),
+      account: {
+        agentId: null,
+        value: null,
+        onChange: vi.fn(),
+      },
+    });
+
+    expect(container.querySelector('[aria-label="Account"]')).toBeNull();
+  });
+
+  it("renders the account picker trigger when an agent is resolved", () => {
+    renderExecutionControls(
+      {
+        ...makeExecutionControlsProps(),
+        account: {
+          agentId: "codex",
+          value: null,
+          onChange: vi.fn(),
+        },
+      },
+      [
+        {
+          id: "acct-1",
+          sourceId: "src-1",
+          sourceKind: "pool",
+          providerFamily: "openai",
+          providerLabel: "ChatGPT",
+          accountKey: "acct-1",
+          email: "adnan@example.com",
+          planLabel: "Plus",
+          authState: "connected",
+          enabled: true,
+          availableThrough: ["codex"],
+          observedAt: Date.now(),
+        },
+      ],
+    );
+
+    expect(screen.getByRole("button", { name: "Account" })).toBeTruthy();
   });
 });

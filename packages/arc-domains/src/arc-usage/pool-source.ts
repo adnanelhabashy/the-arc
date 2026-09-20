@@ -235,6 +235,22 @@ export class ArcPoolUsageSource implements ArcUsageSource {
     );
     const base = baseResource(resource);
     const usage = measurement.usage;
+    const unavailableReason =
+      usage.status === "ok" || usage.status === "error"
+        ? null
+        : usage.status === "not_installed"
+          ? "not-exposed"
+          : "not-connected";
+    const message =
+      usage.status === "error"
+        ? "Usage could not be collected for this account. Try refreshing usage."
+        : usage.status === "ok"
+          ? null
+          : usage.status === "not_installed"
+            ? "Usage limits not exposed by provider (the provider CLI is not installed)."
+            : usage.status === "expired"
+              ? "Account session expired. Reconnect the account to see usage."
+              : "Usage requires a connected, authenticated account.";
     return {
       ...base,
       accountEmail: usage.accountEmail,
@@ -249,18 +265,8 @@ export class ArcPoolUsageSource implements ArcUsageSource {
           : usage.status === "error"
             ? "error"
             : "unavailable",
-      unavailableReason:
-        usage.status === "ok"
-          ? null
-          : usage.status === "error"
-            ? null
-            : "not-connected",
-      message:
-        usage.status === "error"
-          ? "Usage could not be collected for this account. Try refreshing usage."
-          : usage.status === "ok"
-            ? null
-            : `Usage is unavailable for this account (${usage.status}).`,
+      unavailableReason,
+      message,
     };
   }
 }

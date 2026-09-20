@@ -19,6 +19,7 @@ import {
 } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   PluginComposerHostScopeProvider,
   usePluginComposerHost,
@@ -246,6 +247,11 @@ vi.mock("@/hooks/mutations/thread-state-mutations", () => ({
     mutate: vi.fn(),
     variables: null,
   }),
+  useUpdateThread: () => ({
+    isPending: false,
+    mutate: vi.fn(),
+    variables: null,
+  }),
 }));
 
 vi.mock("@/hooks/queries/sidebar-navigation-query", () => ({
@@ -359,43 +365,45 @@ function buildPromptArea({
   pendingInteractions = [],
 }: RenderPromptAreaArgs) {
   return (
-    <PluginComposerHostScopeProvider>
-      <ShellProbe />
-      <PublishedHostDraftProbe />
-      <ThreadDetailPromptArea
-        activeBackgroundAgentCount={0}
-        activeBackgroundCommands={[]}
-        activePromptMode={null}
-        activeWorkflows={[]}
-        canUseGitUi={false}
-        childPendingInteractions={[]}
-        childThreadsSection={null}
-        composerFocusRequestNonce={0}
-        contextBannerMergeBase={null}
-        environmentGoneStatus={null}
-        goal={null}
-        modelFallback={null}
-        isEnvironmentActionPending={false}
-        onChangedFileClick={vi.fn()}
-        parentThreadSection={null}
-        pendingInteractions={pendingInteractions}
-        pendingInteractionsInitialLoading={false}
-        queuedMessageCount={0}
-        pendingTodos={null}
-        projectId={PROJECT_ID}
-        pullRequest={null}
-        pullRequestMergeMethod="squash"
-        resolveMentionLink={() => null}
-        sendMessage={{
-          isPending: false,
-          mutateAsync: mocks.sendMessageMutateAsync,
-        }}
-        steerActiveThreadOnEnter={false}
-        thread={thread}
-        workspaceChangedFilesSection={null}
-        workspaceStatusPending={false}
-      />
-    </PluginComposerHostScopeProvider>
+    <QueryClientProvider client={testQueryClient}>
+      <PluginComposerHostScopeProvider>
+        <ShellProbe />
+        <PublishedHostDraftProbe />
+        <ThreadDetailPromptArea
+          activeBackgroundAgentCount={0}
+          activeBackgroundCommands={[]}
+          activePromptMode={null}
+          activeWorkflows={[]}
+          canUseGitUi={false}
+          childPendingInteractions={[]}
+          childThreadsSection={null}
+          composerFocusRequestNonce={0}
+          contextBannerMergeBase={null}
+          environmentGoneStatus={null}
+          goal={null}
+          modelFallback={null}
+          isEnvironmentActionPending={false}
+          onChangedFileClick={vi.fn()}
+          parentThreadSection={null}
+          pendingInteractions={pendingInteractions}
+          pendingInteractionsInitialLoading={false}
+          queuedMessageCount={0}
+          pendingTodos={null}
+          projectId={PROJECT_ID}
+          pullRequest={null}
+          pullRequestMergeMethod="squash"
+          resolveMentionLink={() => null}
+          sendMessage={{
+            isPending: false,
+            mutateAsync: mocks.sendMessageMutateAsync,
+          }}
+          steerActiveThreadOnEnter={false}
+          thread={thread}
+          workspaceChangedFilesSection={null}
+          workspaceStatusPending={false}
+        />
+      </PluginComposerHostScopeProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -411,6 +419,7 @@ function getBottomComposerInput(): HTMLInputElement {
 
 let threadCounter = 0;
 let threadId = "";
+let testQueryClient: QueryClient;
 
 beforeEach(() => {
   threadCounter += 1;
@@ -418,6 +427,9 @@ beforeEach(() => {
   queryMocks.queuedMessages = [];
   mocks.sendMessageMutateAsync.mockResolvedValue(undefined);
   mocks.updateQueuedMessageMutateAsync.mockResolvedValue(undefined);
+  testQueryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
 });
 
 afterEach(() => {

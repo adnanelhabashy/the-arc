@@ -468,6 +468,44 @@ function matchesStoredToken(
   return currentMatches || previousMatches;
 }
 
+const resolvedAccountSchema = z
+  .object({
+    accountId: z.string().uuid(),
+    resolvedAt: z.number().int().nonnegative(),
+  })
+  .strict();
+export type ResolvedAccount = z.infer<typeof resolvedAccountSchema>;
+
+const RESOLVED_ACCOUNT_TTL_MS = 5 * 60 * 1_000;
+
+export class AccountResolutionStore {
+  constructor(
+    private readonly kv: PluginKvStorage,
+    private readonly now: () => number = Date.now,
+  ) {}
+
+  async recordResolved(threadId: string, accountId: string): Promise<void> {
+    await this.kv.set(this.key(threadId), {
+      accountId,
+      resolvedAt: this.now(),
+    });
+  }
+
+  async getResolved(threadId: string): Promise<ResolvedAccount | null> {
+    const key = this.key(threadId);
+    const raw = await this.kv.get(key);
+    if (raw === undefined) return null;
+    const value = resolvedAccountSchema.parse(raw);
+    await this.kv.delete(key);
+    if (this.now() - value.resolvedAt > RESOLVED_ACCOUNT_TTL_MS) return null;
+    return value;
+  }
+
+  private key(threadId: string): string {
+    return `resolved:${z.string().min(1).parse(threadId)}`;
+  }
+}
+
 export class RoutingStore {
   constructor(
     private readonly kv: PluginKvStorage,

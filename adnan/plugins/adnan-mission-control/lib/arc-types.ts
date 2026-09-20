@@ -175,6 +175,11 @@ export interface ArcOmpLoginChallenge {
   provider: string;
   sessionId: string;
   kind: "oauth" | "api-key";
+  // How the OAuth session actually authenticates, as classified from the
+  // live broker output: a browser redirect flow, or a device-code flow
+  // (verification URL + one-time user code, e.g. Kimi).
+  flow: "browser" | "device";
+  userCode: string | null;
   authorizeUrl: string | null;
   instructions: string | null;
   expiresAt: number | null;

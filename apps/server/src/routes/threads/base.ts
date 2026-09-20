@@ -12,6 +12,7 @@ import {
   markThreadDeleted,
   listLifecycleThreadTree,
   searchThreadsWithPendingInteractionState,
+  setThreadAccount,
   updateThread,
   type ThreadSearchResultGroup as DbThreadSearchResultGroup,
   type UpdateThreadInput,
@@ -395,6 +396,14 @@ export function registerThreadBaseRoutes(app: Hono, deps: AppDeps): void {
             ? { reasoningLevel: payload.reasoningLevel }
             : {}),
         },
+      });
+    }
+
+    if ("accountKey" in payload) {
+      setThreadAccount(deps.db, {
+        threadId: thread.id,
+        accountKey: payload.accountKey ?? null,
+        accountResolved: payload.accountKey !== null,
       });
     }
 

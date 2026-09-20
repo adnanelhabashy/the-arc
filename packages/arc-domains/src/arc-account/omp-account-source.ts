@@ -49,6 +49,31 @@ const DEFAULT_BROKER_IDLE_TTL_MS = 60_000;
 const DEFAULT_SNAPSHOT_TTL_MS = 5_000;
 const LOGIN_START_TIMEOUT_MS = 15_000;
 
+// Kimi's device flow points at www.kimi.com (mainland site: WeChat QR /
+// phone login). Arc users hold accounts on the international site, so the
+// challenge URL is rewritten to kimi.ai before it reaches the UI.
+const OMP_AUTHORIZE_HOST_OVERRIDES: Record<string, string> = {
+  "kimi-code": "kimi.ai",
+};
+
+function applyAuthorizeUrlOverride(
+  provider: string,
+  url: string | null,
+): string | null {
+  const host = OMP_AUTHORIZE_HOST_OVERRIDES[provider];
+  if (url === null || host === undefined) return url;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === "www.kimi.com" || parsed.hostname === "kimi.com") {
+      parsed.hostname = host;
+      return parsed.toString();
+    }
+  } catch {
+    // Not a parseable URL — forward it unchanged.
+  }
+  return url;
+}
+
 export interface ArcOmpRuntime {
   executablePath: string;
   env: NodeJS.ProcessEnv;
@@ -292,6 +317,37 @@ export function mapOmpSnapshotEntry(
   };
 }
 
+// Classifies what an OAuth login session actually is, from the live broker
+// output. Device flows (Kimi, and similar OAuth device providers) print a
+// verification URL carrying a `user_code` parameter and/or an
+// "Enter code: XXXX-XXXX" line; the user code is surfaced so the UI can
+// show it prominently. Everything else is a plain browser redirect flow.
+function classifyOauthFlow(session: {
+  authorizeUrl: string | null;
+  instructions: string | null;
+}): { flow: "browser" | "device"; userCode: string | null } {
+  const url = session.authorizeUrl;
+  if (url !== null) {
+    try {
+      const parsed = new URL(url);
+      const code = parsed.searchParams.get("user_code");
+      if (code !== null && code.length > 0) {
+        return { flow: "device", userCode: code };
+      }
+    } catch {
+      // Not a parseable URL; fall through to instruction sniffing.
+    }
+  }
+  const instructions = session.instructions;
+  if (instructions !== null) {
+    const match = /enter code[: ]+([A-Za-z0-9-]+)/i.exec(instructions);
+    if (match !== null) {
+      return { flow: "device", userCode: match[1] ?? null };
+    }
+  }
+  return { flow: "browser", userCode: null };
+}
+
 // ─── Broker session (lazy, loopback-only, idle-stopped) ───────────────────
 
 interface OmpBrokerSession {
@@ -504,7 +560,7 @@ export class OmpAccountSource implements ArcAccountSource {
 
   async completeClaudeLogin(
     _sessionId: string,
-    _pasted: string,
+    _code: string,
   ): Promise<ArcAccount> {
     throw new ArcAccountError(
       "unsupported-provider",
@@ -676,7 +732,8 @@ export class OmpAccountSource implements ArcAccountSource {
       provider,
       sessionId: session.id,
       kind: session.kind,
-      authorizeUrl: session.authorizeUrl,
+      ...classifyOauthFlow(session),
+      authorizeUrl: applyAuthorizeUrlOverride(provider, session.authorizeUrl),
       instructions: session.instructions,
       // OMP does not expose OAuth session expiry; unknown stays null.
       expiresAt: null,
@@ -705,9 +762,11 @@ export class OmpAccountSource implements ArcAccountSource {
     if (session === undefined) {
       throw new ArcAccountError("account-not-found", sessionId);
     }
-    // Yield once so a just-settled child exit is observed (the exit flag is
-    // recorded on the child wait promise's continuation).
-    await Promise.resolve();
+    // Yield one macrotask so a just-settled child exit is observed (the
+    // exit flag is recorded on the child wait promise's continuation, which
+    // a single microtask would race). Executor form: this package's
+    // consumers compile against a lib target without Promise.withResolvers.
+    await new Promise<void>((resolve) => setImmediate(resolve));
     if (session.terminal === "cancelled") {
       this.loginSessions.delete(sessionId);
       return { state: "failed", account: null, message: "login was cancelled" };

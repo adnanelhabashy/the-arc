@@ -484,7 +484,7 @@ The canonical release summary.
     expect(screen.queryByRole("button", { name: /check/i })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Updates" })).toBeNull();
     expect(
-      screen.getByRole("button", { name: /^Open the full bb .* changelog$/ }),
+      screen.getByRole("button", { name: /^Open the full Arc Agent .* changelog$/ }),
     ).toBeDefined();
     const changelog = document.querySelector(
       '[data-updates-domain="changelog"]',
@@ -532,7 +532,7 @@ The canonical release summary.
     expect(changelog?.textContent).toContain("Full changelog");
     expect(
       screen.getByRole("button", {
-        name: "Open the full bb 9.9.9 changelog",
+        name: "Open the full Arc Agent 9.9.9 changelog",
       }).className,
     ).toContain("font-semibold");
     for (const highlight of ["New features", "Fixes"]) {
@@ -546,7 +546,7 @@ The canonical release summary.
     expect(changelog?.textContent).toContain("One current feature.");
     expect(changelog?.textContent).toContain("One current fix.");
     const dismissChangelog = screen.getByRole("button", {
-      name: "Dismiss bb 9.9.9 changelog preview",
+      name: "Dismiss Arc Agent 9.9.9 changelog preview",
     });
     const changelogHeader = changelog?.querySelector("[data-changelog-header]");
     const changelogCard = changelogHeader?.closest("section");
@@ -557,7 +557,7 @@ The canonical release summary.
     expect(dismissChangelog.querySelector('[data-icon="X"]')).not.toBeNull();
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Open the full bb 9.9.9 changelog",
+        name: "Open the full Arc Agent 9.9.9 changelog",
       }),
     );
     expect(openUrlInExternalBrowserMock).toHaveBeenCalledWith(
@@ -570,7 +570,7 @@ The canonical release summary.
     );
     expect(
       screen.queryByRole("button", {
-        name: "Open the full bb 9.9.9 changelog",
+        name: "Open the full Arc Agent 9.9.9 changelog",
       }),
     ).toBeNull();
     expect(changelog?.getAttribute("data-changelog-dismiss-phase")).toBe(
@@ -624,7 +624,7 @@ The canonical release summary.
     await waitFor(() => {
       expect(
         screen.getByRole("button", {
-          name: "Dismiss bb 9.9.9 changelog preview",
+          name: "Dismiss Arc Agent 9.9.9 changelog preview",
         }),
       ).toBeDefined();
     });
@@ -1438,7 +1438,7 @@ The canonical release summary.
 
     renderSection();
     const relaunch = screen.getByRole("button", {
-      name: /Relaunch bb to finish updating/,
+      name: /Relaunch Arc Agent to finish updating/,
     });
     expect(relaunch.querySelector("img")?.className).toContain("size-3");
     expect(relaunch.className).toContain("border");

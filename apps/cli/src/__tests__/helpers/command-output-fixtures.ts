@@ -112,6 +112,8 @@ export function makeThread(overrides: MakeThreadArgs): Thread {
     titleFallback: null,
     sectionId: null,
     environmentId: null,
+    accountKey: null,
+    accountResolved: null,
     parentThreadId: null,
     lifecycleOwnerThreadId: null,
     sourceThreadId: null,

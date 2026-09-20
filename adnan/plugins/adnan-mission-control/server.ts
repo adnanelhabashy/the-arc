@@ -138,6 +138,8 @@ const enrichedThreadSchema = z.object({
   lastAction: z.string().nullable(),
   childCount: z.number(),
   provenance: z.literal("bb-observed"),
+  accountKey: z.string().nullable(),
+  accountLabel: z.string().nullable(),
 });
 export type EnrichedThread = z.infer<typeof enrichedThreadSchema>;
 
@@ -405,7 +407,7 @@ export const rpcContract = defineRpcContract({
   arc_login_openai_poll: { input: z.object({ sessionId: z.string() }), output: z.unknown() },
   arc_login_openai_cancel: { input: z.object({ sessionId: z.string() }), output: z.unknown() },
   arc_login_claude_start: { input: z.null(), output: z.unknown() },
-  arc_login_claude_complete: { input: z.object({ sessionId: z.string(), pasted: z.string() }), output: z.unknown() },
+  arc_login_claude_complete: { input: z.object({ sessionId: z.string(), code: z.string() }), output: z.unknown() },
   arc_omp_providers: { input: z.null(), output: z.unknown() },
   arc_omp_login_start: { input: z.object({ provider: z.string() }), output: z.unknown() },
   arc_omp_login_poll: { input: z.object({ sessionId: z.string() }), output: z.unknown() },
@@ -1005,6 +1007,26 @@ export default async function plugin(bb: BbPluginApi) {
     }
   }
 
+  async function accountLabelsByKey(): Promise<Map<string, string>> {
+    const labels = new Map<string, string>();
+    try {
+      const result = asRecord(await proxyArc("arc.accounts.list", null));
+      const accounts = Array.isArray(result?.accounts) ? result.accounts : [];
+      for (const entry of accounts) {
+        const account = asRecord(entry);
+        const key = str(account?.accountKey);
+        const providerLabel = str(account?.providerLabel);
+        if (key === null || providerLabel === null) continue;
+        const planLabel = str(account?.planLabel);
+        labels.set(key, planLabel !== null ? `${providerLabel} · ${planLabel}` : providerLabel);
+      }
+    } catch {
+      // Arc Core unavailable: threads still list, accountLabel just stays
+      // null and renders as "Account unknown" — never fabricated.
+    }
+    return labels;
+  }
+
   async function buildTree(includeArchived: boolean): Promise<{
     counters: z.infer<typeof countersSchema>;
     threads: EnrichedThread[];
@@ -1015,6 +1037,7 @@ export default async function plugin(bb: BbPluginApi) {
       limit: 200,
     });
     const rows = (Array.isArray(listed) ? listed : []).map((row) => asRecord(row)).filter((row): row is AnyRecord => row !== null);
+    const accountLabels = await accountLabelsByKey();
 
     const childCount = new Map<string, number>();
     for (const row of rows) {
@@ -1053,6 +1076,11 @@ export default async function plugin(bb: BbPluginApi) {
               },
         childCount: childCount.get(String(row.id)) ?? 0,
         provenance: "bb-observed",
+        accountKey: str(row.accountKey),
+        accountLabel:
+          str(row.accountKey) !== null
+            ? (accountLabels.get(str(row.accountKey) as string) ?? null)
+            : null,
         ...enrichment,
       });
       if (parsed.success) threads.push(parsed.data);
@@ -1354,7 +1382,7 @@ export default async function plugin(bb: BbPluginApi) {
     arc_login_openai_poll: async ({ sessionId }) => proxyArc("arc.login.openai.poll", { sessionId }),
     arc_login_openai_cancel: async ({ sessionId }) => proxyArc("arc.login.openai.cancel", { sessionId }),
     arc_login_claude_start: async () => proxyArc("arc.login.claude.start", null),
-    arc_login_claude_complete: async ({ sessionId, pasted }) => proxyArc("arc.login.claude.complete", { sessionId, pasted }),
+    arc_login_claude_complete: async ({ sessionId, code }) => proxyArc("arc.login.claude.complete", { sessionId, code }),
     arc_omp_providers: async () => proxyArc("arc.omp.providers", null),
     arc_omp_login_start: async ({ provider }) => proxyArc("arc.omp.login.start", { provider }),
     arc_omp_login_poll: async ({ sessionId }) => proxyArc("arc.omp.login.poll", { sessionId }),

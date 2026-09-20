@@ -560,6 +560,80 @@ describe("OmpAccountSource login flows", () => {
     });
   });
 
+  it("classifies device-code flows and surfaces the user code (Kimi shape)", async () => {
+    const fake = new FakeOmp(
+      loginScript([
+        "Requesting device authorization...",
+        "",
+        "Open this URL in your browser:",
+        "https://www.kimi.com/code/authorize_device?user_code=W8KT-XSI2",
+        "Enter code: W8KT-XSI2",
+        "",
+        "Waiting for device authorization...",
+      ]),
+    );
+    const { source } = makeSource(fake);
+    const challenge = await source.startOmpLogin("kimi-code");
+    expect(challenge.kind).toBe("oauth");
+    expect(challenge.flow).toBe("device");
+    expect(challenge.userCode).toBe("W8KT-XSI2");
+    expect(challenge.authorizeUrl).toBe(
+      "https://kimi.ai/code/authorize_device?user_code=W8KT-XSI2",
+    );
+  });
+
+  it("rewrites www.kimi.com challenge URLs to kimi.ai only for kimi-code", async () => {
+    const fake = new FakeOmp(
+      loginScript([
+        "Open this URL in your browser:",
+        "https://www.kimi.com/code/authorize_device?user_code=W8KT-XSI2",
+        "Enter code: W8KT-XSI2",
+      ]),
+    );
+    const { source } = makeSource(fake);
+    const kimi = await source.startOmpLogin("kimi-code");
+    expect(kimi.authorizeUrl).toBe(
+      "https://kimi.ai/code/authorize_device?user_code=W8KT-XSI2",
+    );
+
+    const other = new FakeOmp(
+      loginScript([
+        "Open this URL in your browser:",
+        "https://www.kimi.com/some/other/path",
+      ]),
+    );
+    const otherSource = makeSource(other).source;
+    const untouched = await otherSource.startOmpLogin("deepseek");
+    expect(untouched.authorizeUrl).toBe("https://www.kimi.com/some/other/path");
+  });
+
+  it("classifies plain browser OAuth flows as browser", async () => {
+    const fake = new FakeOmp(
+      loginScript([
+        "Open this URL in your browser:",
+        "https://provider.example.com/oauth/authorize?client_id=omp",
+      ]),
+    );
+    const { source } = makeSource(fake);
+    const challenge = await source.startOmpLogin("kimi-code");
+    expect(challenge.flow).toBe("browser");
+    expect(challenge.userCode).toBeNull();
+  });
+
+  it("classifies device flows from the instructions when the URL has no user_code", async () => {
+    const fake = new FakeOmp(
+      loginScript([
+        "Open this URL in your browser:",
+        "https://provider.example.com/activate",
+        "Enter code: AB3D-9F21",
+      ]),
+    );
+    const { source } = makeSource(fake);
+    const challenge = await source.startOmpLogin("kimi-code");
+    expect(challenge.flow).toBe("device");
+    expect(challenge.userCode).toBe("AB3D-9F21");
+  });
+
   it("rejects logins for providers OMP does not report", async () => {
     const fake = new FakeOmp(brokerServeScript);
     const { source } = makeSource(fake);

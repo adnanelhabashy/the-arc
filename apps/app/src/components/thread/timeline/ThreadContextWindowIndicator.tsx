@@ -27,6 +27,9 @@ interface ThreadContextWindowIndicatorProps {
   defaultOpen?: boolean;
   providerId?: string;
   modelLabel?: string;
+  // The thread's bound account, when the caller knows it. Undefined
+  // renders "Active account unknown" rather than guessing.
+  accountKey?: string | null;
 }
 
 export function ThreadContextWindowCard({
@@ -177,6 +180,7 @@ export function ThreadContextWindowIndicator({
   defaultOpen,
   providerId,
   modelLabel,
+  accountKey,
 }: ThreadContextWindowIndicatorProps) {
   const {
     open: hoverOpen,
@@ -259,6 +263,7 @@ export function ThreadContextWindowIndicator({
                 active={open}
                 providerId={providerId}
                 modelLabel={modelLabel}
+                accountKey={accountKey}
               />
             ) : undefined
           }

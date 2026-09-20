@@ -94,10 +94,10 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
     "arc.login.claude.start": async () => ({
       challenge: await requireHost().accounts.startClaudeLogin(),
     }),
-    "arc.login.claude.complete": async ({ sessionId, pasted }) => {
+    "arc.login.claude.complete": async ({ sessionId, code }) => {
       const account = await requireHost().accounts.completeClaudeLogin(
         sessionId,
-        pasted,
+        code,
       );
       publish("accounts");
       return { account };

@@ -154,7 +154,7 @@ describe("ArcPoolUsageSource", () => {
     expect(resource.windows).toEqual([]);
   });
 
-  it.each(["unauthenticated", "expired", "not_installed"] as const)(
+  it.each(["unauthenticated", "expired"] as const)(
     "maps %s to unavailable/not-connected, never zero usage",
     async (status) => {
       const { rpc } = fakeRpc({
@@ -185,6 +185,34 @@ describe("ArcPoolUsageSource", () => {
       ).toBe(true);
     },
   );
+
+  it("maps not_installed to not-exposed (the provider CLI is missing, not the account), never zero usage", async () => {
+    const { rpc } = fakeRpc({
+      list: listed(),
+      fetch: {
+        "acct-uuid-1": {
+          accountKey: "openai:chatgpt:acc-1",
+          observedAt: null,
+          usage: {
+            status: "not_installed",
+            plan: null,
+            accountEmail: null,
+            planLabel: null,
+          },
+        },
+      },
+    });
+    const resource = await new ArcPoolUsageSource({ rpc }).fetch(
+      "pool:openai:acct-uuid-1",
+      true,
+    );
+    expect(resource.status).toBe("unavailable");
+    expect(resource.unavailableReason).toBe("not-exposed");
+    expect(resource.message).toContain("not installed");
+    expect(resource.windows).toEqual([]);
+    expect(resource.observedAt).toBeNull();
+    expect(resource.windows.every((w) => w.usedPercent === null)).toBe(true);
+  });
 
   it("maps error measurements to an error state without zeros", async () => {
     const { rpc } = fakeRpc({

@@ -305,11 +305,11 @@ export class AccountPoolSource implements ArcAccountSource {
 
   async completeClaudeLogin(
     sessionId: string,
-    pasted: string,
+    code: string,
   ): Promise<ArcAccount> {
     const result = (await this.rpc.call("login.complete", {
       sessionId,
-      pasted,
+      code,
     })) as PoolAccountIdentity;
     return mapPoolAccount(asPoolAccountIdentity(result), null, this.now());
   }

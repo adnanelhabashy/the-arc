@@ -554,6 +554,7 @@ export function RootComposeView() {
                   ?.capabilities.supportsFork ?? false,
               reasoningLevel: request.reasoningLevel,
               serviceTier: request.serviceTier,
+              accountKey: request.accountKey,
             });
       if (createRequest === null) return;
       const thread = await createThread.mutateAsync(

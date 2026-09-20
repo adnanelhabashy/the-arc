@@ -243,12 +243,12 @@ describe("PluginDetail official catalog lifecycle", () => {
 
     expect(screen.queryByRole("alert")).toBeNull();
     const compatibilityStatus = screen
-      .getByText("Update bb to install this plugin")
+      .getByText("Update Arc Agent to install this plugin")
       .closest("div[class*='bg-surface-recessed']");
     expect(compatibilityStatus).not.toBeNull();
     if (compatibilityStatus === null) return;
     expect(compatibilityStatus.textContent).toContain(
-      "Update bb to install this plugin",
+      "Update Arc Agent to install this plugin",
     );
     expect(compatibilityStatus.textContent).toContain(
       "Requires bb 0.20 or newer.",
