@@ -151,6 +151,7 @@ describe("prepareArcManagedRuntimes — OMP", () => {
     manifest.runtimes.omp = {
       activeVersion: "18.3.0",
       previousVersion: null,
+      knownGoodVersion: "18.3.0",
       source: "arc-managed-download",
       digest: "0".repeat(64),
       installedAt: Date.now(),
@@ -180,6 +181,7 @@ describe("prepareArcManagedRuntimes — OMP", () => {
     manifest.runtimes.omp = {
       activeVersion: "18.3.0",
       previousVersion: null,
+      knownGoodVersion: "18.3.0",
       source: "arc-managed-download",
       digest: "0".repeat(64),
       installedAt: Date.now(),

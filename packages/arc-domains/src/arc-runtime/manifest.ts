@@ -2,9 +2,29 @@ import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { z } from "zod";
 
-export const ARC_RUNTIME_MANIFEST_SCHEMA_VERSION = 1;
+export const ARC_RUNTIME_MANIFEST_SCHEMA_VERSION = 2;
+const ARC_RUNTIME_MANIFEST_SCHEMA_VERSION_V1 = 1;
 
 const arcRuntimeEntrySchema = z.object({
+  activeVersion: z.string().min(1).nullable(),
+  previousVersion: z.string().min(1).nullable(),
+  // The version last observed healthy after activation (ADR-076): distinct
+  // from activeVersion so an update can occupy activeVersion while pending
+  // promotion, and rollback has an explicit, deterministic target.
+  knownGoodVersion: z.string().min(1).nullable(),
+  source: z
+    .enum([
+      "arc-bundled",
+      "arc-managed-download",
+      "official-managed-install",
+      "external-override",
+    ])
+    .nullable(),
+  digest: z.string().min(1).nullable(),
+  installedAt: z.number().int().nonnegative().nullable(),
+});
+
+const arcRuntimeEntrySchemaV1 = z.object({
   activeVersion: z.string().min(1).nullable(),
   previousVersion: z.string().min(1).nullable(),
   source: z
@@ -29,6 +49,43 @@ export const arcRuntimeManifestSchema = z.object({
     omp: arcRuntimeEntrySchema,
   }),
 });
+
+// A v1 manifest (schemaVersion 1, no knownGoodVersion field) is not "invalid"
+// — it is a real prior-release manifest that must migrate forward rather
+// than being discarded, which would forget every already-verified,
+// already-active runtime and force a redundant reinstall (ADR-076). Every
+// runtime activated under v1 was treated as good with no promotion step, so
+// knownGoodVersion defaults to that entry's activeVersion.
+const arcRuntimeManifestSchemaV1 = z.object({
+  schemaVersion: z.literal(ARC_RUNTIME_MANIFEST_SCHEMA_VERSION_V1),
+  createdByArcVersion: z.string().min(1),
+  platform: z.string().min(1),
+  runtimes: z.object({
+    codex: arcRuntimeEntrySchemaV1,
+    "claude-code": arcRuntimeEntrySchemaV1,
+    omp: arcRuntimeEntrySchemaV1,
+  }),
+});
+
+function migrateArcRuntimeManifestV1(
+  v1: z.infer<typeof arcRuntimeManifestSchemaV1>,
+): ArcRuntimeManifest {
+  const migrateEntry = (
+    entry: z.infer<typeof arcRuntimeEntrySchemaV1>,
+  ): z.infer<typeof arcRuntimeEntrySchema> => ({
+    ...entry,
+    knownGoodVersion: entry.activeVersion,
+  });
+  return {
+    ...v1,
+    schemaVersion: ARC_RUNTIME_MANIFEST_SCHEMA_VERSION,
+    runtimes: {
+      codex: migrateEntry(v1.runtimes.codex),
+      "claude-code": migrateEntry(v1.runtimes["claude-code"]),
+      omp: migrateEntry(v1.runtimes.omp),
+    },
+  };
+}
 
 export type ArcRuntimeManifest = z.infer<typeof arcRuntimeManifestSchema>;
 
@@ -93,6 +150,7 @@ export function createEmptyArcRuntimeManifest(
   const emptyEntry = {
     activeVersion: null,
     previousVersion: null,
+    knownGoodVersion: null,
     source: null,
     digest: null,
     installedAt: null,
@@ -159,15 +217,20 @@ export async function readArcRuntimeManifest(
   }
 
   const result = arcRuntimeManifestSchema.safeParse(parsed);
-  if (!result.success) {
-    return {
-      kind: "invalid",
-      manifest: createEmptyArcRuntimeManifest(args),
-      problem: `manifest does not match schema version ${ARC_RUNTIME_MANIFEST_SCHEMA_VERSION}`,
-    };
+  if (result.success) {
+    return { kind: "ok", manifest: result.data };
   }
 
-  return { kind: "ok", manifest: result.data };
+  const v1Result = arcRuntimeManifestSchemaV1.safeParse(parsed);
+  if (v1Result.success) {
+    return { kind: "ok", manifest: migrateArcRuntimeManifestV1(v1Result.data) };
+  }
+
+  return {
+    kind: "invalid",
+    manifest: createEmptyArcRuntimeManifest(args),
+    problem: `manifest does not match schema version ${ARC_RUNTIME_MANIFEST_SCHEMA_VERSION}`,
+  };
 }
 
 export async function writeArcRuntimeManifest(

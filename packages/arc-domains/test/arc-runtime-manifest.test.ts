@@ -38,6 +38,7 @@ function populatedManifest(): ArcRuntimeManifest {
   manifest.runtimes.codex = {
     activeVersion: "0.155.1",
     previousVersion: "0.154.0",
+    knownGoodVersion: "0.155.1",
     source: "arc-bundled",
     digest: "sha256:abc123",
     installedAt: 1_800_000_000_000,
@@ -45,6 +46,7 @@ function populatedManifest(): ArcRuntimeManifest {
   manifest.runtimes["claude-code"] = {
     activeVersion: "2.1.0",
     previousVersion: null,
+    knownGoodVersion: null,
     source: "official-managed-install",
     digest: null,
     installedAt: 1_800_000_000_500,
@@ -78,7 +80,7 @@ describe("readArcRuntimeManifest", () => {
     expect(result.manifest.runtimes.omp.activeVersion).toBeNull();
   });
 
-  it("reads a valid v1 manifest", async () => {
+  it("reads a valid manifest at the current schema version", async () => {
     const dir = await createTempDir();
     const manifestPath = join(dir, "runtime-manifest.json");
     const manifest = populatedManifest();
@@ -91,6 +93,63 @@ describe("readArcRuntimeManifest", () => {
       return;
     }
     expect(result.manifest).toEqual(manifest);
+  });
+
+  it("migrates a real v1 manifest (no knownGoodVersion field) without discarding installed state", async () => {
+    const dir = await createTempDir();
+    const manifestPath = join(dir, "runtime-manifest.json");
+    const v1Manifest = {
+      schemaVersion: 1,
+      createdByArcVersion: CREATED_BY,
+      platform: PLATFORM_IDENTITY,
+      runtimes: {
+        codex: {
+          activeVersion: "0.155.1",
+          previousVersion: "0.154.0",
+          source: "arc-bundled",
+          digest: "sha256:abc123",
+          installedAt: 1_800_000_000_000,
+        },
+        "claude-code": {
+          activeVersion: null,
+          previousVersion: null,
+          source: null,
+          digest: null,
+          installedAt: null,
+        },
+        omp: {
+          activeVersion: "18.2.6",
+          previousVersion: null,
+          source: "arc-bundled",
+          digest: "sha256:def456",
+          installedAt: 1_800_000_000_100,
+        },
+      },
+    };
+    await writeFile(manifestPath, JSON.stringify(v1Manifest), "utf8");
+
+    const result = await readArcRuntimeManifest(readArgs(manifestPath));
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") {
+      return;
+    }
+    expect(result.manifest.schemaVersion).toBe(
+      ARC_RUNTIME_MANIFEST_SCHEMA_VERSION,
+    );
+    // Every field a v1 manifest actually carried survives the migration —
+    // nothing about the installed/active runtimes is forgotten.
+    expect(result.manifest.runtimes.codex.activeVersion).toBe("0.155.1");
+    expect(result.manifest.runtimes.codex.previousVersion).toBe("0.154.0");
+    expect(result.manifest.runtimes.codex.digest).toBe("sha256:abc123");
+    expect(result.manifest.runtimes.omp.activeVersion).toBe("18.2.6");
+    // A version active under v1 was always treated as good (no promotion
+    // step existed yet), so migration defaults knownGoodVersion to it.
+    expect(result.manifest.runtimes.codex.knownGoodVersion).toBe("0.155.1");
+    expect(result.manifest.runtimes.omp.knownGoodVersion).toBe("18.2.6");
+    expect(
+      result.manifest.runtimes["claude-code"].knownGoodVersion,
+    ).toBeNull();
   });
 
   it("recovers from malformed JSON without throwing", async () => {
@@ -215,6 +274,7 @@ describe("arc runtime manifest schema", () => {
         codex: {
           activeVersion: "0.155.1",
           previousVersion: null,
+          knownGoodVersion: "0.155.1",
           source: "arc-bundled",
           digest: null,
           installedAt: null,
@@ -223,6 +283,7 @@ describe("arc runtime manifest schema", () => {
         "claude-code": {
           activeVersion: null,
           previousVersion: null,
+          knownGoodVersion: null,
           source: null,
           digest: null,
           installedAt: null,
@@ -230,6 +291,7 @@ describe("arc runtime manifest schema", () => {
         omp: {
           activeVersion: null,
           previousVersion: null,
+          knownGoodVersion: null,
           source: null,
           digest: null,
           installedAt: null,

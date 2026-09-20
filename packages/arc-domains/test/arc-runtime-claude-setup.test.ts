@@ -129,6 +129,7 @@ async function writeActiveClaude(
   manifest.runtimes["claude-code"] = {
     activeVersion: version,
     previousVersion: null,
+    knownGoodVersion: version,
     source: opts.source ?? "official-managed-install",
     digest: "0".repeat(64),
     installedAt: Date.now(),

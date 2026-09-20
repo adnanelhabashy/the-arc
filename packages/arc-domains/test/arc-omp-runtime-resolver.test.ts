@@ -55,6 +55,7 @@ describe("createArcOmpRuntimeResolver", () => {
     manifest.runtimes.omp = {
       activeVersion: "18.2.6",
       previousVersion: null,
+      knownGoodVersion: "18.2.6",
       source: "arc-bundled",
       digest: "0".repeat(64),
       installedAt: 1,

@@ -39,6 +39,7 @@ function activate(
       [runtimeId]: {
         activeVersion: version,
         previousVersion: manifest.runtimes[runtimeId].activeVersion,
+        knownGoodVersion: version,
         source: "arc-bundled",
         digest: "0".repeat(64),
         installedAt: 1,

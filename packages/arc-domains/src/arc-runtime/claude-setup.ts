@@ -99,7 +99,7 @@ async function defaultDownload(
   await rename(temporaryPath, destinationPath);
 }
 
-async function defaultVerifyCodeSignature(
+export async function defaultVerifyCodeSignature(
   executablePath: string,
 ): Promise<boolean> {
   const run = (args: string[]) =>
@@ -416,6 +416,7 @@ export async function prepareManagedClaudeCode(
             "claude-code": {
               activeVersion: release.version,
               previousVersion: freshEntry.activeVersion,
+              knownGoodVersion: release.version,
               source: "official-managed-install",
               digest: stagedDigest,
               installedAt: now(),

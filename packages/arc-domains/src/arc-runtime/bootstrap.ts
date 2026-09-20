@@ -186,6 +186,7 @@ async function installFromSeed(args: {
             previousVersion: repair
               ? existing.previousVersion
               : existing.activeVersion,
+            knownGoodVersion: release.version,
             source: "arc-bundled",
             digest: stagedDigest,
             installedAt: Date.now(),
