@@ -968,7 +968,7 @@ Fail-closed and hostile-PATH behaviour is covered by tests in all three plugins 
 - Live: the server logged `Restricted local data permissions (owner-only) for: data-dir, database, database-wal, database-shm.` and `~/.bb` is 0700 with `bb.db` 0600.
 - New events: 16 entries are already stored masked, and a child-process test asserts the real values still reach the provider while the event carries `{masked: true}`.
 - Log audit: 0 credential-shaped assignments across the 9 log files under `~/.bb/logs`, `~/Library/Logs/Arc Agent` and the app's log directory.
-- Historical rows (dry run, no writes): 49 events scanned, 11 rows would change, 20 entries would be redacted, 4 names, 2 distinct values — and neither value appears in any current token store, so both are stale. Applying is pending the user's decision; the shipped tool needs `better-sqlite3` declared in `@bb/scripts` (same gap as the pre-existing `seed-perf-db`) before it can run standalone.
+- Historical rows (first dry run, no writes): 49 events scanned, 11 rows would change, 20 entries would be redacted, 4 names, 2 distinct values. That run also concluded both values were absent from every current token store and therefore stale — **that conclusion was wrong**; the surviving value turned out to be the live account-pool hub token (see the final-cleanup subsection below). Applying was left pending the user's decision, and the shipped tool needed `better-sqlite3` declared in `@bb/scripts` (same gap as the pre-existing `seed-perf-db`) before it could run standalone.
 
 ### Regression checks on the installed app
 
@@ -979,3 +979,39 @@ Suites: typecheck + tests green for `@bb/domain`, `@bb/config`, `@bb/agent-runti
 ### QA artifacts
 
 Threads created by these checks (all titled `pre11 …`, safe to delete): `thr_j4zykdffce`, `thr_2bv4bvip8w`, `thr_bysswc7vvv`, `thr_4k2ctzngja` (the three `error` rows are the pre-fix Codex `stdin is not a terminal` attempts), `thr_nrhu3kdie2`, `thr_873yrq6brh`, `thr_dqrw47utuj`, `thr_54y7cmdcnm`, `thr_xkav5efngp`, `thr_vxspjb2p79`, `thr_3rghzfi2ik`. Installed-app backups: `Arc Agent.app.bak-pre11`, `.bak-pre11b`, `.bak-pre11c` (plus the older 10.2/10.3/old/quarantined copies).
+
+### Historical credential redaction (final cleanup, 2026-09-20)
+
+Baseline `self-contained @ 95ad11a3a`. Two things had to change before the redaction could run at all: `@bb/scripts` now declares `better-sqlite3` (`12.10.0`, the version `@bb/db` and `apps/server` already pin) because `build-package.mjs` inlines workspace sources into each bin entry and the bundled `@bb/db` import had no package to resolve, and the two test files covering this work moved from `src/` to `test/`, where each package's vitest config actually collects them — 26 domain and 3 scripts assertions had never executed.
+
+The dry run did not reproduce the first run's scope, and why matters more than the numbers:
+
+| | First dry run | Final cleanup |
+|---|---|---|
+| `provider.env-resolved` events scanned | 49 | 32 |
+| Rows holding raw values | 11 | 4 |
+| Entries to redact | 20 | 8 |
+| Names | 4 | 2 |
+| Distinct values | 2 | 1 |
+
+Every `pre11 …` QA thread listed above has since been deleted from `threads`, and `events.thread_id` cascades on delete, so the `ANTHROPIC_AUTH_TOKEN` and `OMP_AUTH_BROKER_TOKEN` rows left with their threads instead of being redacted — the database held zero masked entries. What remained were four rows in `thr_us5nauj5h6` carrying one 43-character value under both `CODEX_POOL_AUTH_TOKEN` and `BB_ACCOUNT_POOL_PARENT_TOKEN`.
+
+That value was **live, not stale**: byte-identical to `value` in `~/.bb/plugins/account-pool/secrets/accounts/hub-token-host_jd4zxm8ai9.json`, minted `2026-09-20T06:03:14Z` and last used `2026-09-20T11:21:12Z`, with `previous: []` — no rotation had ever happened. The same value sat verbatim in all 19 `~/.codex/shell_snapshots/*.sh` files at mode **0644** inside a 0755 directory, readable by any local account: a wider exposure than the database rows ADR-072 had just restricted to 0600. The staleness check behind the first dry run therefore examined the wrong stores, or stores that no longer held the token.
+
+Applied, in order, against `~/.bb`:
+
+1. Redaction (`--apply`): 4 rows, 8 entries. Verified against a pre-change `db.backup()` copy — event id, sequence, thread, turn, scope, type, item fields and `created_at` identical; 276 entries before and after; every non-credential field byte-identical; 2 `{masked: true}` entries per row. The backup was deleted afterwards so it could not become a fresh copy of the value.
+2. Rotation: `token.rotate` for `host_jd4zxm8ai9` minted a new hub token (`f57b3b3d…` replacing `e4d9d428…`). The store retains the old value only in its `previous` grace entry, which expires 10 minutes after the mint (`HUB_TOKEN_GRACE_MS`).
+3. Snapshot purge: the 19 files under `~/.codex/shell_snapshots` holding the old value were deleted, along with the one the verification turn created for the new value.
+4. `VACUUM` + `wal_checkpoint(TRUNCATE)`: masking rewrites rows but leaves the previous bytes in the file's free pages and WAL frames, so the value stayed findable in `bb.db` until both ran (15.0 MB → 12.2 MB, row counts unchanged, mode still 0600).
+
+Post-change evidence: the tool's dry run reports 0 rows with credential values and 0 entries to redact; a 30,773-file scan across `~/.bb`, `~/Library/Logs`, `~/Library/Application Support/Arc Agent`, `~/.codex`, `~/.claude`, `~/.omp`, `~/.config`, the shell histories and `/tmp` finds the old value only in the store's grace entry and the new value only in the store; `~/.bb` is 0700 and `bb.db`/`-wal`/`-shm` are 0600. A fresh Codex turn (`thr_inwmcbvpiy`, reply `ok`) shows the rotation did not break provider auth, and that turn's own `provider.env-resolved` event stores both names masked at write time, so the live policy is active in the installed build.
+
+Residuals, both outside this change:
+
+- **Every Codex turn re-creates a 0644 snapshot holding the current hub token.** The purge removes today's copies; the next turn writes another, exactly as the verification turn did. Codex's shell-snapshot cache is not Arc-owned, so the fix belongs either in how the pool contributes `CODEX_POOL_AUTH_TOKEN` to a turn or in Codex's own file mode — worth deciding before Phase 11 rather than after.
+- The grace entry keeps the old token valid, by design, until `2026-09-20T11:48:30Z`, and nothing prunes it earlier.
+
+One process note: an agent session transcript under `~/.omp/agent/sessions` recorded the value while this cleanup inspected the store, and was redacted in place (same byte length, so append offsets were preserved).
+
+QA artifact from this cleanup: `thr_inwmcbvpiy` (`post-rotation smoke`, safe to delete).
