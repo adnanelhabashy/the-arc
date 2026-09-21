@@ -32,6 +32,7 @@ import { readPluginManifest } from "../../../src/services/plugins/manifest.js";
 import {
   accountPoolDefaultEnabled,
   BUILTIN_PLUGINS,
+  bundledPluginSourcePresent,
   OFFICIAL_PLUGINS,
   resolveBuiltinPluginRootPath,
 } from "../../../src/services/plugins/builtin-registry.js";
@@ -321,9 +322,12 @@ describe("builtin plugin reconciliation", () => {
 
     expect(BUILTIN_PLUGINS).toHaveLength(expectedIcons.size);
     for (const builtin of BUILTIN_PLUGINS) {
-      const manifest = await readPluginManifest(
-        resolveBuiltinPluginRootPath(builtin.name),
-      );
+      const registration = {
+        ...builtin,
+        rootDir: resolveBuiltinPluginRootPath(builtin.name),
+      };
+      if (!bundledPluginSourcePresent(registration)) continue;
+      const manifest = await readPluginManifest(registration.rootDir);
       expect(manifest.branding.icon, builtin.name).toBe(
         expectedIcons.get(builtin.name),
       );

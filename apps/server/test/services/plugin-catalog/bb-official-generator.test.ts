@@ -18,7 +18,18 @@ import {
   parseBundledMarketplaceManifestJson,
 } from "../../../src/services/plugin-catalog/marketplace-manifest.js";
 import { loadBundledMarketplace } from "../../../src/services/plugin-catalog/bundled-marketplace.js";
-import { BUNDLED_PLUGINS } from "../../../src/services/plugins/builtin-registry.js";
+import {
+  BUNDLED_PLUGINS,
+  bundledPluginSourcePresent,
+  listBundledPluginRegistrations,
+} from "../../../src/services/plugins/builtin-registry.js";
+
+// The generated marketplace only contains plugins whose source exists in
+// this checkout; registry entries without source (connect, pdf-preview,
+// agent-annotations, plugin-api-tester) are skipped at generation time.
+const PRESENT_BUNDLED = listBundledPluginRegistrations().filter(
+  bundledPluginSourcePresent,
+);
 
 const run = promisify(execFile);
 const cleanup: string[] = [];
@@ -60,15 +71,16 @@ describe("bb-official marketplace generator", () => {
     expect(catalog.name).toBe(BUNDLED_MARKETPLACE_NAME);
     expect(catalog.displayName).toBe("BB Official");
     expect(catalog.categories).toEqual(PLUGIN_CATALOG_CATEGORIES);
-    expect(catalog.plugins).toHaveLength(BUNDLED_PLUGINS.length);
+    expect(catalog.plugins).toHaveLength(PRESENT_BUNDLED.length);
+    expect(catalog.plugins.map((entry) => entry.id)).not.toContain("connect");
     expect(catalog.collections).toEqual([
       {
         id: "bb-official",
         displayName: "BB Official",
-        pluginIds: BUNDLED_PLUGINS.map((plugin) => plugin.pluginId),
+        pluginIds: PRESENT_BUNDLED.map((plugin) => plugin.pluginId),
       },
     ]);
-    for (const plugin of BUNDLED_PLUGINS) {
+    for (const plugin of PRESENT_BUNDLED) {
       const entry = catalog.plugins.find(
         (candidate) =>
           isBundledMarketplaceEntry(candidate) &&

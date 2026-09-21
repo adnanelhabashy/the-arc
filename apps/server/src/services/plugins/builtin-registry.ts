@@ -282,6 +282,12 @@ export function resolveBuiltinPluginRootPath(name: string): string {
   });
 }
 
+export function bundledPluginSourcePresent(
+  registration: BundledPluginRegistration,
+): boolean {
+  return existsSync(path.join(registration.rootDir, "package.json"));
+}
+
 export function listBundledPluginRegistrations(): BundledPluginRegistration[] {
   return BUNDLED_PLUGINS.map((plugin) => ({
     ...plugin,

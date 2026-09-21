@@ -20,6 +20,10 @@ import { z } from "zod";
 import { setPluginMachineProviderBridge } from "../../src/services/plugins/plugin-machine-provider-registry.js";
 import { readJson } from "../helpers/json.js";
 import {
+  bundledPluginSourcePresent,
+  listBundledPluginRegistrations,
+} from "../../src/services/plugins/builtin-registry.js";
+import {
   seedEnvironment,
   seedHost,
   seedPrimaryHost,
@@ -30,6 +34,15 @@ import {
 import { withTestHarness } from "../helpers/test-app.js";
 
 const API = "/api/v1";
+
+// Arc excludes the connect plugin (it opens a getbb.app cloud tunnel), so
+// its source is absent from this checkout and the cloud-revocation wiring
+// this test exercises is dormant. The no-connect removal path is covered by
+// "revokes host credentials..." above.
+const CONNECT_SOURCE_PRESENT = listBundledPluginRegistrations().some(
+  (registration) =>
+    registration.name === "connect" && bundledPluginSourcePresent(registration),
+);
 
 afterEach(() => {
   setPluginMachineProviderBridge(undefined);
@@ -513,7 +526,9 @@ describe("public host management", () => {
     });
   });
 
-  it("asks the connect plugin to revoke the removed host's cloud machine", async () => {
+  it.skipIf(!CONNECT_SOURCE_PRESENT)(
+    "asks the connect plugin to revoke the removed host's cloud machine",
+    async () => {
     await withTestHarness(async (harness) => {
       const primary = seedHost(harness.deps, { id: "host_primary" });
       seedPrimaryHost(harness.deps, primary.id);
