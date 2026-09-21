@@ -185,6 +185,9 @@ const CACHE_OWNER_QUERY_KEY_IMPORTS: CacheOwnerQueryKeyImportRegistry = {
   ],
   "hooks/cache-owners/skills-cache-effects.ts": ["projectSkillsQueryKey"],
   "hooks/cache-owners/system-cache-effects.ts": [
+    "allArcCurrentAgentUsageQueryKeyPrefix",
+    "arcAccountsQueryKey",
+    "arcStatusQueryKey",
     "allEnvironmentDiffFilesQueryKeyPrefix",
     "allEnvironmentDiffPatchQueryKeyPrefix",
     "allEnvironmentFilePreviewQueryKeyPrefix",
