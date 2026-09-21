@@ -9,7 +9,10 @@ import {
   ARC_RUNTIME_COMPATIBILITY_POLICY,
   evaluateArcRuntimeCompatibility,
 } from "../arc-runtime/compatibility.js";
-import { readArcRuntimeManifest } from "../arc-runtime/manifest.js";
+import {
+  readArcRuntimeManifest,
+  type ArcRuntimeManifestReadResult,
+} from "../arc-runtime/manifest.js";
 import type { ArcRuntimePaths } from "../arc-runtime/paths.js";
 import {
   ARC_CLAUDE_CODE_RELEASE,
@@ -43,6 +46,13 @@ import {
   type ArcAgentRuntimeStatus,
   type ArcAgentStatus,
 } from "./types.js";
+
+// Update discovery is a deliberate, user-initiated check against public
+// release endpoints. The answer changes when the vendor publishes, not while
+// a user clicks, so a bounded reuse window removes repeated identical calls
+// (and GitHub's unauthenticated rate limit) without hiding a real release for
+// long; an update or rollback invalidates it immediately.
+const UPDATE_DISCOVERY_TTL_MS = 10 * 60 * 1_000;
 
 // Provider health is not yet queryable from the desktop layer without
 // coupling to BB internals, so the default source reports "unknown" rather
@@ -107,6 +117,19 @@ export class ArcAgentManager {
   private readonly verifyCodeSignature: PrepareManagedClaudeCodeArgs["verifyCodeSignature"];
   private readonly fetchLatestRelease: FetchLatestArcRuntimeRelease | undefined;
   private readonly inFlight = new Map<ArcAgentId, Promise<void>>();
+  // Update discovery is the one read-shaped path that spends real external
+  // requests (api.github.com / downloads.claude.ai). A release does not change
+  // minute to minute, so a discovery is reused for a bounded window and
+  // invalidated by the update/rollback that changes the answer. Concurrent
+  // checks for the same runtime share one call.
+  private readonly updateDiscoveries = new Map<
+    ArcRuntimeId,
+    { at: number; value: ArcRuntimeUpdateDiscovery }
+  >();
+  private readonly updateDiscoveryInFlight = new Map<
+    ArcRuntimeId,
+    Promise<ArcRuntimeUpdateDiscovery>
+  >();
 
   constructor(args: ArcAgentManagerArgs) {
     this.createdByArcVersion = args.createdByArcVersion;
@@ -130,12 +153,21 @@ export class ArcAgentManager {
   // race with an in-flight operation; the atomic manifest write means they
   // observe the manifest before or after, never a torn state.
   async listArcAgents(): Promise<ArcAgentStatus[]> {
+    // One manifest read backs every row. The file is the single source of
+    // truth for all three runtimes, so reading it per agent was three
+    // identical disk reads for one answer.
+    const manifestResult = await this.readManifest();
     return Promise.all(
-      ARC_AGENT_CATALOG.map((descriptor) => this.getArcAgent(descriptor.id)),
+      ARC_AGENT_CATALOG.map((descriptor) =>
+        this.getArcAgent(descriptor.id, manifestResult),
+      ),
     );
   }
 
-  async getArcAgent(id: ArcAgentId): Promise<ArcAgentStatus> {
+  async getArcAgent(
+    id: ArcAgentId,
+    manifestResult?: ArcRuntimeManifestReadResult,
+  ): Promise<ArcAgentStatus> {
     const descriptor = getArcAgentDescriptor(id);
     if (descriptor === undefined) {
       throw new ArcAgentError("unsupported-agent", `unknown Arc agent "${id}"`);
@@ -145,6 +177,7 @@ export class ArcAgentManager {
     const runtime = await this.resolveRuntimeStatus(
       descriptor.runtimeId,
       preparing,
+      manifestResult,
     );
     const providerState = await this.providerStatusSource.getProviderStatus(
       descriptor.providerId,
@@ -240,11 +273,40 @@ export class ArcAgentManager {
     if (descriptor === undefined) {
       throw new ArcAgentError("unsupported-agent", `unknown Arc agent "${id}"`);
     }
-    const manifestResult = await readArcRuntimeManifest({
-      createdByArcVersion: this.createdByArcVersion,
-      manifestPath: this.runtimePaths.manifestPath,
-      platform: this.platform,
-    });
+    // A status read must not race the operation that is changing the runtime:
+    // wait for it, then discover against the manifest it left behind. This
+    // also stops a click during an update from spending a second request.
+    const running = this.inFlight.get(id);
+    if (running !== undefined) await running.catch(() => undefined);
+
+    const cached = this.updateDiscoveries.get(descriptor.runtimeId);
+    if (cached !== undefined && this.now() - cached.at < UPDATE_DISCOVERY_TTL_MS) {
+      return cached.value;
+    }
+    const inFlight = this.updateDiscoveryInFlight.get(descriptor.runtimeId);
+    if (inFlight !== undefined) return inFlight;
+
+    const pending = this.discoverUpdate(descriptor.runtimeId)
+      .then((value) => {
+        this.updateDiscoveries.set(descriptor.runtimeId, {
+          at: this.now(),
+          value,
+        });
+        return value;
+      })
+      .finally(() => {
+        if (this.updateDiscoveryInFlight.get(descriptor.runtimeId) === pending) {
+          this.updateDiscoveryInFlight.delete(descriptor.runtimeId);
+        }
+      });
+    this.updateDiscoveryInFlight.set(descriptor.runtimeId, pending);
+    return pending;
+  }
+
+  private async discoverUpdate(
+    runtimeId: ArcRuntimeId,
+  ): Promise<ArcRuntimeUpdateDiscovery> {
+    const manifestResult = await this.readManifest();
     const manifest =
       manifestResult.kind === "unsupported-version"
         ? null
@@ -256,10 +318,18 @@ export class ArcAgentManager {
       );
     }
     return discoverArcRuntimeUpdate({
-      runtimeId: descriptor.runtimeId,
+      runtimeId,
       manifest,
       runtimePaths: this.runtimePaths,
       fetchLatestRelease: this.fetchLatestRelease,
+    });
+  }
+
+  private readManifest(): Promise<ArcRuntimeManifestReadResult> {
+    return readArcRuntimeManifest({
+      createdByArcVersion: this.createdByArcVersion,
+      manifestPath: this.runtimePaths.manifestPath,
+      platform: this.platform,
     });
   }
 
@@ -303,6 +373,9 @@ export class ArcAgentManager {
           id === "claude-code" ? defaultVerifyCodeSignature : undefined,
       });
     });
+    // The runtime just changed: the cached "latest release" answer for it is
+    // no longer the answer.
+    this.updateDiscoveries.delete(descriptor.runtimeId);
     const agent = await this.getArcAgent(id);
     return {
       outcome: outcome ?? {
@@ -338,6 +411,7 @@ export class ArcAgentManager {
         now: this.now,
       });
     });
+    this.updateDiscoveries.delete(descriptor.runtimeId);
     const agent = await this.getArcAgent(id);
     return {
       outcome: outcome ?? {
@@ -410,12 +484,9 @@ export class ArcAgentManager {
   private async resolveRuntimeStatus(
     runtimeId: ArcRuntimeId,
     preparing: boolean,
+    manifestResult?: ArcRuntimeManifestReadResult,
   ): Promise<ArcAgentRuntimeStatus> {
-    const manifestResult = await readArcRuntimeManifest({
-      createdByArcVersion: this.createdByArcVersion,
-      manifestPath: this.runtimePaths.manifestPath,
-      platform: this.platform,
-    });
+    manifestResult ??= await this.readManifest();
 
     if (manifestResult.kind === "unsupported-version") {
       return {

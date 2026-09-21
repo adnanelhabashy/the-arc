@@ -25,6 +25,11 @@ interface LoginSession {
 // pending session cannot pin the single-flight slot forever.
 const PENDING_LOGIN_TTL_MS = 10 * 60 * 1_000;
 
+export interface ArcAccountInventory {
+  accounts: ArcAccount[];
+  sources: ArcAccountSourceStatus[];
+}
+
 export interface ArcAccountServiceArgs {
   sources: ArcAccountSource[];
   now?: () => number;
@@ -57,6 +62,7 @@ export class ArcAccountService {
     ArcAccountLoginProvider,
     Promise<LoginSession>
   >();
+  private inventoryInFlight: Promise<ArcAccountInventory> | null = null;
 
   constructor(args: ArcAccountServiceArgs) {
     this.sources = args.sources;
@@ -74,10 +80,26 @@ export class ArcAccountService {
 
   // Same read plus per-source health. An "unavailable" source means its
   // accounts could not be queried — UNKNOWN != EMPTY.
-  async listArcAccountsDetailed(): Promise<{
-    accounts: ArcAccount[];
-    sources: ArcAccountSourceStatus[];
-  }> {
+  //
+  // Single-flight, not a TTL cache: one UI frame reads this inventory several
+  // times at once (`arc.accounts.list` plus every row of `arc.agents.list`,
+  // where Codex and Claude Code both resolve through the pool), so concurrent
+  // callers share one read. A read that follows the previous one still
+  // observes the source's current state — freshness is never traded for
+  // coalescing.
+  async listArcAccountsDetailed(): Promise<ArcAccountInventory> {
+    const existing = this.inventoryInFlight;
+    if (existing !== null) return existing;
+    const pending = this.readInventory().finally(() => {
+      if (this.inventoryInFlight === pending) {
+        this.inventoryInFlight = null;
+      }
+    });
+    this.inventoryInFlight = pending;
+    return pending;
+  }
+
+  private async readInventory(): Promise<ArcAccountInventory> {
     const results = await Promise.all(
       this.sources.map(
         async (
@@ -145,21 +167,23 @@ export class ArcAccountService {
   }
 
   async setAccountEnabled(id: string, enabled: boolean): Promise<ArcAccount> {
-    return this.forSource(id, (source, sourceId) =>
+    const account = await this.forSource(id, (source, sourceId) =>
       source.setAccountEnabled(sourceId, enabled),
     );
+    return account;
   }
 
   async removeAccount(id: string): Promise<void> {
-    return this.forSource(id, (source, sourceId) =>
+    await this.forSource(id, (source, sourceId) =>
       source.removeAccount(sourceId),
     );
   }
 
   async setAccountPriority(id: string, priority: number): Promise<ArcAccount> {
-    return this.forSource(id, (source, sourceId) =>
+    const account = await this.forSource(id, (source, sourceId) =>
       source.setAccountPriority(sourceId, priority),
     );
+    return account;
   }
 
   // Explicit priority order for one provider family. Only sources that
@@ -182,7 +206,7 @@ export class ArcAccountService {
         `no account source supports reordering for ${providerFamily}`,
       );
     }
-    return reorderable.reorderAccounts(providerFamily, orderedSourceIds);
+    await reorderable.reorderAccounts(providerFamily, orderedSourceIds);
   }
 
   // Per-agent account readiness based on the sources that actually back the

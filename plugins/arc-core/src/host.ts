@@ -61,6 +61,10 @@ export interface CreateArcServiceHostArgs {
   platform?: string;
   env?: NodeJS.ProcessEnv;
   instanceId?: string;
+  // Fired when a background measurement fill changed what a usage read would
+  // serve. The plugin turns it into the renderer-visible change signal; the
+  // domain layer itself never publishes.
+  onUsageMeasurementsChanged?: () => void;
 }
 
 export function createArcServiceHost(
@@ -109,6 +113,7 @@ export function createArcServiceHost(
         gateway: { getCurrentThreadContext: async () => null },
       }),
     ],
+    onMeasurementsChanged: args.onUsageMeasurementsChanged,
   });
   return { agents, accounts, usage, ompAccounts: ompSource };
 }

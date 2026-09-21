@@ -442,6 +442,8 @@ export class OmpAccountSource implements ArcAccountSource {
   private snapshotCache: { at: number; snapshot: OmpSnapshot } | null = null;
   private registryCache: { at: number; providers: ArcOmpProvider[] } | null =
     null;
+  private registryInFlight: Promise<ArcOmpProvider[]> | null = null;
+  private snapshotInFlight: Promise<OmpSnapshot> | null = null;
   private readonly loginSessions = new Map<string, LoginSessionState>();
 
   constructor(args: OmpAccountSourceArgs) {
@@ -882,6 +884,10 @@ export class OmpAccountSource implements ArcAccountSource {
     const broker = this.brokerPromise;
     this.brokerPromise = null;
     this.snapshotCache = null;
+    // The provider registry is read from the same OMP state the broker
+    // serves: after a shutdown the cached list is no longer known to be
+    // current, so it is dropped rather than left to expire on its own.
+    this.registryCache = null;
     if (broker === null) return;
     const session = await broker.catch(() => null);
     if (session === null) return;
@@ -944,6 +950,24 @@ export class OmpAccountSource implements ArcAccountSource {
     ) {
       return this.registryCache.providers;
     }
+    // Single-flight: after the TTL expires, concurrent readers (the account
+    // inventory and the provider list are read in the same frame) must share
+    // one `omp auth-broker list` child instead of spawning one each.
+    const inFlight = this.registryInFlight;
+    if (inFlight !== null) return inFlight;
+    const pending = this.spawnRegistry()
+      .then((providers) => {
+        this.registryCache = { at: this.now(), providers };
+        return providers;
+      })
+      .finally(() => {
+        if (this.registryInFlight === pending) this.registryInFlight = null;
+      });
+    this.registryInFlight = pending;
+    return pending;
+  }
+
+  private async spawnRegistry(): Promise<ArcOmpProvider[]> {
     const runtime = await this.requireRuntime();
     const child = this.requireSpawn()({
       argv: ["auth-broker", "list", "--json"],
@@ -990,7 +1014,6 @@ export class OmpAccountSource implements ArcAccountSource {
         },
       ];
     });
-    this.registryCache = { at: this.now(), providers };
     return providers;
   }
 
@@ -1001,6 +1024,23 @@ export class OmpAccountSource implements ArcAccountSource {
     ) {
       return this.snapshotCache.snapshot;
     }
+    // Single-flight for the same reason as the registry: a TTL expiry must
+    // not turn N concurrent readers into N broker round trips.
+    const inFlight = this.snapshotInFlight;
+    if (inFlight !== null) return inFlight;
+    const pending = this.fetchSnapshot()
+      .then((snapshot) => {
+        this.snapshotCache = { at: this.now(), snapshot };
+        return snapshot;
+      })
+      .finally(() => {
+        if (this.snapshotInFlight === pending) this.snapshotInFlight = null;
+      });
+    this.snapshotInFlight = pending;
+    return pending;
+  }
+
+  private async fetchSnapshot(): Promise<OmpSnapshot> {
     const broker = await this.ensureBroker();
     let payload: unknown;
     try {
@@ -1012,7 +1052,6 @@ export class OmpAccountSource implements ArcAccountSource {
       );
     }
     const snapshot = mapSnapshot(payload);
-    this.snapshotCache = { at: this.now(), snapshot };
     return snapshot;
   }
 

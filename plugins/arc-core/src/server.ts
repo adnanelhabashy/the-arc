@@ -74,6 +74,10 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
       config,
       serverOrigin: bb.server.loopbackBaseUrl,
       instanceId,
+      // A background usage measurement fill (a read that found a stale
+      // measurement) becomes a real change signal, so every surface refreshes
+      // without polling and without any of them forcing a provider fetch.
+      onUsageMeasurementsChanged: () => publish("usage"),
     });
     return host;
   };
@@ -181,6 +185,16 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
     ).catch(() => {});
   };
 
+  // Which accounts exist, are enabled, and are connected is the identity the
+  // usage resources hang off. Arc performed the mutation, so it invalidates
+  // the usage cache in the same instant rather than waiting for a TTL to
+  // expire: a removed or disabled account must never keep serving its last
+  // reading. The account inventory itself needs no invalidation — it is read
+  // through to its source and only ever coalesced while a read is in flight.
+  const invalidateAccountDependentState = (): void => {
+    host?.usage.invalidateUsage();
+  };
+
   bb.rpc.register(arcRpcContract, {
     "arc.status": () => ({
       arcAvailable: config !== null,
@@ -233,12 +247,16 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
     },
     "arc.accounts.setEnabled": async ({ id, enabled }) => {
       const account = await requireHost().accounts.setAccountEnabled(id, enabled);
+      invalidateAccountDependentState();
       publish("accounts");
+      publish("usage");
       return { account };
     },
     "arc.accounts.remove": async ({ id }) => {
       await requireHost().accounts.removeAccount(id);
+      invalidateAccountDependentState();
       publish("accounts");
+      publish("usage");
       return { ok: true as const };
     },
     "arc.accounts.reorder": async ({ family, orderedIds }) => {
@@ -249,10 +267,20 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
     "arc.login.openai.start": async () => ({
       challenge: await requireHost().accounts.startOpenAiLogin(),
     }),
-    "arc.login.openai.poll": async ({ sessionId }) => ({
-      poll: await requireHost().accounts.pollOpenAiLogin(sessionId),
-      state: requireHost().accounts.getLoginState("openai"),
-    }),
+    "arc.login.openai.poll": async ({ sessionId }) => {
+      const accounts = requireHost().accounts;
+      const poll = await accounts.pollOpenAiLogin(sessionId);
+      const state = accounts.getLoginState("openai");
+      // A terminal poll means the pool gained (or failed to gain) an account;
+      // the pending session is already dropped, so this runs exactly once per
+      // finished login.
+      if (state === "idle") {
+        invalidateAccountDependentState();
+        publish("accounts");
+        publish("usage");
+      }
+      return { poll, state };
+    },
     "arc.login.openai.cancel": async ({ sessionId }) => {
       await requireHost().accounts.cancelOpenAiLogin(sessionId);
       publish("accounts");
@@ -266,7 +294,9 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
         sessionId,
         code,
       );
+      invalidateAccountDependentState();
       publish("accounts");
+      publish("usage");
       return { account };
     },
     "arc.omp.providers": async () => ({
@@ -275,9 +305,16 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
     "arc.omp.login.start": async ({ provider }) => ({
       challenge: await requireHost().accounts.startOmpProviderLogin(provider),
     }),
-    "arc.omp.login.poll": async ({ sessionId }) => ({
-      poll: await requireHost().accounts.pollOmpProviderLogin(sessionId),
-    }),
+    "arc.omp.login.poll": async ({ sessionId }) => {
+      const accounts = requireHost().accounts;
+      const poll = await accounts.pollOmpProviderLogin(sessionId);
+      if (poll.state !== "waiting-for-user") {
+        invalidateAccountDependentState();
+        publish("accounts");
+        publish("usage");
+      }
+      return { poll };
+    },
     "arc.omp.login.cancel": async ({ sessionId }) => {
       await requireHost().accounts.cancelOmpProviderLogin(sessionId);
       publish("accounts");
@@ -292,17 +329,21 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
       requireHost().usage.getCurrentAgentUsage({ agentId, activeAccountKey }),
     "arc.usage.refresh": async ({ resourceId }) => {
       const host = requireHost();
-      const snapshot =
-        resourceId === undefined
-          ? await host.usage.refreshAllUsage()
-          : {
-              ...(await host.usage.listUsageResources()),
-              resources: [
-                await host.usage.refreshUsageResource(resourceId),
-              ],
-            };
+      if (resourceId === undefined) {
+        const snapshot = await host.usage.refreshAllUsage();
+        publish("usage");
+        return snapshot;
+      }
+      // One inventory backs both the snapshot the renderer receives and the
+      // resource being refreshed — the previous shape re-listed every source
+      // twice for a single click.
+      const inventory = await host.usage.listUsageResources();
+      const refreshed = await host.usage.refreshUsageResource(resourceId, {
+        force: true,
+        inventory,
+      });
       publish("usage");
-      return snapshot;
+      return { ...inventory, resources: [refreshed] };
     },
   });
 }
