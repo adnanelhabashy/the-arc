@@ -275,7 +275,11 @@ describe("Phase 10.1 login stability", () => {
           instructions: null,
           expiresAt: null,
         }),
-        ompPoll: vi.fn().mockResolvedValue({ state: "waiting-for-user", account: null, message: null }),
+        // The poll never settles: the subject here is the untimed-session
+        // expiry, and a poll result arriving mid-test replaces the challenge,
+        // re-arming the expiry timer after the clock has already moved. That
+        // race made this test pass or fail depending on load.
+        ompPoll: vi.fn().mockImplementation(() => new Promise(() => {})),
       });
       renderPicker([provider({ authMethod: "oauth" })]);
 

@@ -137,7 +137,7 @@ export class ArcUsageService {
   private readonly onMeasurementsChanged: (() => void) | undefined;
   private readonly cache = new Map<string, CacheEntry>();
   private inventoryInFlight: Promise<ArcUsageSnapshot> | null = null;
-  private readonly measurementFills = new Map<string, Promise<void>>();
+  private readonly measurementFills = new Map<string, Promise<unknown>>();
 
   constructor(args: ArcUsageServiceArgs) {
     this.sources = args.sources;
@@ -339,7 +339,7 @@ export class ArcUsageService {
   // every mounted surface refetch N times.
   private scheduleMeasurementFill(snapshot: ArcUsageSnapshot): void {
     const now = this.now();
-    const started: Promise<void>[] = [];
+    const started: Promise<unknown>[] = [];
     for (const resource of snapshot.resources) {
       if (resource.sourceKind === "thread") continue;
       const entry = this.cache.get(resource.id);
