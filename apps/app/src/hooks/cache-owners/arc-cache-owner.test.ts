@@ -7,6 +7,7 @@ import {
   invalidateArcChangedKind,
   invalidateArcStatus,
   invalidateArcUsage,
+  handleArcPluginSignal,
   readArcChangedKind,
 } from "./arc-cache-owner";
 import {
@@ -102,6 +103,44 @@ describe("arc cache invalidation", () => {
         arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus"),
       ),
     ).toBe(false);
+  });
+
+  it("invalidates from the signal the app receives over the socket", () => {
+    const { queryClient } = createQueryClientTestHarness();
+    queryClient.setQueryData(arcAccountsQueryKey(), { accounts: [] });
+    queryClient.setQueryData(
+      arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus"),
+      { resources: [] },
+    );
+
+    handleArcPluginSignal(queryClient, {
+      channel: ARC_CHANGED_CHANNEL,
+      payload: { kind: "accounts" },
+    });
+
+    expect(stateOf(queryClient, arcAccountsQueryKey())).toBe(true);
+    expect(
+      stateOf(
+        queryClient,
+        arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus"),
+      ),
+    ).toBe(true);
+  });
+
+  it("ignores a signal that belongs to another channel or plugin", () => {
+    const { queryClient } = createQueryClientTestHarness();
+    queryClient.setQueryData(arcAccountsQueryKey(), { accounts: [] });
+
+    handleArcPluginSignal(queryClient, {
+      channel: "mc-changed",
+      payload: { kind: "accounts" },
+    });
+    handleArcPluginSignal(queryClient, {
+      channel: ARC_CHANGED_CHANNEL,
+      payload: null,
+    });
+
+    expect(stateOf(queryClient, arcAccountsQueryKey())).toBe(false);
   });
 
   it("reads the change kind out of a plugin signal payload", () => {

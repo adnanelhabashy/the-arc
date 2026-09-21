@@ -563,3 +563,57 @@ Status: **Accepted** (Phase 13)
 Deliberately out of scope: re-testing runtime management, account routing, or OMP behavior in depth. Those already have extensive suites of their own across `packages/arc-domains`, `plugins/account-pool`, and `plugins/provider-acp` (ADR-061 through ADR-084), which already run in CI on every PR including a sync PR; duplicating that coverage here would be redundant rather than safer, and would make this file a second, drifting source of truth for behavior the original suites already own.
 
 Also deliberately out of scope: a tree-wide regex scan for every historical mention of `get-bb/bb` or `dev.bb.desktop` with an allowlist for legitimate ones (the pattern `scripts/check-provider-literal-ratchet.mjs` uses for provider-id literals). That mechanism exists because provider-id literals are genuinely scattered across core by design and need per-file tracking. Arc's release identity is not scattered — it lives in a small, known set of files. The forbidden-regression checks (`dev.bb.desktop`, `get-bb/bb/releases/download`) are scoped to exactly that curated file list, so a legitimate historical mention in an ADR, a doc, or `mobile-e2e.yml`/`marketplace-v2-live.yml`'s own get-bb/bb-only scheduled-job gates (real BB-upstream CI concerns, not Arc release targets) never fails the suite. Confirmed live while writing it: this scope caught a real, pre-existing gap — `build-desktop.yml`'s stable-channel publish job had no repository guard matching the one `publish-bb-app.yml`'s nightly job already had (Phase 12), and its step summary hardcoded `get-bb/bb` release-feed URLs that the job does not actually configure (it never sets `ARC_DESKTOP_UPDATE_FEED_BASE_URL`, so the packaged stable build already shipped with no feed at all, fail-closed per ADR-084 — the summary text was simply wrong, not a live endpoint). Fixed in the same phase: the guard now matches the nightly pattern exactly (fail loud outside `adnanelhabashy/the-arc`, explicit `GH_REPO`), and the summary states the actual fail-closed behavior instead of a URL nothing publishes to.
+
+## ADR-087 A usage read serves Arc's last known measurement; it never fetches a provider
+
+Status: **Accepted** (Phase 14)
+
+`ArcUsageService.listUsageResources` is a cheap metadata inventory plus the per-resource last-good cache. Its `withCache` early-returned for any status other than `available`/`unavailable`, and both list-based sources (pool, OMP) return exactly `status: "unknown"` with no windows — the numbers live behind a separate `fetch`. The cache was therefore never overlaid onto a listing, so every read reported "unknown" with zero windows even when Arc held a real measurement. Verified against the running installed app before the change: `provider-usage.v1.getResource` for the Plus account returned `status: ok`, plan "Plus" and two windows, while `arc.usage.current` for `codex` returned `status: "unknown"` with no windows for the same resource id.
+
+Decision: a read overlays the cached measurement onto the fresh listing. Identity always comes from the listing (`accountKey`, `accountSourceId`, `providerFamily`, `providerLabel`, `agentIds`, `credentialDisabled`, `sources`), so an identity the source no longer asserts is never claimed; measurement fields always come from the cache (`windows`, `observedAt`, `status`, `unavailableReason`, `message`, and the presentation fields the measurement itself produced, `accountEmail`/`planLabel`). A resource with no cached measurement stays `"unknown"` with no windows, so UNKNOWN != ZERO (ADR-064) is untouched.
+
+Consequence: Mission Control's Usage page no longer has to force a provider fetch on every mount to show anything (it called `refreshAll()` — five forced vendor calls per visit, measured at ~4.9s), and the in-thread usage card shows the last known reading instead of nothing.
+
+## ADR-088 Measurement freshness is the source's policy; Arc fills in the background and never blocks a read
+
+Status: **Accepted** (Phase 14)
+
+A read must not wait on a vendor call, and Arc must not outpace the cache underneath it. The pool already refreshes quota on its own 5-minute interval (`DEFAULT_USAGE_REFRESH_INTERVAL_MS`, `hub.ts`) and OMP has its own usage caching; `provider-usage.v1.getResource` with `refresh: false` therefore answers from the pool's cache in the common case.
+
+Decision: when a listed resource's cached measurement is past its bound — 5 minutes for a good reading (matching the pool's own interval), 1 minute for an errored or non-available one — the read schedules a background fill for that resource, one fill per resource id, non-forcing (`source.fetch(id, false)`), and reports through `onMeasurementsChanged` so arc-core publishes `arc-changed`. The read itself returns immediately with what Arc already has. A provider that does not expose usage at all (`unavailable`/`not-exposed`) is a stable property, not staleness: it is only re-read on an explicit request.
+
+Only the user's explicit Refresh/Retry forces (`source.fetch(id, true)`). `stale` keeps its existing meaning — "the last refresh attempt failed, this is last-good" — and age is shown from `fetchedAt`; the two are not conflated.
+
+## ADR-089 Each cached domain has one owner, one key, and one invalidation path
+
+Status: **Accepted** (Phase 14)
+
+| Domain | Authoritative source | Backend cache | Renderer cache |
+|---|---|---|---|
+| Accounts | account-pool plugin (KV + sqlite) / OMP broker | none — read-through, single-flight only | `[arcAccounts]` (30s stale), Mission Control local state |
+| Usage | pool `QuotaStore` / OMP broker | `ArcUsageService` last-good, keyed `resource.id` (embeds account identity) | `[arcCurrentAgentUsage, agentId, accountKey]` (15s stale), Mission Control local state |
+| Runtime status | the runtime manifest on disk | none — read-through | Mission Control `useArcAgents` |
+| Runtime updates | api.github.com / downloads.claude.ai | single-flight + 10-minute reuse window | Mission Control (deliberate click) |
+| OMP providers | OMP broker + `omp auth-broker list` | 60s TTL + single-flight | Mission Control local state |
+| Plugins | plugin service | marketplace manifest cache (unchanged) | `[plugin-list]` (30s) + `plugins-changed` |
+| Thread account | `threads.account_key` in the DB | none | `[thread, id]`, with usage keyed by accountKey |
+
+No domain shares another's cache and there is no global Arc cache (plan Step 13). Every account-scoped key embeds account identity, so one account's reading can never be served for another: the renderer key is `(agentId, accountKey)` and the backend resource id is `pool:<family>:<rowId>` / `omp:<provider>:<credentialId>`. `packages/arc-domains/test/arc-usage-refresh-policy.test.ts` proves the isolation, the eviction of a resource a healthy source no longer lists (a source outage never evicts another source's data), and that a late measurement for one account cannot land on another.
+
+Invalidation is event-driven wherever Arc knows the truth changed: account add/remove/enable/disable/reorder and login completion drop the usage cache (the account list needs none — it is read through), the update/rollback that changes a runtime drops its discovery, an OMP shutdown drops the provider registry, and the renderer invalidates from `arc-changed` by kind (accounts/omp → accounts + usage, usage → usage). A TTL is never the only mechanism for a mutation Arc performed.
+
+## ADR-090 Coalescing concurrent reads is single-flight, never a TTL
+
+Status: **Accepted** (Phase 14)
+
+The account inventory is read several times in one UI frame (`arc.accounts.list` plus every row of `arc.agents.list`, where Codex and Claude Code both resolve through the pool — three concurrent reads of one truth, each its own pool RPC), and the usage inventory is re-listed N+1 times by `refreshAllUsage`/single-resource refresh. The first fix attempt added a short TTL to the account inventory; it broke `ArcAccountService`'s existing contract that the read *after* a change observes the change, and was reverted.
+
+Decision: concurrent callers share one in-flight read (single-flight) and nothing is cached on top. A read that follows the previous one still observes the source's current state; a whole `refreshAll` costs one inventory instead of N+1; and one `arc.agents.list` costs one pool `account.list` instead of two. The same rule was applied to the OMP snapshot/registry reads and to update discovery (which additionally reuses its answer for 10 minutes because it is the one read-shaped path that spends real external requests, and is invalidated by the update or rollback that changes it). `checkForUpdate` also waits for an in-flight prepare/update/rollback on the same agent instead of racing it.
+
+## ADR-091 Arc's renderer caches invalidate from Arc Core's own change signal, not from a staleTime
+
+Status: **Accepted** (Phase 14)
+
+`arc-core` already published `arc-changed` after every mutation, but only Mission Control's agents/accounts hooks listened; the app's Arc caches and Mission Control's usage/OMP hooks did not, so a change made on one surface stayed invisible on the other until a staleTime expired. The app also had no reason to refresh on reconnect — Arc's signal is ephemeral and never replayed.
+
+Decision: one cache owner in the app (`hooks/cache-owners/arc-cache-owner.ts`) owns the three Arc invalidations and the channel name; `useWebSocket` subscribes to the plugin channel and invalidates by kind; the Arc keys join the server-reconnect invalidation list; Mission Control's usage and OMP-provider hooks subscribe to the same signal; and switching a thread's account invalidates the agent's cached usage so the previous account's reading cannot be served as current state when the user switches back. The Arc query keys moved into `hooks/queries/query-keys.ts` beside every other key, which is what makes them addressable from the owner and the reconnect list.

@@ -487,6 +487,47 @@ describe("ArcUsageService background measurement fill", () => {
     expect(source.fetchCalls).toEqual([]);
   });
 
+  it("signals once for a burst that fills several resources", async () => {
+    const source = new FakeSource(
+      "pool",
+      [
+        listed({ id: "pool:openai:a1", accountKey: "openai:chatgpt:acc-1" }),
+        listed({
+          id: "pool:openai:a2",
+          accountSourceId: "a2",
+          accountKey: "openai:chatgpt:acc-2",
+        }),
+      ],
+      new Map([
+        ["pool:openai:a1", resource({ accountKey: "openai:chatgpt:acc-1" })],
+        [
+          "pool:openai:a2",
+          resource({ id: "pool:openai:a2", accountKey: "openai:chatgpt:acc-2" }),
+        ],
+      ]),
+    );
+    // Executor form: this package's tsconfig lib predates
+    // Promise.withResolvers.
+    let settled: () => void = () => undefined;
+    const once = new Promise<void>((resolve) => {
+      settled = resolve;
+    });
+    let changed = 0;
+    const service = makeService([source], {
+      onMeasurementsChanged: () => {
+        changed += 1;
+        settled();
+      },
+    });
+
+    await service.listUsageResources();
+    expect(source.fetchCalls).toHaveLength(2);
+    await once;
+    // Two resources filled by one read are one change: publishing per
+    // resource would make every mounted surface refetch once per resource.
+    expect(changed).toBe(1);
+  });
+
   it("shares one fill across concurrent reads", async () => {
     const source = new FakeSource(
       "pool",

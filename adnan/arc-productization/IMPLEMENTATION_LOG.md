@@ -1308,3 +1308,80 @@ No Arc invariant test or typecheck/test suite was run against this state — the
 ### Gate
 
 PASS for everything authorized without approval: audit, remote push-safety fix, sync-workflow documentation, Arc invariant suite (with a real gap it found and fixed), and a real controlled upstream merge test that surfaced genuine conflict scope without touching `self-contained` or requiring any upstream code to run. **Not done, by design, pending human approval**: resolving the 111 conflicts and merging `upstream-sync/7c54dbf7d` (or its resolved successor) into `self-contained`. `arc-version.json`'s `bbUpstreamCommit` was left untouched — Step 10 is explicit that fetching and test-merging upstream never updates it, only an accepted sync does.
+
+## Phase 14 — Refresh, cache & state consistency (2026-09-21)
+
+### Step 0 — Checkpoint
+
+`self-contained` at `2e99c375e` (Phase 13.1), one commit ahead of `the-arc/self-contained`, tree dirty only in two plugins' committed `dist/` artifacts (a previous session's rebuild — left untouched) plus the untracked `000` symlink and root `server.js` the earlier handoff says to leave alone.
+
+Verification of the checkpoint found a real red guard at HEAD that Phase 13.1 did not cause: the provider-literal ratchet failed with `arc-agent/manager.ts: 6 → 7`, `arc-runtime/manifest.ts: 2 → 5`, and three new files (`apps/desktop/src/main.ts`, `arc-runtime/health.ts`, `arc-runtime/update-discovery.ts`). Root cause: the baseline was authored at `ad695780a` (2026-09-20 14:22) and the Phase 11 managed-runtime update engine (`993008e0c`, 16:11) added those references afterwards. All five are Arc's own product layer naming the three runtimes Arc ships — the same carve-out the baseline already documents for 18 other files — so each new entry was allowlisted with a reason/owner/diesAt and the baseline regenerated (`95 references across 27 core files, all allowlisted`). `@bb/scripts`, `@bb/server` and `@bb/db` tests plus typechecks green; pushed `2e99c375e` + `d09741d61` to `the-arc/self-contained`. The Phase 13 backup app bundle was kept.
+
+### Step 1–2 — Inventory
+
+Three read-only scouts mapped the renderer, the domain/RPC layer, and the provider/plugin usage paths (file:line evidence in their reports). The map that mattered:
+
+| DATA | AUTHORITATIVE SOURCE | CACHE | REFRESH TRIGGER (before) |
+|---|---|---|---|
+| accounts | account-pool plugin (KV + sqlite) / OMP broker | OMP snapshot 5s; app `[arcAccounts]` 30s; MC local state | TTL + mount; MC on `arc-changed` |
+| usage/limits | pool `QuotaStore` (5-min loop) / OMP broker / thread | `ArcUsageService` last-good, keyed `resource.id`; app `[arcCurrentAgentUsage, agent, accountKey]` 15s; MC local state | **none** — no TTL, no invalidation; MC forced `refreshAll()` on every page mount |
+| runtime status | runtime manifest on disk | none | read per agent (3× per list) |
+| runtime updates | api.github.com / downloads.claude.ai | **none** | per click; no single-flight |
+| plugins | plugin service | marketplace manifest (no TTL) | `plugins-changed` + mutations |
+| thread account | `threads.account_key` | none | DB write; no signal |
+| OMP providers | OMP broker + `omp auth-broker list` | registry 60s | TTL only; never invalidated |
+
+Two defects dominated, both found by reading and then confirmed against the running installed app:
+
+1. **`ArcUsageService.withCache` never served the cache it maintains.** It early-returned for any status other than `available`/`unavailable`, and both list-based sources return exactly `status: "unknown"` with no windows (the numbers live behind a separate `fetch`). Live proof, before any change: `provider-usage.v1.getResource` for the Plus account returned `status: ok`, plan "Plus", two windows (`observedAt 1789991222359`), while `arc.usage.snapshot` and `arc.usage.current` for `codex` returned `status: "unknown"` with **0 windows** for the same resource id. Mission Control papered over it with `refreshAll()` on every Usage-page mount — a measured 5 forced vendor calls, ~4.9s per visit — and the in-thread usage card never showed the cached reading at all.
+2. **The app's Arc caches listened to nothing.** `arc-core` published `arc-changed` after every mutation, but only Mission Control's agents/accounts hooks subscribed; the app's caches and MC's usage/OMP hooks did not, and the app had no reason to refresh on reconnect.
+
+A third gap surfaced during live verification: `ProviderUsageSection`'s documented contract (ADR-064) is "an explicit `accountKey` prop sourced from the thread", but its only production call site (`FollowUpPromptBox`) never passed one — so the in-thread usage card could not be account-scoped at all, and the request carried no `activeAccountKey`.
+
+### Step 3–13 — Implementation
+
+Five commits (`368e66ffd`, `8a1dfbc68`, `c260c16b4`, `deaf59ef5`, plus the checkpoint fix `d09741d61`), with the architecture recorded as ADR-087…ADR-091:
+
+- usage reads overlay the cached measurement onto the fresh listing (identity from the listing, numbers from the cache; UNKNOWN != ZERO untouched);
+- a measurement past its bound (5 min good / 1 min errored) schedules a **non-forcing background fill**, one per resource, signalling once per burst, instead of blocking the read or forcing a vendor call — only the user's explicit Refresh forces;
+- `invalidateUsage()` drops cached measurements for account add/remove/enable/disable/reorder and login completion, and a healthy source evicts a resource it no longer lists (a source outage never evicts another source's data);
+- concurrent reads share one source inventory (single-flight, **never** a TTL — a TTL on the account inventory was tried first, broke the existing "the next read observes the change" contract, and was reverted);
+- the agent manager reads the runtime manifest once per agents list, and update discovery is single-flight with a 10-minute reuse window, invalidated by the update/rollback that changes it, and waits for an in-flight operation on the same agent instead of racing it;
+- the OMP source single-flights its snapshot and registry reads and drops the registry on shutdown;
+- the app gets one Arc cache owner, subscribes to `arc-changed` (accounts/omp → accounts + usage, usage → usage), joins the reconnect invalidation list, and invalidates usage when a thread's account changes; the in-thread Refresh now forces only the resources that panel shows;
+- Mission Control's usage and OMP-provider hooks subscribe to the same signal, and the Usage page no longer forces anything on mount;
+- the composer now passes the thread's `accountKey` down to the usage card.
+
+No secret reaches any of these caches: they carry `accountKey`/`identityKey`, display name, plan, auth state, quota windows and timestamps only; the react-query cache is in-memory (no persister, no localStorage), and the new realtime signal carries only `{kind}`.
+
+### Step 14–15 — Tests and measurements
+
+37 new/changed cases: usage read policy, background fill (non-forcing, staleness-gated, single-flight, burst-coalesced, not re-filled for a provider that exposes none), account-switch race, account-inventory single-flight and freshness, update-discovery cache/invalidation, the Arc cache-owner mapping (including foreign-channel signals), account-scoped query keys, reconnect invalidation, and the panel's Refresh scope. `packages/arc-domains`: 397 passed / 12 skipped (was 372). `@bb/app`: 561 files / 5094 passed.
+
+Measured on the installed app, before → after:
+
+| Measurement | Before | After |
+|---|---|---|
+| `arc.usage.current` for the Plus account | `status: unknown`, 0 windows (while the pool held 2 windows) | `status: available`, 2 windows (0%/2%) |
+| one usage read | — | 0.01s, and 5 consecutive reads left the pool's `observedAt` unchanged (zero vendor calls) |
+| opening Mission Control's Usage page | `arc_usage_refresh {}` → 5 forced vendor calls, ~4.9s | 1 `arc_usage_snapshot` read, **0** forced calls |
+| opening the thread usage card (cold cache) | n/a | 2 `arc.usage.current` (mount + one refetch after the single fill signal), 0 after that; 0 requests over 12s idle |
+| `arc.agents.list` + `arc.accounts.list` | 3 pool `account.list` calls | 1 (single-flight) |
+| repeated "check for update" | 1 GitHub call per click | 1 per 10 minutes, invalidated by an update/rollback |
+
+### Step 9 — Real same-thread account switch (installed app)
+
+Thread `thr_fupu37j3vi` (an empty leftover smoke thread), Plus-bound. Opening its usage card issued `arc.usage.current {"agentId":"codex","activeAccountKey":"openai:chatgpt:3f44bc64…"}` and rendered **only** `ChatGPT · Plus · 00.xcode.00@gmail.com` (five-hour 0%, weekly 2%). `PATCH /api/v1/threads/thr_fupu37j3vi {"accountKey":"openai:chatgpt:63238aa3…"}` → the same card issued the Team key and rendered **only** `ChatGPT · Team · adnan.ahmed@egx.com.eg` (five-hour 0%, weekly 4%), with the Plus numbers gone; switching back to Plus restored the Plus card. One `arc.usage.current` per switch. The thread's binding was restored to Plus afterwards.
+
+### Step 16–17 — Regression and installed-app validation
+
+`@bb/scripts`, `@bb/arc-domains`, `@bb/db`, `bb-plugin-account-pool`, `bb-plugin-arc-core`, `bb-plugin-adnan-mission-control`, `@bb/agent-runtime`, `@bb/app`, `@bb/desktop`, `@bb/client-core` tests and typechecks: green, with two exceptions investigated rather than waved through:
+
+- `@bb/server`: 3 failures in 2 files (`install-machine-script.test.ts`, `server-access.test.ts`). These spawn real daemons and one reaches `machine.getbb.app`; the observed failure is `Abort trap: 6` from a spawned `bb-app host-daemon join` and two 5-second timeouts. `apps/server` is untouched by this phase (the full changed-file list is `packages/arc-domains`, `plugins/arc-core`, `apps/app`, `adnan/plugins/adnan-mission-control` and one baseline JSON), so this is environmental, not a Phase 14 regression.
+- `bb-plugin-adnan-mission-control`: `connect-flows.test.tsx > … OMP login times out` is flaky (fails, passes on re-run); it drives fake timers with real-time waits and fully mocks `@/lib/data`, so Phase 14 cannot affect it.
+
+Built with `pnpm --filter @bb/desktop package` (exit 0, no signing identity on this machine — unchanged from Phase 12) and rebuilt Mission Control's committed `dist/` with `bb plugin build` (BB prefers the prebuilt bundle over source for a path plugin). Deployed to `/Applications/Arc Agent.app` after quitting the running app, keeping `Arc Agent.app.phase14-backup` (and the Phase 13 backup). `~/.bb` untouched: 22 threads and 2 projects before and after the swap, account-pool credentials and quota rows intact, all three managed runtimes resolving.
+
+### Gate
+
+PASS. Every Phase 14 objective is met and verified in the installed app: reads are cheap and current (0.01s, zero vendor calls, measured), no surface forces a provider fetch to display anything, account state is scoped by account identity end to end (proven live for Plus ↔ Team on one thread), mutations invalidate instead of waiting for a TTL, no polling storm exists (0 requests idle over 12s), and the product invariants are intact (Codex/Claude/OMP only, 23 restored BB plugins, connect inert, plugin provenance hardening, per-thread accounts, managed runtimes, Arc update ownership).

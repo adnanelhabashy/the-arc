@@ -37,6 +37,17 @@ export function readArcChangedKind(payload: unknown): string | null {
   return typeof kind === "string" ? kind : null;
 }
 
+// One plugin signal in, one set of invalidations out. A signal for another
+// channel or another plugin is not ours and does nothing.
+export function handleArcPluginSignal(
+  queryClient: QueryClient,
+  signal: { channel: string; payload: unknown },
+): void {
+  if (signal.channel !== ARC_CHANGED_CHANNEL) return;
+  const kind = readArcChangedKind(signal.payload);
+  if (kind !== null) invalidateArcChangedKind(queryClient, kind);
+}
+
 // Mirrors plugins/arc-core/src/realtime.ts's ArcChangedKind. An unknown kind
 // (a newer arc-core, or a malformed payload) invalidates nothing rather than
 // guessing.

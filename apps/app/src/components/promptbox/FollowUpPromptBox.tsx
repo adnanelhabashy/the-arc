@@ -158,6 +158,10 @@ export interface FollowUpPromptBoxProps {
   contextWindowUsage: ContextWindowUsage | null;
   usageProviderId?: string;
   usageModelLabel?: string;
+  // The thread's bound account, when the caller knows it. Undefined (a new
+  // thread, or a composer with no thread) renders "Active account unknown"
+  // rather than showing another account's quota as if it were this thread's.
+  usageAccountKey?: string | null;
   execution: ExecutionControlsProps;
   permission: ExecutionPermissionConfig;
   executionReadOnly?: boolean;
@@ -231,6 +235,7 @@ function FollowUpPromptBoxWithComposer({
   contextWindowUsage,
   usageProviderId,
   usageModelLabel,
+  usageAccountKey,
   execution,
   permission,
   executionReadOnly,
@@ -797,6 +802,7 @@ function FollowUpPromptBoxWithComposer({
                 usage={contextWindowUsage}
                 providerId={usageProviderId}
                 modelLabel={usageModelLabel}
+                accountKey={usageAccountKey}
               />
             ) : null}
           </div>

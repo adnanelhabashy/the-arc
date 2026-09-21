@@ -333,9 +333,13 @@ export class ArcUsageService {
 
   // Asks the owning source for a measurement only where the cached one is
   // past its bound, one fill per resource, never blocking the read and never
-  // throwing. The fill is deliberately non-forcing.
+  // throwing. The fill is deliberately non-forcing, and a burst of fills
+  // signals once: N resources filled by one read are one change as far as
+  // every subscriber is concerned, and publishing per resource would make
+  // every mounted surface refetch N times.
   private scheduleMeasurementFill(snapshot: ArcUsageSnapshot): void {
     const now = this.now();
+    const started: Promise<void>[] = [];
     for (const resource of snapshot.resources) {
       if (resource.sourceKind === "thread") continue;
       const entry = this.cache.get(resource.id);
@@ -345,9 +349,6 @@ export class ArcUsageService {
         force: false,
         inventory: snapshot,
       })
-        .then(() => {
-          this.onMeasurementsChanged?.();
-        })
         .catch((error: unknown) => {
           this.onDiagnostic?.(
             `usage measurement fill for ${resource.id} failed: ${
@@ -361,7 +362,12 @@ export class ArcUsageService {
           }
         });
       this.measurementFills.set(resource.id, fill);
+      started.push(fill);
     }
+    if (started.length === 0) return;
+    void Promise.all(started).then(() => {
+      this.onMeasurementsChanged?.();
+    });
   }
 
   // Resolves what Phase 10's popup needs first: the current thread's
