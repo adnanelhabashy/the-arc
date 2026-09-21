@@ -219,4 +219,22 @@ describe("UsageLimitsPage", () => {
     expect(screen.getByText("Usage limits not exposed by provider")).toBeTruthy();
     expect(screen.queryByText(/% remaining/)).toBeNull();
   });
+
+  it("does not repeat an OMP account's provider label as its plan line", () => {
+    renderUsage([
+      resource({
+        id: "omp:kimi-code:1",
+        sourceKind: "omp",
+        providerLabel: "Kimi Code",
+        planLabel: "Kimi Code",
+        accountEmail: null,
+        agentIds: ["omp"],
+        windows: [percentWindow({ usedPercent: 100, remainingPercent: 0 })],
+        status: "available",
+        fetchedAt: Date.now(),
+      }),
+    ]);
+    expect(screen.getAllByText("Kimi Code")).toHaveLength(1);
+    expect(screen.getByText("0% remaining")).toBeTruthy();
+  });
 });

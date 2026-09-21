@@ -6,123 +6,60 @@
 // good reading marked stale rather than blanking the card.
 import { useEffect, useState } from "react";
 import { useBbNavigate } from "@get-bb/plugin-sdk/app";
-import type { ArcUsageResource, ArcUsageSnapshot, ArcUsageUnit, ArcUsageWindow } from "@/lib/arc-types";
+import type {
+  ArcUsageResource,
+  ArcUsageSnapshot,
+  ArcUsageWindow,
+} from "@/lib/arc-types";
 import { useArcUsage } from "@/lib/data";
 import { EmptyState, relativeTime } from "@/components/common";
+import {
+  percentTone,
+  resetText,
+  resourceStatusText,
+  windowBarPercent,
+  windowValueText,
+} from "@/components/usage-window-format";
 import { cn } from "@/lib/utils";
 
-const UNIT_LABEL: Record<ArcUsageUnit, string> = {
-  percent: "%",
-  tokens: "tokens",
-  requests: "requests",
-  credits: "credits",
-  usd: "",
-  minutes: "min",
-  bytes: "bytes",
-  unknown: "",
-};
-
-function clampPercent(value: number): number {
-  return Math.min(Math.max(value, 0), 100);
-}
-
-function percentTone(usedPercent: number): string {
-  const remaining = 100 - usedPercent;
-  if (remaining < 20) return "bg-red-400";
-  if (remaining <= 50) return "bg-amber-400";
-  return "bg-emerald-400/80";
-}
-
-/** Compact countdown like "2h 14m"; dates beyond 48h render as "Sep 24". */
-function resetText(resetsAt: number, now: number): string {
-  const delta = resetsAt - now;
-  if (delta <= 48 * 60 * 60 * 1_000) {
-    const totalMinutes = Math.max(1, Math.round(delta / 60_000));
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return hours === 0 ? `Resets in ${minutes}m` : `Resets in ${hours}h ${minutes}m`;
-  }
-  return `Resets ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(resetsAt)}`;
-}
-
-function formatRemainingAmount(amount: number, unit: ArcUsageUnit | null): string {
-  if (unit === "usd") return `$${amount.toFixed(2)} remaining`;
-  const label = unit === null || unit === "unknown" ? "" : UNIT_LABEL[unit];
-  return label === "" ? `${amount} remaining` : `${amount} ${label} remaining`;
-}
-
 function WindowRow({ window, now }: { window: ArcUsageWindow; now: number }) {
-  const hasPercent = window.usedPercent !== null || window.remainingPercent !== null;
+  const used = windowBarPercent(window);
+  const value = windowValueText(window);
 
-  if (hasPercent) {
-    const used =
-      window.usedPercent !== null
-        ? clampPercent(window.usedPercent)
-        : window.remainingPercent !== null
-          ? clampPercent(100 - window.remainingPercent)
-          : null;
-    const remaining =
-      window.remainingPercent !== null
-        ? Math.round(window.remainingPercent)
-        : used !== null
-          ? 100 - Math.round(used)
-          : null;
+  // A window with neither a reported fraction nor a known limit renders its
+  // amount alone — a bar there would fabricate a percentage.
+  if (used === null) {
     return (
-      <div className="flex flex-col gap-1">
-        <div className="flex items-baseline justify-between gap-2 text-[12px]">
-          <span className="truncate text-muted-foreground">{window.label}</span>
-          {remaining !== null ? <span className="font-medium tabular-nums">{remaining}% remaining</span> : null}
-        </div>
-        {used !== null ? (
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-            <div className={cn("h-full rounded-full", percentTone(used))} style={{ width: `${used}%` }} />
-          </div>
-        ) : null}
-        {window.resetsAt !== null ? (
-          <span className="text-[11px] tabular-nums text-muted-foreground">{resetText(window.resetsAt, now)}</span>
-        ) : null}
+      <div className="flex items-baseline justify-between gap-2 text-[12px]">
+        <span className="truncate text-muted-foreground">{window.label}</span>
+        {value !== null ? (
+          <span className="font-medium tabular-nums">{value}</span>
+        ) : (
+          <span className="text-muted-foreground">n/a</span>
+        )}
       </div>
     );
   }
 
-  // Amount window with a known limit (e.g. Kimi: 88/100 used): derive the
-  // bar from amounts and keep the reset line. Only a window with no known
-  // limit renders a bare amount — a bar there would fabricate a percentage.
-  if (
-    window.limitAmount !== null &&
-    window.limitAmount > 0 &&
-    window.usedAmount !== null
-  ) {
-    const used = clampPercent((window.usedAmount / window.limitAmount) * 100);
-    const remainingAmount =
-      window.remainingAmount !== null
-        ? window.remainingAmount
-        : Math.max(0, window.limitAmount - window.usedAmount);
-    return (
-      <div className="flex flex-col gap-1">
-        <div className="flex items-baseline justify-between gap-2 text-[12px]">
-          <span className="truncate text-muted-foreground">{window.label}</span>
-          <span className="font-medium tabular-nums">{formatRemainingAmount(remainingAmount, window.unit)}</span>
-        </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-          <div className={cn("h-full rounded-full", percentTone(used))} style={{ width: `${used}%` }} />
-        </div>
-        {window.resetsAt !== null ? (
-          <span className="text-[11px] tabular-nums text-muted-foreground">{resetText(window.resetsAt, now)}</span>
-        ) : null}
-      </div>
-    );
-  }
-
-  // Amount-only window: render the amount + unit, never a percent or a bar.
   return (
-    <div className="flex items-baseline justify-between gap-2 text-[12px]">
-      <span className="truncate text-muted-foreground">{window.label}</span>
-      {window.remainingAmount !== null ? (
-        <span className="font-medium tabular-nums">{formatRemainingAmount(window.remainingAmount, window.unit)}</span>
-      ) : (
-        <span className="text-muted-foreground">n/a</span>
-      )}
+    <div className="flex flex-col gap-1">
+      <div className="flex items-baseline justify-between gap-2 text-[12px]">
+        <span className="truncate text-muted-foreground">{window.label}</span>
+        {value !== null ? (
+          <span className="font-medium tabular-nums">{value}</span>
+        ) : null}
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+        <div
+          className={cn("h-full rounded-full", percentTone(used))}
+          style={{ width: `${used}%` }}
+        />
+      </div>
+      {window.resetsAt !== null ? (
+        <span className="text-[11px] tabular-nums text-muted-foreground">
+          {resetText(window.resetsAt, now)}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -140,7 +77,7 @@ function ResourceBody({
     return (
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] text-red-400">
-          {resource.message ?? "Usage temporarily unavailable"}
+          {resourceStatusText(resource)}
         </span>
         <button
           type="button"
@@ -152,24 +89,12 @@ function ResourceBody({
       </div>
     );
   }
-  if (resource.status === "unavailable") {
-    const label =
-      resource.unavailableReason === "not-exposed"
-        ? "Usage limits not exposed by provider"
-        : resource.unavailableReason === "disabled"
-          ? "Connected · temporarily unavailable"
-          : resource.unavailableReason === "not-connected"
-            ? "Connect an account to see usage"
-            : "Usage temporarily unavailable";
+  if (resource.status !== "available") {
     return (
       <span className="text-[11px] text-muted-foreground">
-        {label}
-        {resource.message !== null && resource.unavailableReason === "not-exposed" ? ` — ${resource.message}` : ""}
+        {resourceStatusText(resource)}
       </span>
     );
-  }
-  if (resource.status === "unknown") {
-    return <span className="text-[11px] text-muted-foreground">Usage unavailable</span>;
   }
 
   const windows = resource.windows;
@@ -199,14 +124,20 @@ function ResourceCard({
   onRetry: () => void;
 }) {
   const navigate = useBbNavigate();
+  // An OMP provider account has no plan or email of its own, so its plan
+  // label is its provider name — printing it under the same title would
+  // repeat the provider twice on one card.
+  const detail = [resource.planLabel, resource.accountEmail]
+    .filter((value) => value !== null && value !== resource.providerLabel)
+    .join(" · ");
   return (
     <article className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
       <div className="flex min-w-0 items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="truncate text-[13px] font-medium">{resource.providerLabel}</div>
-          {resource.planLabel !== null || resource.accountEmail !== null ? (
+          {detail !== "" ? (
             <div className="truncate text-[11px] text-muted-foreground">
-              {[resource.planLabel, resource.accountEmail].filter((value) => value !== null).join(" · ")}
+              {detail}
             </div>
           ) : null}
         </div>

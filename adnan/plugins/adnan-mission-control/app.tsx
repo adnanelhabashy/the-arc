@@ -14,6 +14,7 @@ import { RolesPage } from "@/components/roles";
 import { ApprovalsPage } from "@/components/approvals";
 import { VerificationPage } from "@/components/verification";
 import { UsageLimitsPage } from "@/components/usage-limits";
+import { AccountsUsageDisclosure } from "@/components/accounts-usage-disclosure";
 
 const TABS = [
   { id: "overview", title: "Overview", subPath: "" },
@@ -93,5 +94,17 @@ export default definePluginApp((app) => {
     icon: "Gauge",
     path: "mission-control",
     component: MissionControlShell,
+  });
+  // Arc's own accounts surface in the sidebar. The builtin Provider usage
+  // disclosure stays registered by its own plugin: it aggregates bb usage
+  // sources (pooled accounts, local provider CLIs), while this one shows Arc's
+  // unified accounts — pooled and OMP alike — from the same read model as the
+  // Usage & Limits page and the thread popup.
+  app.experimental_sidebarFooter.register({
+    kind: "disclosure",
+    id: "accounts-usage",
+    label: "Accounts & Usage",
+    icon: "UserRound",
+    component: AccountsUsageDisclosure,
   });
 });
