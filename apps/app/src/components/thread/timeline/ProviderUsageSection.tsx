@@ -73,7 +73,7 @@ export function ProviderUsageSection({
       return (
         <UsageUnavailableLine
           onRefresh={() => {
-            void refreshMutation.mutate();
+            void refreshMutation.mutate([]);
           }}
         />
       );
@@ -91,6 +91,11 @@ export function ProviderUsageSection({
   if (usage.resources.length === 0 && !usage.activeAccountUnknown) {
     return null;
   }
+  // Refresh only what this panel is showing: a Refresh on a Codex thread must
+  // not spend a Claude or OMP vendor request.
+  const refreshShownResources = () => {
+    void refreshMutation.mutate(usage.resources.map((resource) => resource.id));
+  };
 
   // agentId is non-null only for the three known provider IDs, so providerId
   // is defined here.
@@ -101,9 +106,7 @@ export function ProviderUsageSection({
       providerId={knownProviderId}
       usage={usage}
       isFetching={usageQuery.isFetching || refreshMutation.isPending}
-      onRefresh={() => {
-        void refreshMutation.mutate();
-      }}
+      onRefresh={refreshShownResources}
       now={now}
       modelLabel={modelLabel}
     />

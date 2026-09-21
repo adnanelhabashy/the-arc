@@ -216,10 +216,23 @@ export function useArcCurrentAgentUsage({
   });
 }
 
+// The user's explicit refresh. It forces a real provider attempt for exactly
+// the resources the caller is showing: a Refresh on a Codex thread must not
+// spend a Claude or OMP vendor request. An empty list (nothing listed yet)
+// refreshes everything, which is the only case where "what is shown" is
+// unknown.
 export function useArcUsageRefresh() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => arcRpcCall<ArcUsageSnapshot>("arc.usage.refresh", {}),
+    mutationFn: async (resourceIds: readonly string[]) => {
+      const targets = resourceIds.length === 0 ? [undefined] : resourceIds;
+      for (const resourceId of targets) {
+        await arcRpcCall<ArcUsageSnapshot>(
+          "arc.usage.refresh",
+          resourceId === undefined ? {} : { resourceId },
+        );
+      }
+    },
     onSuccess: () => {
       void invalidateArcUsage(queryClient);
     },

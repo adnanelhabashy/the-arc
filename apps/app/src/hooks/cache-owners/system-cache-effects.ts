@@ -2,6 +2,11 @@ import type { QueryKey } from "@tanstack/react-query";
 import type { Environment, Host } from "@bb/domain";
 import type { SystemConfigResponse } from "@bb/server-contract";
 import {
+  allArcCurrentAgentUsageQueryKeyPrefix,
+  arcAccountsQueryKey,
+  arcStatusQueryKey,
+} from "../queries/query-keys";
+import {
   allEnvironmentDiffFilesQueryKeyPrefix,
   allEnvironmentDiffPatchQueryKeyPrefix,
   allEnvironmentFilePreviewQueryKeyPrefix,
@@ -214,6 +219,12 @@ function getServerReconnectInvalidationQueryKeys(): QueryKey[] {
     allSystemProvidersQueryKeyPrefix(),
     allSystemExecutionOptionsQueryKeyPrefix(),
     serverMoveStatusQueryKey(),
+    // Arc's own signal is ephemeral and never replayed, and Arc Core lives in
+    // the server this reconnect is re-establishing: whatever the account,
+    // runtime or usage caches held before the drop is not known to be current.
+    arcAccountsQueryKey(),
+    arcStatusQueryKey(),
+    allArcCurrentAgentUsageQueryKeyPrefix(),
   ];
 }
 

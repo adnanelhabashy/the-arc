@@ -3,6 +3,9 @@ import { QueryObserver } from "@tanstack/react-query";
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 import { createAppQueryClient } from "@/lib/query-client";
 import {
+  arcAccountsQueryKey,
+  arcCurrentAgentUsageQueryKey,
+  arcStatusQueryKey,
   environmentDiffFilesQueryKey,
   environmentDiffPatchQueryKey,
   hostsQueryKey,
@@ -196,6 +199,28 @@ describe("system cache effects", () => {
     expect(queryClient.getQueryState(sidebarNavigationKey)?.isInvalidated).toBe(
       true,
     );
+  });
+
+  it("drops Arc's account, status and usage caches after reconnect", () => {
+    const queryClient = createCacheEffectQueryClient();
+    const accountsKey = arcAccountsQueryKey();
+    const statusKey = arcStatusQueryKey();
+    const usageKey = arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus");
+    queryClient.setQueryData(accountsKey, { accounts: [] });
+    queryClient.setQueryData(statusKey, { arcAvailable: true });
+    queryClient.setQueryData(usageKey, { resources: [] });
+
+    invalidateRealtimeQueriesAfterServerReconnect({
+      disconnectedAt: afterAllCachedData(),
+      queryClient,
+    });
+
+    // Arc's signal is ephemeral and never replayed: a reconnect cannot know
+    // whether the account list or a usage measurement changed while the
+    // socket was down.
+    expect(queryClient.getQueryState(accountsKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(statusKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(usageKey)?.isInvalidated).toBe(true);
   });
 
   it("re-checks the app version after reconnect", () => {

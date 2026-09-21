@@ -9,7 +9,6 @@ import {
 import type {
   ArcCurrentAgentUsage,
   ArcUsageResource,
-  ArcUsageSnapshot,
   ArcUsageWindow,
 } from "@/hooks/queries/arc-queries";
 import { ProviderUsageSection } from "./ProviderUsageSection";
@@ -104,7 +103,12 @@ function renderSection(providerId: string, modelLabel?: string) {
   mockUseArcUsageRefresh.mockReturnValue({
     mutate: refreshMutate,
     isPending: false,
-  } as unknown as UseMutationResult<ArcUsageSnapshot, Error, void, unknown>);
+  } as unknown as UseMutationResult<
+    void,
+    Error,
+    readonly string[],
+    unknown
+  >);
   return render(
     <ProviderUsageSection
       active
@@ -242,7 +246,12 @@ it("scopes usage to the thread's bound account when accountKey is known", () => 
   mockUseArcUsageRefresh.mockReturnValue({
     mutate: refreshMutate,
     isPending: false,
-  } as unknown as UseMutationResult<ArcUsageSnapshot, Error, void, unknown>);
+  } as unknown as UseMutationResult<
+    void,
+    Error,
+    readonly string[],
+    unknown
+  >);
   render(
     <ProviderUsageSection active providerId="codex" accountKey="acct-1" />,
   );
@@ -283,12 +292,17 @@ it("renders nothing when arc is unavailable", () => {
   expect(container.firstChild).toBeNull();
 });
 
-it("refreshes through the arc mutation", () => {
-  setCurrentAgentUsage(makeUsage());
+it("refreshes only the resources this panel is showing", () => {
+  const usage = makeUsage();
+  setCurrentAgentUsage(usage);
   renderSection("codex");
 
   fireEvent.click(
     screen.getByRole("button", { name: "Refresh provider usage" }),
   );
+
   expect(refreshMutate).toHaveBeenCalledTimes(1);
+  expect(refreshMutate).toHaveBeenCalledWith(
+    usage.resources.map((resource) => resource.id),
+  );
 });
