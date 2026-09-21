@@ -281,10 +281,22 @@ jobs:
         if: steps.release_plan.outputs.should_publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          # Defense-in-depth alongside the guard below: every gh release call
+          # names its target explicitly rather than relying on inferred
+          # context. See ADR-084's closure addendum.
+          GH_REPO: adnanelhabashy/the-arc
           VERSION: ${{ steps.release_plan.outputs.version }}
           PUBLISH_MACOS_BINARIES: ${{ steps.release_plan.outputs.publish_macos_binaries }}
         run: |
           set -euo pipefail
+
+          # The publish job's contents:write token can write to whichever
+          # repo the workflow run belongs to — Arc desktop releases must
+          # never be published to get-bb/bb or any other repository.
+          if [[ "${{ github.repository }}" != "adnanelhabashy/the-arc" ]]; then
+            echo "::error::Refusing to publish the stable Arc desktop release from ${{ github.repository }}; the only approved Arc release repository is adnanelhabashy/the-arc."
+            exit 1
+          fi
 
           VERSION_TAG="desktop-v${VERSION}"
           LATEST_TAG="desktop-latest"
@@ -387,6 +399,6 @@ jobs:
             echo "- prerelease version: ${IS_PRERELEASE}"
             echo "- stable release publication requested and allowed: ${SHOULD_PUBLISH}"
             echo "- macOS release binary upload enabled: ${PUBLISH_MACOS_BINARIES}"
-            echo "- macOS feed URL: https://github.com/get-bb/bb/releases/download/desktop-latest/desktop-version.json"
-            echo "- Linux feed URL: https://github.com/get-bb/bb/releases/download/desktop-latest/desktop-version-linux.json"
+            echo "- release: https://github.com/adnanelhabashy/the-arc/releases/tag/desktop-latest"
+            echo "- this workflow does not set ARC_DESKTOP_UPDATE_FEED_BASE_URL, so the packaged app ships with no update feed (fail-closed, see ADR-084)"
           } >> "$GITHUB_STEP_SUMMARY"
