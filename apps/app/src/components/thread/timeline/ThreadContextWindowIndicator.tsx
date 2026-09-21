@@ -27,6 +27,10 @@ interface ThreadContextWindowIndicatorProps {
   defaultOpen?: boolean;
   providerId?: string;
   modelLabel?: string;
+  // The thread's selected model id, when the caller knows it. OMP namespaces
+  // its model ids by provider, which is how the usage popup resolves an
+  // unpinned OMP thread's active account.
+  modelId?: string;
   // The thread's bound account, when the caller knows it. Undefined
   // renders "Active account unknown" rather than guessing.
   accountKey?: string | null;
@@ -180,6 +184,7 @@ export function ThreadContextWindowIndicator({
   defaultOpen,
   providerId,
   modelLabel,
+  modelId,
   accountKey,
 }: ThreadContextWindowIndicatorProps) {
   const {
@@ -263,6 +268,7 @@ export function ThreadContextWindowIndicator({
                 active={open}
                 providerId={providerId}
                 modelLabel={modelLabel}
+                modelId={modelId}
                 accountKey={accountKey}
               />
             ) : undefined

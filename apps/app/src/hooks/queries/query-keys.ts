@@ -1297,10 +1297,16 @@ export function arcStatusQueryKey() {
 export function arcCurrentAgentUsageQueryKey(
   agentId: string | null,
   accountKey: string | null,
+  modelId: string | null,
 ) {
   return agentId === null
     ? ([ARC_CURRENT_AGENT_USAGE_QUERY_KEY] as const)
-    : ([ARC_CURRENT_AGENT_USAGE_QUERY_KEY, agentId, accountKey] as const);
+    : ([
+        ARC_CURRENT_AGENT_USAGE_QUERY_KEY,
+        agentId,
+        accountKey,
+        modelId,
+      ] as const);
 }
 
 export function allArcCurrentAgentUsageQueryKeyPrefix() {

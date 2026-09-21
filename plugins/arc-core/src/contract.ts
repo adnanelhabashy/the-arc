@@ -296,11 +296,24 @@ export const arcUsageSnapshotSchema = z
   })
   .strict();
 
+export const arcActiveUsageAccountSchema = z
+  .object({
+    accountKey: z.string().nullable(),
+    accountSourceId: z.string().nullable(),
+    providerLabel: z.string(),
+    providerFamily: z.string().nullable(),
+    planLabel: z.string().nullable(),
+    accountEmail: z.string().nullable(),
+    resolvedBy: z.enum(["binding", "provider"]),
+  })
+  .strict();
+
 export const arcCurrentAgentUsageSchema = z
   .object({
     agentId: arcAgentIdSchema,
     thread: arcUsageResourceSchema.nullable(),
     resources: z.array(arcUsageResourceSchema),
+    activeAccount: arcActiveUsageAccountSchema.nullable(),
     activeAccountUnknown: z.boolean(),
   })
   .strict();
@@ -498,6 +511,10 @@ export const arcRpcContract = defineRpcContract({
       .object({
         agentId: arcAgentIdSchema,
         activeAccountKey: z.string().nullable().optional(),
+        // The thread's selected model id. For OMP this names the provider the
+        // execution will run on ("<provider>/<model>"), which is the only
+        // evidence Arc accepts for an unpinned OMP thread's active account.
+        activeModelId: z.string().nullable().optional(),
       })
       .strict(),
     output: arcCurrentAgentUsageSchema,

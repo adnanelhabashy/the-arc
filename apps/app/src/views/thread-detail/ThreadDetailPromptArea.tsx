@@ -2210,6 +2210,7 @@ export function ThreadDetailPromptArea({
       contextWindowUsage={contextWindowUsage ?? null}
       usageProviderId={selectedProviderId}
       usageAccountKey={thread.accountKey}
+      usageModelId={effectiveSelectedModel}
       usageModelLabel={
         activeModel != null && activeModel.model === effectiveSelectedModel
           ? activeModel.displayName

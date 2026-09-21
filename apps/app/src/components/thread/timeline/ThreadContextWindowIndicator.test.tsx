@@ -49,3 +49,31 @@ it("shows details when a snapshot arrives and removes them when only aggregate u
   expect(screen.queryByRole("button", { name: "Hide details" })).toBeNull();
   expect(screen.getByText("10% used")).toBeTruthy();
 });
+
+it("keeps context-window capacity separate from the account's provider quota", () => {
+  const usage: ThreadContextWindowUsage = {
+    usedTokens: 28_000,
+    modelContextWindow: 1_000_000,
+    estimated: false,
+  };
+  render(
+    <ThreadContextWindowCard
+      usage={usage}
+      title="Usage & Limits"
+      usageLimits={<span>Provider quota section</span>}
+    />,
+  );
+
+  // The card's own line is token capacity, and only that: the provider's
+  // percentage belongs to the quota section, never to this one.
+  expect(screen.getByText("Context window")).toBeTruthy();
+  expect(screen.getByText("3% used")).toBeTruthy();
+  expect(
+    screen.getByText(
+      (_content, element) => element?.textContent === "28k / 1m tokens",
+    ),
+  ).toBeTruthy();
+  expect(screen.getByText("Provider quota section")).toBeTruthy();
+  expect(screen.getAllByText(/% used/)).toHaveLength(1);
+  expect(screen.getAllByText(/% left/)).toHaveLength(1);
+});

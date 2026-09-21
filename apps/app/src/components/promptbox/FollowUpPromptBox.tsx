@@ -158,6 +158,9 @@ export interface FollowUpPromptBoxProps {
   contextWindowUsage: ContextWindowUsage | null;
   usageProviderId?: string;
   usageModelLabel?: string;
+  // The thread's selected model id, passed through to the Usage & Limits
+  // popup so an unpinned OMP thread resolves the provider it will run on.
+  usageModelId?: string;
   // The thread's bound account, when the caller knows it. Undefined (a new
   // thread, or a composer with no thread) renders "Active account unknown"
   // rather than showing another account's quota as if it were this thread's.
@@ -235,6 +238,7 @@ function FollowUpPromptBoxWithComposer({
   contextWindowUsage,
   usageProviderId,
   usageModelLabel,
+  usageModelId,
   usageAccountKey,
   execution,
   permission,
@@ -802,6 +806,7 @@ function FollowUpPromptBoxWithComposer({
                 usage={contextWindowUsage}
                 providerId={usageProviderId}
                 modelLabel={usageModelLabel}
+                modelId={usageModelId}
                 accountKey={usageAccountKey}
               />
             ) : null}

@@ -158,10 +158,28 @@ export interface ArcThreadContextGateway {
   getCurrentThreadContext(): Promise<ArcThreadContextUsage | null>;
 }
 
+// The account a thread is running on, in the shape a display needs. The
+// canonical accountKey is null for source-local accounts (an OMP api-key
+// credential has no provider-issued account id), which is why accountSourceId
+// — the same identity the account picker binds a thread to — travels with it.
+export interface ArcActiveUsageAccount {
+  accountKey: string | null;
+  accountSourceId: string | null;
+  providerLabel: string;
+  providerFamily: string | null;
+  planLabel: string | null;
+  accountEmail: string | null;
+  // "binding": the thread's own account. "provider": the only connected
+  // account of the OMP provider the thread's model belongs to.
+  resolvedBy: "binding" | "provider";
+}
+
 export interface ArcCurrentAgentUsage {
   agentId: ArcAgentId;
   thread: ArcUsageResource | null;
   resources: ArcUsageResource[];
+  // The resolved account, or null when Arc cannot name one.
+  activeAccount: ArcActiveUsageAccount | null;
   // True when the active account behind these resources could not be
   // identified; the caller may present "multiple connected accounts".
   activeAccountUnknown: boolean;

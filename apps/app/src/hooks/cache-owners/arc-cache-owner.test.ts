@@ -31,7 +31,7 @@ describe("arc cache invalidation", () => {
     queryClient.setQueryData(arcAccountsQueryKey(), { accounts: [] });
     queryClient.setQueryData(arcStatusQueryKey(), { arcAvailable: true });
     queryClient.setQueryData(
-      arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:a"),
+      arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:a", null),
       { resources: [] },
     );
 
@@ -42,7 +42,7 @@ describe("arc cache invalidation", () => {
     expect(
       stateOf(
         queryClient,
-        arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:a"),
+        arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:a", null),
       ),
     ).toBe(false);
 
@@ -52,7 +52,7 @@ describe("arc cache invalidation", () => {
     expect(
       stateOf(
         queryClient,
-        arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:a"),
+        arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:a", null),
       ),
     ).toBe(true);
   });
@@ -60,11 +60,11 @@ describe("arc cache invalidation", () => {
   it("invalidates every account's usage when the account list changes", async () => {
     const { queryClient } = createQueryClientTestHarness();
     queryClient.setQueryData(
-      arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus"),
+      arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus", null),
       { resources: [] },
     );
     queryClient.setQueryData(
-      arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:team"),
+      arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:team", null),
       { resources: [] },
     );
 
@@ -73,13 +73,13 @@ describe("arc cache invalidation", () => {
     expect(
       stateOf(
         queryClient,
-        arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus"),
+        arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus", null),
       ),
     ).toBe(true);
     expect(
       stateOf(
         queryClient,
-        arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:team"),
+        arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:team", null),
       ),
     ).toBe(true);
   });
@@ -88,7 +88,7 @@ describe("arc cache invalidation", () => {
     const { queryClient } = createQueryClientTestHarness();
     queryClient.setQueryData(arcAccountsQueryKey(), { accounts: [] });
     queryClient.setQueryData(
-      arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus"),
+      arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus", null),
       { resources: [] },
     );
 
@@ -100,7 +100,7 @@ describe("arc cache invalidation", () => {
     expect(
       stateOf(
         queryClient,
-        arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus"),
+        arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus", null),
       ),
     ).toBe(false);
   });
@@ -109,7 +109,7 @@ describe("arc cache invalidation", () => {
     const { queryClient } = createQueryClientTestHarness();
     queryClient.setQueryData(arcAccountsQueryKey(), { accounts: [] });
     queryClient.setQueryData(
-      arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus"),
+      arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus", null),
       { resources: [] },
     );
 
@@ -122,7 +122,7 @@ describe("arc cache invalidation", () => {
     expect(
       stateOf(
         queryClient,
-        arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus"),
+        arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus", null),
       ),
     ).toBe(true);
   });
@@ -155,22 +155,47 @@ describe("arc cache invalidation", () => {
 
 describe("arc usage query keys", () => {
   it("separates accounts and agents so one reading is never served for another", () => {
-    const plus = arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus");
-    const team = arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:team");
+    const plus = arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus", null);
+    const team = arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:team", null);
     const claude = arcCurrentAgentUsageQueryKey(
       "claude-code",
       "openai:chatgpt:plus",
+      null,
     );
 
     expect(plus).not.toEqual(team);
     expect(plus).not.toEqual(claude);
     // An unresolved account is its own entry, never a stand-in for a real one.
-    expect(arcCurrentAgentUsageQueryKey("codex", null)).not.toEqual(plus);
+    expect(arcCurrentAgentUsageQueryKey("codex", null, null)).not.toEqual(plus);
+  });
+
+  it("separates the OMP provider a thread runs on from the one it left", () => {
+    const kimi = arcCurrentAgentUsageQueryKey(
+      "omp",
+      null,
+      "kimi-code/kimi-for-coding",
+    );
+    const openCode = arcCurrentAgentUsageQueryKey(
+      "omp",
+      null,
+      "opencode-go/ox-alpha-free",
+    );
+    const sameProviderOtherModel = arcCurrentAgentUsageQueryKey(
+      "omp",
+      null,
+      "opencode-go/deepseek-v4-pro",
+    );
+
+    expect(kimi).not.toEqual(openCode);
+    expect(openCode).not.toEqual(sameProviderOtherModel);
+    // A thread whose model is not known yet is its own entry too: a late
+    // answer for a real model must never be served as the unresolved one.
+    expect(arcCurrentAgentUsageQueryKey("omp", null, null)).not.toEqual(kimi);
   });
 
   it("keeps the prefix an invalidation target for every account", () => {
     const prefix = allArcCurrentAgentUsageQueryKeyPrefix();
-    const plus = arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus");
+    const plus = arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus", null);
     expect(plus.slice(0, prefix.length)).toEqual([...prefix]);
   });
 });

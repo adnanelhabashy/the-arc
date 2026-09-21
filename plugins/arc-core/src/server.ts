@@ -325,8 +325,12 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
       return { ok: true as const };
     },
     "arc.usage.snapshot": async () => requireHost().usage.listUsageResources(),
-    "arc.usage.current": async ({ agentId, activeAccountKey }) =>
-      requireHost().usage.getCurrentAgentUsage({ agentId, activeAccountKey }),
+    "arc.usage.current": async ({ agentId, activeAccountKey, activeModelId }) =>
+      requireHost().usage.getCurrentAgentUsage({
+        agentId,
+        activeAccountKey,
+        activeModelId,
+      }),
     "arc.usage.refresh": async ({ resourceId }) => {
       const host = requireHost();
       if (resourceId === undefined) {

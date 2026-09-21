@@ -79,6 +79,7 @@ function makeUsage(
     agentId: "codex",
     thread: null,
     resources: [makeResource()],
+    activeAccount: null,
     activeAccountUnknown: false,
     ...overrides,
   };
@@ -98,7 +99,7 @@ function setCurrentAgentUsage(
 
 let refreshMutate: Mock;
 
-function renderSection(providerId: string, modelLabel?: string) {
+function renderSection(providerId: string, modelLabel?: string, modelId?: string) {
   refreshMutate = vi.fn();
   mockUseArcUsageRefresh.mockReturnValue({
     mutate: refreshMutate,
@@ -114,6 +115,7 @@ function renderSection(providerId: string, modelLabel?: string) {
       active
       providerId={providerId}
       modelLabel={modelLabel}
+      modelId={modelId}
     />,
   );
 }
@@ -135,6 +137,7 @@ it("maps codex and renders percent windows with a reset line", () => {
 
   expect(mockUseArcCurrentAgentUsage).toHaveBeenCalledWith({
     agentId: "codex",
+    modelId: undefined,
     enabled: true,
   });
   expect(screen.getByText("ChatGPT")).toBeTruthy();
@@ -259,6 +262,7 @@ it("scopes usage to the thread's bound account when accountKey is known", () => 
   expect(mockUseArcCurrentAgentUsage).toHaveBeenCalledWith({
     agentId: "codex",
     accountKey: "acct-1",
+    modelId: undefined,
     enabled: true,
   });
   expect(screen.getByText("ChatGPT")).toBeTruthy();
@@ -271,6 +275,7 @@ it("maps acp-omp to the omp agent", () => {
 
   expect(mockUseArcCurrentAgentUsage).toHaveBeenCalledWith({
     agentId: "omp",
+    modelId: undefined,
     enabled: true,
   });
 });
@@ -305,4 +310,181 @@ it("refreshes only the resources this panel is showing", () => {
   expect(refreshMutate).toHaveBeenCalledWith(
     usage.resources.map((resource) => resource.id),
   );
+});
+
+function ompAccountUsage(
+  overrides: Partial<ArcCurrentAgentUsage> = {},
+): ArcCurrentAgentUsage {
+  return makeUsage({
+    agentId: "omp",
+    activeAccount: {
+      accountKey: "omp:kimi-code:credential-1",
+      accountSourceId: "omp:kimi-code:1",
+      providerLabel: "Kimi Code",
+      providerFamily: "kimi-code",
+      planLabel: null,
+      accountEmail: null,
+      resolvedBy: "provider",
+    },
+    resources: [
+      makeResource({
+        id: "omp:kimi-code:omp:kimi-code:1",
+        sourceKind: "omp",
+        accountKey: "omp:kimi-code:credential-1",
+        accountSourceId: "omp:kimi-code:1",
+        providerFamily: "kimi-code",
+        providerLabel: "Kimi Code",
+        accountEmail: null,
+        planLabel: null,
+        agentIds: ["omp"],
+        sources: ["omp"],
+        windows: [
+          makeWindow({
+            id: "kimi-code:0",
+            label: "Weekly limit",
+            kind: "weekly",
+            status: "exhausted",
+            usedPercent: null,
+            remainingPercent: null,
+            usedAmount: 100,
+            limitAmount: 100,
+            remainingAmount: 0,
+            unit: "unknown",
+          }),
+          makeWindow({
+            id: "kimi-code:1",
+            label: "5h limit",
+            kind: "five-hour",
+            status: "ok",
+            usedPercent: null,
+            remainingPercent: null,
+            usedAmount: 0,
+            limitAmount: 100,
+            remainingAmount: 100,
+            unit: "unknown",
+          }),
+        ],
+      }),
+    ],
+    ...overrides,
+  });
+}
+
+it("names the account an unpinned OMP thread runs on and shows its real limits", () => {
+  setCurrentAgentUsage(ompAccountUsage());
+  renderSection("acp-omp", "Kimi For Coding", "kimi-code/kimi-for-coding");
+
+  expect(mockUseArcCurrentAgentUsage).toHaveBeenCalledWith({
+    agentId: "omp",
+    modelId: "kimi-code/kimi-for-coding",
+    enabled: true,
+  });
+  expect(
+    screen.getByText(
+      (_content, element) => element?.textContent === "Active account Kimi Code",
+    ),
+  ).toBeTruthy();
+  expect(screen.queryByText("Active account unknown")).toBeNull();
+  expect(screen.getByText("Weekly limit")).toBeTruthy();
+  expect(screen.getByText("0 remaining")).toBeTruthy();
+  expect(screen.getByText("5h limit")).toBeTruthy();
+  expect(screen.getByText("100 remaining")).toBeTruthy();
+});
+
+it("keeps the OMP provider's percent windows when the account reports them", () => {
+  setCurrentAgentUsage(
+    ompAccountUsage({
+      activeAccount: {
+        accountKey: null,
+        accountSourceId: "omp:opencode-go:1",
+        providerLabel: "OpenCode Go",
+        providerFamily: "opencode-go",
+        planLabel: null,
+        accountEmail: null,
+        resolvedBy: "provider",
+      },
+      resources: [
+        makeResource({
+          id: "omp:opencode-go:omp:opencode-go:1",
+          sourceKind: "omp",
+          accountKey: null,
+          accountSourceId: "omp:opencode-go:1",
+          providerFamily: "opencode-go",
+          providerLabel: "OpenCode Go",
+          accountEmail: null,
+          planLabel: null,
+          agentIds: ["omp"],
+          sources: ["omp"],
+          windows: [
+            makeWindow({
+              id: "rolling-5h",
+              label: "5 Hour limit",
+              usedPercent: 11,
+              remainingPercent: 89,
+            }),
+          ],
+        }),
+      ],
+    }),
+  );
+  renderSection("acp-omp", "Ox Alpha Free", "opencode-go/ox-alpha-free");
+
+  expect(mockUseArcCurrentAgentUsage).toHaveBeenCalledWith({
+    agentId: "omp",
+    modelId: "opencode-go/ox-alpha-free",
+    enabled: true,
+  });
+  expect(
+    screen.getByText(
+      (_content, element) => element?.textContent === "Active account OpenCode Go",
+    ),
+  ).toBeTruthy();
+  expect(screen.getByText("11% used")).toBeTruthy();
+  expect(screen.getByText("89% left")).toBeTruthy();
+});
+
+it("still reports unknown for an OMP thread Arc cannot attribute", () => {
+  setCurrentAgentUsage(
+    ompAccountUsage({
+      activeAccount: null,
+      activeAccountUnknown: true,
+      resources: [
+        makeResource({ id: "omp:kimi-code:1", sourceKind: "omp" }),
+        makeResource({ id: "omp:kimi-code:2", sourceKind: "omp" }),
+      ],
+    }),
+  );
+  renderSection("acp-omp", "Kimi For Coding", "kimi-code/kimi-for-coding");
+
+  expect(screen.getByText("Active account unknown")).toBeTruthy();
+  expect(screen.queryByText("Kimi Code")).toBeNull();
+});
+
+it("does not label a thread-bound account as provider-resolved", () => {
+  setCurrentAgentUsage(
+    makeUsage({
+      activeAccount: {
+        accountKey: "openai:chatgpt:acc-1",
+        accountSourceId: "a1",
+        providerLabel: "ChatGPT",
+        providerFamily: "openai",
+        planLabel: "Pro",
+        accountEmail: "adnan@example.com",
+        resolvedBy: "binding",
+      },
+    }),
+  );
+  renderSection("codex");
+
+  expect(screen.queryByText("Active account")).toBeNull();
+  expect(screen.getByText("Pro · adnan@example.com")).toBeTruthy();
+});
+
+it("links to the full usage page's real route, not the plugin root", () => {
+  setCurrentAgentUsage(makeUsage());
+  renderSection("codex");
+
+  expect(
+    screen.getByRole("link", { name: "View all usage" }).getAttribute("href"),
+  ).toBe("/plugins/adnan-mission-control/mission-control/usage");
 });

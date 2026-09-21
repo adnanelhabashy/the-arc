@@ -9,12 +9,17 @@ import {
 } from "@/hooks/queries/arc-queries";
 import { Icon } from "@bb/shared-ui/icon";
 import { cn } from "@bb/shared-ui/lib/utils";
+import { getPluginPanelRoutePath } from "@/lib/route-paths";
 import { getProviderIconInfo } from "@/lib/provider-icon";
 
 interface ProviderUsageSectionProps {
   active: boolean;
   providerId: string | undefined;
   modelLabel?: string;
+  // The thread's selected model id. For OMP it names the provider the next
+  // turn runs on, which resolves the active account for a thread the user has
+  // not pinned. The display label above is never used for that.
+  modelId?: string;
   // The thread's bound account, when known. Undefined renders "Active
   // account unknown" instead of guessing from every connected account.
   accountKey?: string | null;
@@ -43,6 +48,7 @@ export function ProviderUsageSection({
   active,
   providerId,
   modelLabel,
+  modelId,
   accountKey,
 }: ProviderUsageSectionProps) {
   const [now, setNow] = useState(() => Date.now());
@@ -56,6 +62,7 @@ export function ProviderUsageSection({
   const usageQuery = useArcCurrentAgentUsage({
     agentId,
     accountKey,
+    modelId,
     enabled: active && agentId !== null,
   });
   const refreshMutation = useArcUsageRefresh();
@@ -330,11 +337,16 @@ function UsageResourceSection({
   providerId,
   now,
   onRefresh,
+  showAccountHeader,
 }: {
   resource: ArcUsageResource;
   providerId: string;
   now: number;
   onRefresh: () => void;
+  // False when the panel already named this account above: an OMP provider
+  // account's label, plan, and provider are all the same string, and printing
+  // it three times on one popover is noise.
+  showAccountHeader: boolean;
 }) {
   const line = accountLine(resource);
   const ProviderGlyph = getProviderIconInfo("agent", providerId).icon;
@@ -343,18 +355,22 @@ function UsageResourceSection({
     : null;
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex min-w-0 items-center gap-1.5 text-xs">
-        <span className="flex size-4 shrink-0 items-center justify-center">
-          <ProviderGlyph className="size-3.5" />
-        </span>
-        <span className="truncate font-medium">{resource.providerLabel}</span>
-        {line !== null ? (
-          <span className="min-w-0 truncate text-2xs text-muted-foreground">
-            {line}
+      {showAccountHeader ? (
+        <div className="flex min-w-0 items-center gap-1.5 text-xs">
+          <span className="flex size-4 shrink-0 items-center justify-center">
+            <ProviderGlyph className="size-3.5" />
           </span>
-        ) : null}
+          <span className="truncate font-medium">{resource.providerLabel}</span>
+          {line !== null ? (
+            <span className="min-w-0 truncate text-2xs text-muted-foreground">
+              {line}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+      <div className={showAccountHeader ? "pl-5" : undefined}>
+        {resourceBody(resource, now, onRefresh)}
       </div>
-      <div className="pl-5">{resourceBody(resource, now, onRefresh)}</div>
       {staleRelative !== null ? (
         <span className="pl-5 text-2xs tabular-nums text-muted-foreground">
           Last updated {staleRelative} · could not refresh
@@ -377,9 +393,24 @@ export function ProviderUsagePanel({
     0,
   );
   const updatedLabel = formatUpdatedAgo(latestFetchedAt, now);
+  // A bound account is already named by the resource section below (plan and
+  // email). An account Arc resolved from the OMP provider the thread's model
+  // belongs to is not: say so, so the numbers below are attributable.
+  const inferredAccount =
+    usage.activeAccount !== null && usage.activeAccount.resolvedBy === "provider"
+      ? (usage.activeAccount.accountEmail ??
+        usage.activeAccount.planLabel ??
+        usage.activeAccount.providerLabel)
+      : null;
 
   return (
     <div className="flex flex-col gap-1.5">
+      {inferredAccount !== null ? (
+        <span className="truncate text-2xs text-muted-foreground">
+          Active account{" "}
+          <span className="font-medium text-foreground">{inferredAccount}</span>
+        </span>
+      ) : null}
       {usage.activeAccountUnknown ? (
         <span className="text-2xs text-muted-foreground">
           Active account unknown
@@ -396,6 +427,7 @@ export function ProviderUsagePanel({
             providerId={providerId}
             now={now}
             onRefresh={onRefresh}
+            showAccountHeader={inferredAccount === null}
           />
         ))
       )}
@@ -414,7 +446,11 @@ export function ProviderUsagePanel({
         )}
         <div className="flex items-center gap-2">
           <a
-            href="/plugins/adnan-mission-control/usage"
+            href={getPluginPanelRoutePath({
+              pluginId: "adnan-mission-control",
+              path: "mission-control",
+              subPath: "usage",
+            })}
             className="text-2xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             View all usage

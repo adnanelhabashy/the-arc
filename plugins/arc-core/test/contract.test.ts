@@ -192,7 +192,29 @@ const currentUsage: ArcCurrentAgentUsage = {
   agentId: "codex",
   thread: null,
   resources: [],
+  activeAccount: null,
   activeAccountUnknown: true,
+};
+
+const resolvedOmpAccount: ArcCurrentAgentUsage["activeAccount"] = {
+  accountKey: null,
+  accountSourceId: "omp:opencode-go:1",
+  providerLabel: "OpenCode Go",
+  providerFamily: "opencode-go",
+  planLabel: null,
+  accountEmail: null,
+  resolvedBy: "provider",
+};
+
+// A resolved OMP thread: the account Arc named from the provider the thread's
+// selected model belongs to. The api-key case carries no canonical accountKey,
+// so the source-local id must survive the wire.
+const resolvedOmpUsage: ArcCurrentAgentUsage = {
+  agentId: "omp",
+  thread: null,
+  resources: [],
+  activeAccount: resolvedOmpAccount,
+  activeAccountUnknown: false,
 };
 
 // The domain type's latestTrusted is a full ArcRuntimeRelease; the wire
@@ -259,6 +281,9 @@ describe("arc wire contract", () => {
     expect(() => arcUsageSnapshotSchema.parse(snapshot)).not.toThrow();
     expect(() => arcCurrentAgentUsageSchema.parse(currentUsage)).not.toThrow();
     expect(() =>
+      arcCurrentAgentUsageSchema.parse(resolvedOmpUsage),
+    ).not.toThrow();
+    expect(() =>
       arcRuntimeUpdateDiscoverySchema.parse(updateDiscovery),
     ).not.toThrow();
     for (const outcome of updateOutcomes) {
@@ -274,6 +299,12 @@ describe("arc wire contract", () => {
   it("rejects unknown fields so secrets cannot ride along", () => {
     expect(() =>
       arcAccountSchema.parse({ ...account, accessToken: "sk-secret" }),
+    ).toThrow();
+    expect(() =>
+      arcCurrentAgentUsageSchema.parse({
+        ...resolvedOmpUsage,
+        activeAccount: { ...resolvedOmpAccount, brokerToken: "t" },
+      }),
     ).toThrow();
     expect(() =>
       arcAgentStatusSchema.parse({ ...agentStatus, brokerToken: "t" }),

@@ -93,10 +93,21 @@ export interface ArcUsageSnapshot {
   sources: ArcUsageSourceStatus[];
 }
 
+export interface ArcActiveUsageAccount {
+  accountKey: string | null;
+  accountSourceId: string | null;
+  providerLabel: string;
+  providerFamily: string | null;
+  planLabel: string | null;
+  accountEmail: string | null;
+  resolvedBy: "binding" | "provider";
+}
+
 export interface ArcCurrentAgentUsage {
   agentId: ArcAgentId;
   thread: ArcUsageResource | null;
   resources: ArcUsageResource[];
+  activeAccount: ArcActiveUsageAccount | null;
   activeAccountUnknown: boolean;
 }
 
@@ -190,16 +201,26 @@ export function useArcStatus() {
 export function useArcCurrentAgentUsage({
   agentId,
   accountKey,
+  modelId,
   enabled,
 }: {
   agentId: ArcAgentId | null;
   // The thread's bound account. Omitted (undefined) means "not known" —
   // the server reports activeAccountUnknown: true rather than guessing.
   accountKey?: string | null;
+  // The thread's selected model id. For OMP this names the provider the next
+  // turn runs on, which is how an unpinned OMP thread gets a real account
+  // instead of "unknown". Part of the query key: switching the model must not
+  // let the previous model's account state stand in for the new one.
+  modelId?: string | null;
   enabled: boolean;
 }) {
   return useQuery({
-    queryKey: arcCurrentAgentUsageQueryKey(agentId, accountKey ?? null),
+    queryKey: arcCurrentAgentUsageQueryKey(
+      agentId,
+      accountKey ?? null,
+      modelId ?? null,
+    ),
     queryFn: () =>
       arcRpcCall<ArcCurrentAgentUsage>("arc.usage.current", {
         agentId: requireEnabledQueryArg({
@@ -208,6 +229,7 @@ export function useArcCurrentAgentUsage({
           argName: "agentId",
         }),
         ...(typeof accountKey === "string" ? { activeAccountKey: accountKey } : {}),
+        ...(typeof modelId === "string" ? { activeModelId: modelId } : {}),
       }),
     enabled: enabled && agentId !== null,
     staleTime: 15_000,

@@ -205,7 +205,7 @@ describe("system cache effects", () => {
     const queryClient = createCacheEffectQueryClient();
     const accountsKey = arcAccountsQueryKey();
     const statusKey = arcStatusQueryKey();
-    const usageKey = arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus");
+    const usageKey = arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus", null);
     queryClient.setQueryData(accountsKey, { accounts: [] });
     queryClient.setQueryData(statusKey, { arcAvailable: true });
     queryClient.setQueryData(usageKey, { resources: [] });

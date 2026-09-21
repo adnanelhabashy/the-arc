@@ -1,4 +1,5 @@
 import type { ArcAgentId } from "../arc-agent/types.js";
+import { resolveArcActiveUsageAccount } from "./active-account.js";
 import {
   ArcUsageError,
   type ArcCurrentAgentUsage,
@@ -370,13 +371,16 @@ export class ArcUsageService {
     });
   }
 
-  // Resolves what Phase 10's popup needs first: the current thread's
-  // context plus every usage resource for the active agent. Active-account
-  // identity is not invented: when the caller cannot supply it, all of the
-  // agent's resources are returned and activeAccountUnknown is true.
+  // Resolves what a thread-scoped usage surface needs: the current thread's
+  // context plus the usage resources of the account that thread runs on.
+  // Active-account identity is never invented: a thread's own binding wins, an
+  // OMP thread may additionally be answered by the provider its selected model
+  // belongs to, and anything else stays unknown (all of the agent's resources
+  // are returned so a caller can offer the choice).
   async getCurrentAgentUsage(args: {
     agentId: ArcAgentId;
     activeAccountKey?: string | null;
+    activeModelId?: string | null;
   }): Promise<ArcCurrentAgentUsage> {
     const snapshot = await this.listUsageResources();
     const thread =
@@ -387,20 +391,18 @@ export class ArcUsageService {
         resource.sourceKind !== "thread" &&
         resource.agentIds.includes(args.agentId),
     );
-    const activeAccountUnknown = args.activeAccountKey === undefined;
-    const focused =
-      args.activeAccountKey != null
-        ? resources.filter(
-            (resource) =>
-              resource.accountKey === null ||
-              resource.accountKey === args.activeAccountKey,
-          )
-        : resources;
+    const resolved = resolveArcActiveUsageAccount({
+      agentId: args.agentId,
+      activeAccountKey: args.activeAccountKey,
+      activeModelId: args.activeModelId,
+      resources,
+    });
     return {
       agentId: args.agentId,
       thread,
-      resources: focused,
-      activeAccountUnknown,
+      resources: resolved.resources,
+      activeAccount: resolved.activeAccount,
+      activeAccountUnknown: resolved.activeAccountUnknown,
     };
   }
 

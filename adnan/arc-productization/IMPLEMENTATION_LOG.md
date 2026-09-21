@@ -1427,3 +1427,60 @@ Visual and API verification on the installed app:
 | update controls anywhere in the app | several | exactly one — Mission Control's Arc-owned runtime Update |
 
 Agent set unchanged: the provider registry lists exactly `codex`, `claude-code`, `acp-omp`, and Mission Control shows exactly those three agents.
+
+## Pre-Phase-15 — OMP account + usage unification (2026-09-21)
+
+Steps 1–12 of the brief, in order.
+
+### Step 1 — Trace
+
+| Surface | Data source | Model |
+|---|---|---|
+| Mission Control → Usage & Limits | `useArcUsage` → MC proxy RPC `arc_usage_snapshot` → `arc.usage.snapshot` | every resource, unfiltered, grouped by `agentIds` |
+| Sidebar | BB `provider-usage` plugin footer disclosure → its own `provider-usage.v1` sources (Account Pooler, local provider CLIs) | machines × providers × accounts |
+| Thread popup | `ProviderUsageSection` → `useArcCurrentAgentUsage` → `arc.usage.current({agentId, activeAccountKey})` | the thread's *active* account |
+
+Live evidence for the failure, captured before any change:
+
+```
+threads (provider_id like '%omp%'): 9 rows, account_key NULL in every one
+usage resources: omp:kimi-code:...      accountKey omp:kimi-code:d9l3vugu8ld95qngp75g
+                 omp:opencode-go:...    accountKey null, accountSourceId omp:opencode-go:1
+OMP model catalog: 42 models, ids namespaced by provider (kimi-code/*, opencode-go/*)
+```
+
+Why Mission Control resolved Kimi/OpenCode and the popup could not: the snapshot is an unfiltered inventory (no active-account concept), while the popup needs a per-thread binding that OMP threads do not have — and the popup's `activeAccountUnknown` branch renders no resources at all, so the data that existed was never shown. OpenCode Go additionally had `accountKey: null`, so an `accountKey`-only match could never reach it.
+
+### Step 2 — Unified display model
+
+Reused `ArcUsageResource` (provider, accountKey/accountSourceId, plan/email, windows, status/stale, fetchedAt/observedAt) rather than adding a parallel view model, and added one type for the resolved account: `ArcActiveUsageAccount` (`accountKey`, `accountSourceId`, `providerLabel`, `providerFamily`, `planLabel`, `accountEmail`, `resolvedBy`). No persistence layer was merged: Account Pool rows and OMP broker credentials are untouched.
+
+### Steps 3–4 — Thread → account mapping, "Active account unknown"
+
+New pure resolver `packages/arc-domains/src/arc-usage/active-account.ts`:
+
+- binding present → exact match on `accountKey` **or** `accountSourceId` (Phase 14 semantics kept: a supplied binding is never reported unknown);
+- else, OMP only → `ompProviderFromModelId(activeModelId)` (`<provider>/<model>`), and the provider's resource is the account **only** when that provider has exactly one connected credential;
+- else → unknown, with the full resource list returned so a caller may offer the choice.
+
+Wire: `arc.usage.current` gained `activeModelId` and `activeAccount` (strict schemas; an extra field such as a broker token is rejected — tested). The popup renders `Active account <label>` only when the account came from provider resolution; a thread-bound account keeps its existing plan/email line, and an unresolvable one still says "Active account unknown".
+
+### Steps 5–6 — Popup limits, sidebar surface
+
+The thread's effective model id (`ThreadDetailPromptArea` → `FollowUpPromptBox` → `ThreadContextWindowIndicator` → `ProviderUsageSection`) is now part of the usage query key and the RPC input. Context window and provider quota stay separate: the card renders token capacity, the popup section renders quota, and a test pins that the quota node cannot add a percent to the card's own line.
+
+Sidebar: Mission Control registers a new `Accounts & Usage` footer disclosure over `arc.usage.snapshot`, grouped OMP / Codex / Claude Code, showing every account (ChatGPT plus/team, Claude pro, Kimi Code, OpenCode Go) with each window's own value. The render rules moved into `components/usage-window-format.ts` so the page and the disclosure cannot drift. The BB `provider-usage` panel is left intact and unhidden — its contract requires a numeric `usedPercent` and cannot express an amount-only or unavailable window without fabricating a percentage (ADR-093).
+
+### Steps 7–11 — Ownership, refresh, switching, status, security
+
+OMP accounts stay broker-owned; the resolver is read-only. Refresh reuses Phase 14: the disclosure reads `useArcUsage` (no second poller; `arc-changed` re-reads it, Refresh forces a fetch), and the popup reuses `useArcUsageRefresh` scoped to the resources it shows. Late-response protection is the model id in the query key, tested against the real cache (Kimi in flight → switch to OpenCode → Kimi resolves late → OpenCode stays). `UNKNOWN != ZERO` preserved (Kimi's `0 remaining` is the provider's own value; an unavailable resource renders a status line). No secret crosses the new wire fields; `activeAccount` carries display metadata only.
+
+### Step 12 — Tests
+
+- `packages/arc-domains/test/arc-usage-active-account.test.ts` — model→provider parsing, Kimi/OpenCode resolution, binding precedence, api-key account by source id, ambiguous provider, provider with no account, non-OMP unchanged, context resource excluded, service-level wiring.
+- `plugins/arc-core/test/contract.test.ts` — resolved payload parses; a secret riding along in `activeAccount` is rejected.
+- `apps/app/.../ProviderUsageSection.test.tsx` — Kimi/OpenCode named + real limits, unknown preserved, bound account not labelled as inferred.
+- `apps/app/.../ThreadContextWindowIndicator.test.tsx` — context window vs provider quota stay separate.
+- `apps/app/src/hooks/queries/arc-usage-race.test.tsx` — the late-response race against the real query cache.
+- `apps/app/src/hooks/cache-owners/arc-cache-owner.test.ts` — query keys separate provider/model variants; prefix invalidation still covers them.
+- `adnan/plugins/adnan-mission-control/components/accounts-usage-disclosure.test.tsx` — all accounts grouped, Kimi zero-remaining shown, no fabricated zero, stale kept, refresh + link.
