@@ -46,6 +46,11 @@ const DEPRECATED_CACHE_SHIM_MODULES = new Set([
 const QUERY_KEYS_MODULE_PATH = "hooks/queries/query-keys";
 
 const CACHE_OWNER_QUERY_KEY_IMPORTS: CacheOwnerQueryKeyImportRegistry = {
+  "hooks/cache-owners/arc-cache-owner.ts": [
+    "allArcCurrentAgentUsageQueryKeyPrefix",
+    "arcAccountsQueryKey",
+    "arcStatusQueryKey",
+  ],
   "hooks/cache-owners/cache-invalidation-groups.ts": [
     "allProjectPathsQueryKeyPrefix",
     "allProjectSourceBranchesQueryKeyPrefix",

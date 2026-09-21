@@ -154,7 +154,10 @@ describe("UsageLimitsPage", () => {
     expect(screen.getByText("80% remaining")).toBeTruthy();
   });
 
-  it("fetches real usage on mount (the snapshot alone never has windows)", () => {
+  it("does not force a provider fetch just by opening the page", () => {
+    // A read already carries Arc's last known measurement, and arc-core fills
+    // a stale one in the background, so opening the page must not spend a
+    // vendor request. Only the explicit Refresh does.
     const refreshAll = vi.fn().mockResolvedValue(undefined);
     mocks.useArcUsage.mockReturnValue({
       data: { generatedAt: Date.now(), resources: [], sources: [] },
@@ -166,7 +169,7 @@ describe("UsageLimitsPage", () => {
       refreshResource: vi.fn(),
     });
     render(<UsageLimitsPage />);
-    expect(refreshAll).toHaveBeenCalledTimes(1);
+    expect(refreshAll).toHaveBeenCalledTimes(0);
   });
 
   it("the Refresh button re-runs the full refresh", () => {

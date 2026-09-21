@@ -1281,3 +1281,28 @@ export function pluginCatalogInstallPlanQueryKey(args: {
 export function pluginMarketplacesQueryKey() {
   return [PLUGIN_MARKETPLACES_QUERY_KEY] as const;
 }
+
+const ARC_ACCOUNTS_QUERY_KEY = "arcAccounts";
+const ARC_STATUS_QUERY_KEY = "arcStatus";
+const ARC_CURRENT_AGENT_USAGE_QUERY_KEY = "arcCurrentAgentUsage";
+
+export function arcAccountsQueryKey() {
+  return [ARC_ACCOUNTS_QUERY_KEY] as const;
+}
+
+export function arcStatusQueryKey() {
+  return [ARC_STATUS_QUERY_KEY] as const;
+}
+
+export function arcCurrentAgentUsageQueryKey(
+  agentId: string | null,
+  accountKey: string | null,
+) {
+  return agentId === null
+    ? ([ARC_CURRENT_AGENT_USAGE_QUERY_KEY] as const)
+    : ([ARC_CURRENT_AGENT_USAGE_QUERY_KEY, agentId, accountKey] as const);
+}
+
+export function allArcCurrentAgentUsageQueryKeyPrefix() {
+  return [ARC_CURRENT_AGENT_USAGE_QUERY_KEY] as const;
+}

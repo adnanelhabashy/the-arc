@@ -269,16 +269,11 @@ export function UsageLimitsPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // The snapshot alone is metadata-only (no windows). Opening the page
-  // triggers one real provider fetch so limits actually appear; the
-  // Refresh button re-runs the same full refresh. Usage state is separate
-  // from login state — this never touches authentication flows.
-  useEffect(() => {
-    void refreshAll().catch(() => {
-      // The page-level error path already renders from `error`; a failed
-      // refresh keeps the last snapshot visible.
-    });
-  }, [refreshAll]);
+  // No fetch on open. A read carries Arc's last known measurement, and
+  // arc-core fills a stale or missing one in the background and publishes the
+  // change, which re-reads this page. The Refresh button is the only path
+  // that forces a provider fetch. Usage state is separate from login state —
+  // this never touches authentication flows.
 
   if (isLoading && data === null) {
     return (

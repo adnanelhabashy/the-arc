@@ -2,7 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { request } from "@/lib/api";
 import { toRelativeUrl } from "@/lib/api-server";
 import { appSurfaceRequestInit } from "@/lib/app-surface";
-import { invalidateArcCurrentAgentUsage } from "../cache-owners/arc-usage-cache-owner";
+import { invalidateArcUsage } from "../cache-owners/arc-cache-owner";
+import {
+  arcAccountsQueryKey,
+  arcCurrentAgentUsageQueryKey,
+  arcStatusQueryKey,
+} from "./query-keys";
 import { requireEnabledQueryArg } from "./query-helpers";
 
 // Typed client for the Arc Core plugin RPC surface. The wire schemas live in
@@ -161,13 +166,9 @@ export interface ArcStatus {
   reason: string | null;
 }
 
-const ARC_STATUS_QUERY_KEY = "arcStatus" as const;
-const ARC_CURRENT_AGENT_USAGE_QUERY_KEY = "arcCurrentAgentUsage" as const;
-const ARC_ACCOUNTS_QUERY_KEY = "arcAccounts" as const;
-
 export function useArcAccountsList({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
-    queryKey: [ARC_ACCOUNTS_QUERY_KEY],
+    queryKey: arcAccountsQueryKey(),
     queryFn: () => arcRpcCall<ArcAccountsList>("arc.accounts.list", null),
     enabled,
     staleTime: 30_000,
@@ -178,7 +179,7 @@ export function useArcAccountsList({ enabled = true }: { enabled?: boolean } = {
 
 export function useArcStatus() {
   return useQuery({
-    queryKey: [ARC_STATUS_QUERY_KEY],
+    queryKey: arcStatusQueryKey(),
     queryFn: () => arcRpcCall<ArcStatus>("arc.status", null),
     staleTime: 60_000,
     gcTime: 5 * 60_000,
@@ -198,10 +199,7 @@ export function useArcCurrentAgentUsage({
   enabled: boolean;
 }) {
   return useQuery({
-    queryKey:
-      agentId === null
-        ? [ARC_CURRENT_AGENT_USAGE_QUERY_KEY]
-        : [ARC_CURRENT_AGENT_USAGE_QUERY_KEY, agentId, accountKey ?? null],
+    queryKey: arcCurrentAgentUsageQueryKey(agentId, accountKey ?? null),
     queryFn: () =>
       arcRpcCall<ArcCurrentAgentUsage>("arc.usage.current", {
         agentId: requireEnabledQueryArg({
@@ -223,7 +221,7 @@ export function useArcUsageRefresh() {
   return useMutation({
     mutationFn: () => arcRpcCall<ArcUsageSnapshot>("arc.usage.refresh", {}),
     onSuccess: () => {
-      void invalidateArcCurrentAgentUsage(queryClient);
+      void invalidateArcUsage(queryClient);
     },
   });
 }

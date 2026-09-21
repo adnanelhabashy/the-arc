@@ -8,6 +8,7 @@ import type {
   UpdateThreadRequest,
 } from "@bb/server-contract";
 import { sdk } from "@/lib/sdk";
+import { invalidateArcUsage } from "../cache-owners/arc-cache-owner";
 import type { LifecycleErrorOperation } from "@/lib/lifecycle-errors";
 import {
   applyReorderPinnedThreadResult,
@@ -121,8 +122,16 @@ export function useUpdateThread(options?: UpdateThreadMutationOptions) {
         transaction: context,
       });
     },
-    onSuccess: (thread) => {
+    onSuccess: (thread, variables) => {
       applyThreadUpdateResult({ queryClient, thread });
+      if (variables.accountKey !== undefined) {
+        // The thread now runs on a different account. Its usage display
+        // already keys on the thread's accountKey, so it fetches the new
+        // account's reading; dropping the cached measurements is what keeps
+        // the previous account's numbers from being served as current state
+        // if the user switches back.
+        void invalidateArcUsage(queryClient);
+      }
     },
   });
 }

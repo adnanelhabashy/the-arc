@@ -554,16 +554,20 @@ export function useArcOmpProviders(): {
   }, [rpc]);
 
   useEffect(() => load(), [load]);
+  useRealtime("arc-changed", () => {
+    load();
+  });
 
   return { providers, isLoading, error, refresh: load };
 }
 
-/** Arc usage: fetched on demand (tab open / Refresh click). No polling, no
- *  realtime signal — usage is expensive; the page adds its own slow tick for
- *  relative-time rendering. `refreshResource` refetches a single resource
- *  after an inline Retry; `refreshAll` forces a real provider fetch for
- *  every listed resource (the snapshot alone is metadata-only and never
- *  contains windows). */
+/** Arc usage: read on mount and re-read on the `arc-changed` usage signal.
+ *  A read is cheap metadata plus Arc's last known measurement — arc-core
+ *  fills a stale or missing measurement in the background and publishes the
+ *  change, so nothing here has to force a provider fetch to show numbers.
+ *  `refreshAll` / `refreshResource` are the explicit user actions and are the
+ *  only paths that force one. No polling: the page adds its own slow tick for
+ *  relative-time rendering only. */
 export function useArcUsage(): {
   data: ArcUsageSnapshot | null;
   isLoading: boolean;
@@ -603,6 +607,9 @@ export function useArcUsage(): {
   }, [rpc]);
 
   useEffect(() => load(), [load]);
+  useRealtime("arc-changed", () => {
+    load();
+  });
 
   const refreshAll = useCallback(async () => {
     // Server-validated shape (z.unknown() on this boundary); mirrors ArcUsageSnapshot.

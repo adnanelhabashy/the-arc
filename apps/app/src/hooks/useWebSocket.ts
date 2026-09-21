@@ -1,6 +1,11 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { createRealtimeCacheEffects } from "./realtime-cache-effects";
+import {
+  ARC_CHANGED_CHANNEL,
+  invalidateArcChangedKind,
+  readArcChangedKind,
+} from "./cache-owners/arc-cache-owner";
 import { useDeletedResourceRouteOwner } from "./cache-owners/resource-route-owner";
 import { wsManager } from "../lib/ws";
 
@@ -21,6 +26,14 @@ export function useWebSocket(): void {
       cacheEffects.handleChanged(message);
       deletedResourceRouteChangeRef.current(message);
     });
+    // Arc Core reports its own mutations on a plugin channel rather than as a
+    // domain change message, so the app's Arc caches invalidate from that
+    // signal instead of waiting out their staleTime.
+    const unsubscribeArcChanged = wsManager.onPluginSignal((signal) => {
+      if (signal.channel !== ARC_CHANGED_CHANNEL) return;
+      const kind = readArcChangedKind(signal.payload);
+      if (kind !== null) invalidateArcChangedKind(queryClient, kind);
+    });
 
     wsManager.connect();
 
@@ -28,6 +41,7 @@ export function useWebSocket(): void {
       cacheEffects.dispose();
       unsubscribeConnected();
       unsubscribe();
+      unsubscribeArcChanged();
     };
   }, [queryClient]);
 }
