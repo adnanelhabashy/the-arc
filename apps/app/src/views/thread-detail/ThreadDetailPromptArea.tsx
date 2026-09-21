@@ -19,6 +19,7 @@ import {
 import { PERSONAL_PROJECT_ID } from "@bb/domain";
 import type {
   PermissionMode,
+  ReasoningLevel,
   ServiceTier,
   PendingInteraction,
   PromptInput,
@@ -36,8 +37,19 @@ import type {
   ThreadTimelineResponse,
   TimelineWorkflowWorkRow,
 } from "@bb/server-contract";
-import type { ExperimentalComposerSubmitOptions } from "@get-bb/plugin-sdk";
+import type {
+  ExperimentalComposerSelection,
+  ExperimentalComposerSubmitOptions,
+} from "@get-bb/plugin-sdk";
 import type { ChildThreadPendingAttention } from "@/hooks/queries/child-thread-pending-interactions";
+import {
+  readExecutionSelection,
+  resolveComposerSelectionDeadline,
+  useCommittedComposerState,
+  waitForSettledComposerState,
+  waitUntilComposerStateSettled,
+  type CommittedComposerState,
+} from "@/components/promptbox/composer-selection-settle";
 import { ThreadPendingInteractionBanner } from "@/components/thread/pending-interactions/ThreadPendingInteractionBanner";
 import {
   type PluginComposerHost,
@@ -288,6 +300,23 @@ function buildInlineDraftComposer(options: InlineDraftComposerOptions) {
   );
 }
 
+interface ThreadComposerSelectionState extends CommittedComposerState {
+  selectedProviderId: string;
+  selectedThreadModel: string;
+  reasoningLevel: ReasoningLevel;
+  serviceTier: ServiceTier | undefined;
+  supportsServiceTier: boolean;
+  permissionMode: PermissionMode;
+  providerIds: readonly string[];
+  isHandoffSelection: boolean;
+  changeProvider: (providerId: string) => void;
+  changeModel: (model: string) => void;
+  handoffSelect: (selection: ModelReasoningPickerHandoffSelection) => void;
+  changeReasoning: (level: ReasoningLevel) => void;
+  changeServiceTier: (tier: ServiceTier | undefined) => void;
+  changePermissionMode: (mode: PermissionMode) => void;
+}
+
 type InlineQueuedMessageEditSession = Pick<
   InlineQueuedMessageEditState,
   "editSessionId" | "queuedMessageId"
@@ -532,10 +561,12 @@ export function ThreadDetailPromptArea({
     setBottomAttachmentError,
     handleAttachBottomFiles,
     isAttachingBottomFiles,
+    bottomPendingUploads,
     inlineAttachmentError,
     setInlineAttachmentError,
     handleAttachInlineFiles,
     isAttachingInlineFiles,
+    inlinePendingUploads,
   } = useComposerAttachmentUploads({
     projectId,
     addDraftAttachment: promptDraft.addAttachment,
@@ -546,6 +577,7 @@ export function ThreadDetailPromptArea({
     attachmentError: sentMessageAttachmentError,
     handleAttachFiles: handleAttachSentMessageFiles,
     isAttachingFiles: isAttachingSentMessageFiles,
+    pendingUploads: sentMessagePendingUploads,
   } = useDraftAttachmentUploads({
     projectId,
     target: sentMessageEdit
@@ -649,6 +681,7 @@ export function ThreadDetailPromptArea({
     modelOptions,
     moreModelOptions,
     isLoadingModels,
+    modelCatalogIsSettled,
     modelLoadFailed,
     modelLoadError,
     reasoningOptions,
@@ -960,6 +993,102 @@ export function ThreadDetailPromptArea({
     ) => submitProgrammaticallyRef.current(options, pluginSubmission),
     [],
   );
+  const providerIds = useMemo(
+    () => providerOptions.map((option) => option.value),
+    [providerOptions],
+  );
+  const selectionState =
+    useCommittedComposerState<ThreadComposerSelectionState>((version) => ({
+      version,
+      isSettled: modelCatalogIsSettled,
+      selectedProviderId,
+      selectedThreadModel: effectiveSelectedModel,
+      reasoningLevel,
+      serviceTier,
+      supportsServiceTier,
+      permissionMode,
+      providerIds,
+      isHandoffSelection,
+      changeProvider: handleProviderChange,
+      changeModel: handleModelChange,
+      handoffSelect: handleHandoffSelect,
+      changeReasoning: setReasoningLevel,
+      changeServiceTier: setServiceTier,
+      changePermissionMode: setPermissionMode,
+    }));
+  const pendingSelectionRef = useRef<Promise<unknown>>(Promise.resolve());
+  const applySelection = useCallback(
+    async (
+      selection: ExperimentalComposerSelection,
+    ): Promise<ExperimentalComposerSelection> => {
+      const deadline = resolveComposerSelectionDeadline();
+      const { observer } = selectionState;
+      let state = await observer.waitUntil(() => true, deadline);
+      const settle = async (requireSettled: boolean) => {
+        state = await waitForSettledComposerState(
+          selectionState,
+          deadline,
+          requireSettled,
+        );
+      };
+      const ensureSettled = async () => {
+        if (state.isSettled) return;
+        state = await waitUntilComposerStateSettled(selectionState, deadline);
+      };
+      if (selection.providerId !== undefined) await ensureSettled();
+      if (
+        selection.providerId !== undefined &&
+        selection.providerId !== state.selectedProviderId &&
+        state.providerIds.includes(selection.providerId)
+      ) {
+        state.changeProvider(selection.providerId);
+        await settle(true);
+      }
+      const providerMatches =
+        selection.providerId === undefined ||
+        state.selectedProviderId === selection.providerId;
+      if (providerMatches && selection.model !== undefined) {
+        await ensureSettled();
+        if (state.isHandoffSelection) {
+          state.handoffSelect({
+            providerId: state.selectedProviderId,
+            model: selection.model,
+            reasoningLevel: selection.reasoningLevel ?? state.reasoningLevel,
+          });
+        } else {
+          state.changeModel(selection.model);
+        }
+        await settle(false);
+      }
+      if (providerMatches && selection.reasoningLevel !== undefined) {
+        await ensureSettled();
+        state.changeReasoning(selection.reasoningLevel);
+        await settle(false);
+      }
+      if (selection.serviceTier !== undefined && state.supportsServiceTier) {
+        state.changeServiceTier(selection.serviceTier);
+        await settle(false);
+      }
+      if (selection.permissionMode !== undefined) {
+        state.changePermissionMode(selection.permissionMode);
+        await settle(false);
+      }
+      await settle(true);
+      return readExecutionSelection(state);
+    },
+    [selectionState],
+  );
+  const setSelection = useCallback(
+    (selection: ExperimentalComposerSelection) => {
+      const run = pendingSelectionRef.current.then(
+        () => applySelection(selection),
+        () => applySelection(selection),
+      );
+      pendingSelectionRef.current = run;
+      return run;
+    },
+    [applySelection],
+  );
   const normalPluginComposerHost = useMemo<PluginComposerHost>(
     () => ({
       scope: { kind: "thread", threadId: thread.id },
@@ -969,6 +1098,7 @@ export function ThreadDetailPromptArea({
       setDraft: promptDraft.setDraft,
       focus: focusBottomPluginComposer,
       submit: submitProgrammaticallyThroughRef,
+      setSelection,
     }),
     [
       focusBottomPluginComposer,
@@ -976,6 +1106,7 @@ export function ThreadDetailPromptArea({
       promptDraft.setDraft,
       promptDraft.storageKey,
       promptDraft.subscribe,
+      setSelection,
       submitProgrammaticallyThroughRef,
       thread.id,
     ],
@@ -1314,6 +1445,7 @@ export function ThreadDetailPromptArea({
       items: currentPromptDraft.attachments,
       projectId,
       isAttaching: isAttachingBottomFiles,
+      pendingUploads: bottomPendingUploads,
       error: bottomAttachmentError,
       onAttachFiles: handleAttachBottomFiles,
       onRemove: promptDraft.removeAttachment,
@@ -1323,6 +1455,7 @@ export function ThreadDetailPromptArea({
       currentPromptDraft.attachments,
       handleAttachBottomFiles,
       isAttachingBottomFiles,
+      bottomPendingUploads,
       projectId,
       promptDraft.removeAttachment,
     ],
@@ -1699,6 +1832,7 @@ export function ThreadDetailPromptArea({
           items: activeComposerDraft.attachments,
           projectId,
           isAttaching: isAttachingInlineFiles,
+          pendingUploads: inlinePendingUploads,
           error: inlineAttachmentError,
           onAttachFiles: handleAttachInlineFiles,
           onRemove: removeActiveComposerAttachment,
@@ -1742,6 +1876,7 @@ export function ThreadDetailPromptArea({
     inlineExecutionConfig,
     inlinePermissionConfig,
     isAttachingInlineFiles,
+    inlinePendingUploads,
     isUpdateQueuedMessagePending,
     projectId,
     inlinePromptActions,
@@ -1804,6 +1939,7 @@ export function ThreadDetailPromptArea({
             items: draft.attachments,
             projectId,
             isAttaching: isAttachingSentMessageFiles,
+            pendingUploads: sentMessagePendingUploads,
             error: sentMessageAttachmentError,
             onAttachFiles: handleAttachSentMessageFiles,
             onRemove: (path) => {
@@ -1857,6 +1993,7 @@ export function ThreadDetailPromptArea({
     handleAttachSentMessageFiles,
     handleSentMessageEditSubmit,
     isAttachingSentMessageFiles,
+    sentMessagePendingUploads,
     projectId,
     inlinePromptActions,
     runtimeDisplayStatus,
