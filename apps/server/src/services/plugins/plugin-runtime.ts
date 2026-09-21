@@ -43,6 +43,8 @@ import {
   getInstalledPlugin,
   listInstalledPlugins,
   prunePluginSchedules,
+  setInstalledPluginEnabled,
+  setInstalledPluginRootDir,
   upsertPluginSchedule,
   type InstalledPluginRow,
 } from "@bb/db";
@@ -61,7 +63,12 @@ import { parsePluginSource } from "./install-sources.js";
 import { readPluginManifest, type PluginManifest } from "./manifest.js";
 import { buildPluginProviderRegistration } from "../providers/plugin-provider-registration.js";
 import type { ProviderInstallRank } from "../providers/provider-registry.js";
-import { BUNDLED_PLUGINS } from "./builtin-registry.js";
+import {
+  BUNDLED_PLUGINS,
+  bundledPluginSourcePresent,
+  listBundledPluginRegistrations,
+  type BundledPluginRegistration,
+} from "./builtin-registry.js";
 import { readPluginSettingsValuesSync } from "./plugin-settings.js";
 import {
   nextCronRunAt,
@@ -288,6 +295,7 @@ interface ServiceInstance {
 interface PluginRuntimeContext {
   machineEnrollments: MachineEnrollmentService | null;
   deps: PluginServiceDeps;
+  bundledPlugins?: readonly BundledPluginRegistration[];
   settingsChanged?: () => void;
 }
 
@@ -301,6 +309,8 @@ export function createPluginRuntime(context: PluginRuntimeContext) {
   const { deps } = context;
   const settingsChanged = context.settingsChanged ?? (() => {});
   const logger = deps.logger;
+  const bundledPlugins =
+    context.bundledPlugins ?? listBundledPluginRegistrations();
   const loadTimeoutMs = deps.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS;
   const serviceStopTimeoutMs =
     deps.serviceStopTimeoutMs ?? DEFAULT_SERVICE_STOP_TIMEOUT_MS;
@@ -897,6 +907,14 @@ export function createPluginRuntime(context: PluginRuntimeContext) {
     }
   }
 
+  function sameDirectory(a: string, b: string): boolean {
+    try {
+      return realpathSync(a) === realpathSync(b);
+    } catch {
+      return a === b;
+    }
+  }
+
   function isPackagedBuiltinEntry(args: {
     kind: ReturnType<typeof sourceKind>;
     manifest: PluginManifest;
@@ -1373,6 +1391,29 @@ export function createPluginRuntime(context: PluginRuntimeContext) {
       setStatus(row.id, "degraded", detail);
       logger.warn(`plugin ${row.id} not loaded (degraded): ${detail}`);
       return detail;
+    }
+    if (row.sourceKind === "builtin" && row.sourceBuiltinName !== null) {
+      const bundled = bundledPlugins.find(
+        (plugin) => plugin.name === row.sourceBuiltinName,
+      );
+      const trustedRoot =
+        bundled !== undefined && bundledPluginSourcePresent(bundled)
+          ? bundled.rootDir
+          : null;
+      if (trustedRoot === null) {
+        if (row.enabled) setInstalledPluginEnabled(deps.db, row.id, false);
+        return failBeforeFactory(
+          "missing",
+          `builtin plugin source is not present in this installation (registered location: ${row.rootDir})`,
+        );
+      }
+      if (!sameDirectory(trustedRoot, row.rootDir)) {
+        logger.warn(
+          `plugin ${row.id}: registered builtin location ${row.rootDir} is not this installation; loading from ${trustedRoot}`,
+        );
+        setInstalledPluginRootDir(deps.db, row.id, trustedRoot);
+        row = { ...row, rootDir: trustedRoot };
+      }
     }
     try {
       await stat(row.rootDir);

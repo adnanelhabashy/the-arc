@@ -391,6 +391,19 @@ export function setInstalledPluginEnabled(
   return result.changes > 0;
 }
 
+export function setInstalledPluginRootDir(
+  db: DbConnection,
+  id: string,
+  rootDir: string,
+): boolean {
+  const result = db
+    .update(installedPlugins)
+    .set({ rootDir, updatedAt: Date.now() })
+    .where(and(eq(installedPlugins.id, id), isNull(installedPlugins.removedAt)))
+    .run();
+  return result.changes > 0;
+}
+
 export function setInstalledPluginUpdateState(
   db: DbConnection,
   id: string,

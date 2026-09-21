@@ -5,8 +5,10 @@ import { isBbManagedWorkspacePath } from "../threads/workspace-paths.js";
 import {
   getInstalledPlugin,
   getInstalledPluginRegistration,
+  listInstalledPlugins,
   listUnnormalizedPluginRegistrations,
   normalizeInstalledPluginRegistration,
+  setInstalledPluginEnabled,
   setInstalledPluginSourceClassification,
   upsertInstalledPlugin,
   type InstalledPluginRow,
@@ -18,6 +20,7 @@ import {
 } from "@bb/db";
 import {
   BUNDLED_PLUGINS,
+  bundledPluginSourcePresent,
   builtinPluginSource,
   type BundledPluginRegistration,
 } from "./builtin-registry.js";
@@ -696,6 +699,23 @@ export function createPluginRegistration(context: PluginRegistrationContext) {
           version: manifest.version,
           enabled: existing?.enabled ?? bundled.defaultEnabled,
         });
+      }
+    }
+    const presentBundledNames = new Set(
+      bundledPlugins
+        .filter((bundled) => bundledPluginSourcePresent(bundled))
+        .map((bundled) => bundled.name),
+    );
+    for (const row of listInstalledPlugins(deps.db)) {
+      if (row.sourceKind !== "builtin" || row.sourceBuiltinName === null)
+        continue;
+      if (presentBundledNames.has(row.sourceBuiltinName)) continue;
+      if (row.removedAt !== null && row.removedAt !== undefined) continue;
+      if (row.enabled) {
+        setInstalledPluginEnabled(deps.db, row.id, false);
+        logger.warn(
+          `builtin plugin ${row.id} (${row.source}) is not provided by this installation; stale registration disabled`,
+        );
       }
     }
   }

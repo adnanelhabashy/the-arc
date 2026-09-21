@@ -140,6 +140,7 @@ export {
   normalizeInstalledPluginRegistration,
   setInstalledPluginDirectProvenance,
   setInstalledPluginEnabled,
+  setInstalledPluginRootDir,
   setInstalledPluginUpdateState,
   setInstalledPluginSourceClassification,
   setInstalledPluginLastFailure,
