@@ -1,24 +1,27 @@
 {
   "_comment": "Provider-literal ratchet (G1). Per-file occurrence count of provider-ID references in core. May only go DOWN. Regenerate: node scripts/check-provider-literal-ratchet.mjs --write. Every counted file must have an `allowlist` entry (count, reason, owner, diesAt); the entries are authored by hand and survive --write. Delete this file and the guard when empty.",
-  "total": 84,
+  "total": 95,
   "files": {
     "apps/app/src/components/thread/timeline/ProviderUsageSection.tsx": 5,
     "apps/app/src/hooks/queries/arc-queries.ts": 2,
     "apps/demo-server/src/fixtures/providers.ts": 3,
     "apps/demo-server/src/fixtures/world.ts": 2,
+    "apps/desktop/src/main.ts": 1,
     "apps/server/src/services/threads/thread-edit-message.ts": 1,
     "packages/arc-domains/src/arc-account/account-pool-source.ts": 7,
     "packages/arc-domains/src/arc-account/service.ts": 1,
     "packages/arc-domains/src/arc-agent/catalog.ts": 9,
-    "packages/arc-domains/src/arc-agent/manager.ts": 6,
+    "packages/arc-domains/src/arc-agent/manager.ts": 7,
     "packages/arc-domains/src/arc-agent/types.ts": 4,
     "packages/arc-domains/src/arc-runtime/claude-setup.ts": 7,
     "packages/arc-domains/src/arc-runtime/compatibility.ts": 1,
     "packages/arc-domains/src/arc-runtime/environment.ts": 4,
-    "packages/arc-domains/src/arc-runtime/manifest.ts": 2,
+    "packages/arc-domains/src/arc-runtime/health.ts": 2,
+    "packages/arc-domains/src/arc-runtime/manifest.ts": 5,
     "packages/arc-domains/src/arc-runtime/paths.ts": 2,
     "packages/arc-domains/src/arc-runtime/releases.ts": 3,
     "packages/arc-domains/src/arc-runtime/types.ts": 4,
+    "packages/arc-domains/src/arc-runtime/update-discovery.ts": 4,
     "packages/arc-domains/src/arc-usage/pool-source.ts": 5,
     "packages/arc-domains/src/arc-usage/service.ts": 2,
     "packages/config/src/bb-app-managed-config.ts": 4,
@@ -28,6 +31,12 @@
     "plugins/arc-core/src/server.ts": 2
   },
   "allowlist": {
+    "apps/desktop/src/main.ts": {
+      "count": 1,
+      "reason": "Arc product layer: the desktop shell reads the Arc runtime manifest's per-runtime active version for its About/provenance facts, keyed by the three runtimes Arc installs.",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
     "apps/app/src/components/thread/timeline/ProviderUsageSection.tsx": {
       "count": 5,
       "reason": "Arc product surface: this UI is Arc's own agents/usage screen rather than shared core rendering.",
@@ -77,7 +86,7 @@
       "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
     },
     "packages/arc-domains/src/arc-agent/manager.ts": {
-      "count": 6,
+      "count": 7,
       "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
       "owner": "arc-productization",
       "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
@@ -106,8 +115,20 @@
       "owner": "arc-productization",
       "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
     },
-    "packages/arc-domains/src/arc-runtime/manifest.ts": {
+    "packages/arc-domains/src/arc-runtime/health.ts": {
       "count": 2,
+      "reason": "Arc product layer: the managed-runtime health probe selects its vendor-specific doctor invocation by the runtime id Arc installed (codex doctor --json, claude doctor).",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "packages/arc-domains/src/arc-runtime/update-discovery.ts": {
+      "count": 4,
+      "reason": "Arc product layer: managed-runtime update discovery resolves each installed runtime's official release source (OpenAI's GitHub releases, Anthropic's official channel, OMP's release manifest).",
+      "owner": "arc-productization",
+      "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
+    },
+    "packages/arc-domains/src/arc-runtime/manifest.ts": {
+      "count": 5,
       "reason": "Arc product layer: packages/arc-domains resolves and manages the three agents Arc ships (Codex, Claude Code, OMP) by id. It is the fork's product boundary, not shared core.",
       "owner": "arc-productization",
       "diesAt": "never while Arc ships its own agent runtimes and usage surfaces (revisit if the fork is upstreamed)"
