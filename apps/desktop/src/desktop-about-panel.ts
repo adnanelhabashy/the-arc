@@ -1,9 +1,14 @@
 export interface DesktopAboutFacts {
   applicationName: string;
+  bbBaseVersion: string;
+  bbUpstreamCommit: string;
   buildDate: string;
   channel: "latest" | "nightly";
+  claudeVersion: string | null;
+  codexVersion: string | null;
   commit: string;
   electronVersion: string;
+  ompVersion: string | null;
   osArch: string;
   osRelease: string;
   osType: string;
@@ -36,6 +41,14 @@ const MILLISECONDS_PER_DAY = 86_400_000;
 function displayValue(value: string): string {
   const trimmed = value.trim();
   return trimmed.length === 0 ? UNKNOWN_VALUE : trimmed;
+}
+
+// A managed runtime the user has never installed/activated is a legitimate
+// state, not missing data — shown distinctly from "unknown" (Mission
+// Control's unknown-is-never-zero rule extends here: "not installed" must
+// never be spelled the same as "we couldn't tell").
+function displayRuntimeVersion(version: string | null): string {
+  return version === null ? "Not installed" : version;
 }
 
 export function formatBuildAge(
@@ -77,6 +90,11 @@ export function buildDesktopAboutDetails(
     ["Build Type", facts.channel === "nightly" ? "Nightly" : "Stable"],
     ["Commit", facts.commit],
     ["Date", formatBuildDate(facts.buildDate, nowMs)],
+    ["Core based on BB", facts.bbBaseVersion],
+    ["BB upstream commit", displayValue(facts.bbUpstreamCommit)],
+    ["Codex", displayRuntimeVersion(facts.codexVersion)],
+    ["Claude Code", displayRuntimeVersion(facts.claudeVersion)],
+    ["OMP", displayRuntimeVersion(facts.ompVersion)],
     ["Plugin SDK", facts.pluginSdkVersion],
     ["Electron", facts.electronVersion],
     ["OS", `${facts.osType} ${facts.osArch} ${facts.osRelease}`],

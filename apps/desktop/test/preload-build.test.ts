@@ -28,6 +28,10 @@ const desktopPackageJsonSchema = z.object({
   version: z.string().min(1),
 });
 
+const arcVersionJsonSchema = z.object({
+  arcVersion: z.string().min(1),
+});
+
 interface DesktopSmokeServer {
   close(): Promise<void>;
   port: number;
@@ -316,9 +320,20 @@ async function readDesktopPackageVersion(): Promise<string> {
   return desktopPackageJsonSchema.parse(JSON.parse(packageJsonText)).version;
 }
 
+async function readArcVersion(): Promise<string> {
+  const arcVersionText = await readFile(
+    resolve(desktopPackageRoot, "arc-version.json"),
+    "utf8",
+  );
+  return arcVersionJsonSchema.parse(JSON.parse(arcVersionText)).arcVersion;
+}
+
 describe("desktop build", () => {
   it("emits package-compatible Electron entries", async () => {
-    const desktopVersion = await readDesktopPackageVersion();
+    // The app reports its own Arc version to the renderer, not the BB base
+    // version apps/desktop/package.json tracks (see arc-version.json).
+    const desktopVersion = await readArcVersion();
+    const bbBaseVersion = await readDesktopPackageVersion();
 
     await execFileAsync(process.execPath, ["scripts/build.mjs"], {
       cwd: desktopPackageRoot,
@@ -339,6 +354,8 @@ describe("desktop build", () => {
 
     expect(mainSource).toContain('"use strict";');
     expect(mainSource).not.toMatch(/^import\s/mu);
+    expect(mainSource).toContain(desktopVersion);
+    expect(mainSource).toContain(bbBaseVersion);
 
     expect(preloadSource).toContain(desktopVersion);
     expect(preloadSource).not.toContain("BB_DESKTOP_VERSION");

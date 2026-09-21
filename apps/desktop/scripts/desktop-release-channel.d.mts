@@ -7,8 +7,8 @@ export interface DesktopUpdateMetadataFileNames {
 }
 
 export interface DesktopReleaseConfig {
-  appId: "dev.bb.desktop" | "dev.bb.desktop.nightly";
-  applicationName: "bb" | "bb Nightly";
+  appId: "io.github.adnanelhabashy.arcagent" | "io.github.adnanelhabashy.arcagent.nightly";
+  applicationName: "Arc Agent" | "Arc Agent Nightly";
   artifactName: string;
   iconFileName: "icon.png" | "icon-nightly.png";
   linuxExecutableName: "bb" | "bb-nightly";
@@ -28,7 +28,3 @@ export function resolveDesktopBuildPlatform(
 export function createDesktopReleaseConfig(
   channel: DesktopReleaseChannel,
 ): DesktopReleaseConfig;
-
-export function createDesktopUpdateReleaseBaseUrl(
-  releaseTag: DesktopReleaseConfig["releaseTag"],
-): string;

@@ -522,6 +522,7 @@ jobs:
     outputs:
       version: ${{ steps.nightly_version.outputs.version }}
     env:
+      ARC_DESKTOP_UPDATE_FEED_BASE_URL: https://github.com/adnanelhabashy/the-arc/releases/download/
       BB_DESKTOP_RELEASE_CHANNEL: nightly
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
@@ -660,6 +661,7 @@ jobs:
     outputs:
       version: ${{ steps.nightly_version.outputs.version }}
     env:
+      ARC_DESKTOP_UPDATE_FEED_BASE_URL: https://github.com/adnanelhabashy/the-arc/releases/download/
       BB_DESKTOP_RELEASE_CHANNEL: nightly
 
     steps:
@@ -912,13 +914,13 @@ jobs:
           VERSION: ${{ needs.nightly-desktop-macos.outputs.version }}
         run: |
           {
-            echo "## bb Nightly desktop"
+            echo "## Arc Agent Nightly desktop"
             echo
             echo "- version: \`$VERSION\`"
-            echo "- app identity: \`dev.bb.desktop.nightly\`"
+            echo "- app identity: \`io.github.adnanelhabashy.arcagent.nightly\`"
             echo "- platforms: macOS arm64 (signed), Linux x64 AppImage"
-            echo "- release: https://github.com/get-bb/bb/releases/tag/desktop-nightly"
-            echo "- macOS update feed: https://github.com/get-bb/bb/releases/download/desktop-nightly/desktop-version.json"
-            echo "- Linux update feed: https://github.com/get-bb/bb/releases/download/desktop-nightly/desktop-version-linux.json"
+            echo "- release: https://github.com/adnanelhabashy/the-arc/releases/tag/desktop-nightly"
+            echo "- macOS update feed: https://github.com/adnanelhabashy/the-arc/releases/download/desktop-nightly/desktop-version.json"
+            echo "- Linux update feed: https://github.com/adnanelhabashy/the-arc/releases/download/desktop-nightly/desktop-version-linux.json"
             echo "- retention for workflow artifacts: 14 days"
           } >> "$GITHUB_STEP_SUMMARY"

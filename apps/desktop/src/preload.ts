@@ -105,7 +105,7 @@ function createInitialDesktopInfo(): BbDesktopInfo {
     platform: resolveBbDesktopPlatform(process.platform),
     updateAvailable: false,
     updateDownloaded: false,
-    version: getDesktopVersion(process.env.BB_DESKTOP_VERSION),
+    version: getDesktopVersion(process.env.ARC_DESKTOP_APP_VERSION),
   };
 }
 

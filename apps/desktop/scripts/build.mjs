@@ -7,6 +7,7 @@ import { resolveDesktopReleaseChannel } from "./desktop-release-channel.mjs";
 const packageRoot = process.cwd();
 const distDir = resolve(packageRoot, "dist");
 const packageJsonPath = resolve(packageRoot, "package.json");
+const arcVersionPath = resolve(packageRoot, "arc-version.json");
 const pluginSdkPackageJsonPath = resolve(
   packageRoot,
   "..",
@@ -59,6 +60,31 @@ function readBuildDate(env) {
   return new Date().toISOString();
 }
 
+/**
+ * Arc's own product version and its BB provenance are deliberately recorded,
+ * not derived: apps/desktop/package.json's version tracks the BB base this
+ * fork was built from (see the version-lockstep check), while Arc's own
+ * release version and the upstream commit it forked from live here and are
+ * updated by hand — bbUpstreamCommit only changes when the maintainer
+ * actually re-syncs from get-bb/bb (see ADR: Arc application versioning).
+ */
+function readArcVersionInfo(text) {
+  const parsed = JSON.parse(text);
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    typeof parsed.arcVersion !== "string" ||
+    parsed.arcVersion.length === 0 ||
+    typeof parsed.bbUpstreamCommit !== "string" ||
+    parsed.bbUpstreamCommit.length === 0
+  ) {
+    throw new Error(
+      "apps/desktop/arc-version.json must define arcVersion and bbUpstreamCommit",
+    );
+  }
+  return { arcVersion: parsed.arcVersion, bbUpstreamCommit: parsed.bbUpstreamCommit };
+}
+
 await rm(distDir, { force: true, recursive: true });
 
 const desktopVersion = readPackageVersion(
@@ -69,13 +95,27 @@ const pluginSdkVersion = readPackageVersion(
   await readFile(pluginSdkPackageJsonPath, "utf8"),
   "packages/plugin-sdk/package.json",
 );
+const arcVersionInfo = readArcVersionInfo(
+  await readFile(arcVersionPath, "utf8"),
+);
 const desktopReleaseChannel = resolveDesktopReleaseChannel(process.env);
 const desktopCommit = readBuildCommit(process.env);
 const desktopBuildDate = readBuildDate(process.env);
+// Arc owns its update source, never BB's. Empty by default (fail closed: no
+// feed at all) for local/dev builds; CI sets this to Arc's own release repo
+// for packaged builds. Never default this to a BB-controlled URL.
+const arcUpdateFeedBaseUrl =
+  process.env.ARC_DESKTOP_UPDATE_FEED_BASE_URL?.trim() ?? "";
 
 const commonOptions = {
   bundle: true,
   define: {
+    "process.env.ARC_DESKTOP_APP_VERSION": JSON.stringify(
+      arcVersionInfo.arcVersion,
+    ),
+    "process.env.ARC_DESKTOP_UPDATE_FEED_BASE_URL": JSON.stringify(
+      arcUpdateFeedBaseUrl,
+    ),
     "process.env.BB_DESKTOP_BUILD_DATE": JSON.stringify(desktopBuildDate),
     "process.env.BB_DESKTOP_COMMIT": JSON.stringify(desktopCommit),
     "process.env.BB_DESKTOP_PLUGIN_SDK_VERSION":
@@ -84,6 +124,9 @@ const commonOptions = {
       desktopReleaseChannel,
     ),
     "process.env.BB_DESKTOP_VERSION": JSON.stringify(desktopVersion),
+    "process.env.BB_UPSTREAM_COMMIT": JSON.stringify(
+      arcVersionInfo.bbUpstreamCommit,
+    ),
   },
   legalComments: "none",
   platform: "node",

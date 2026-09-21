@@ -1,5 +1,5 @@
 {
-  "appId": "dev.bb.desktop",
+  "appId": "io.github.adnanelhabashy.arcagent",
   "productName": "Arc Agent",
   "artifactName": "${productName}-${version}-${arch}.${ext}",
   "toolsets": {
@@ -34,13 +34,6 @@
     },
     "package.json",
     "!**/*.map"
-  ],
-  "publish": [
-    {
-      "channel": "latest",
-      "provider": "generic",
-      "url": "https://github.com/get-bb/bb/releases/download/desktop-latest/"
-    }
   ],
   "mac": {
     "category": "public.app-category.developer-tools",

@@ -13,6 +13,7 @@ const baseConfigPath = resolve(
   desktopPackageRoot,
   "electron-builder.config.json",
 );
+const arcVersionPath = resolve(desktopPackageRoot, "arc-version.json");
 const generatedConfigPath = resolve(
   desktopPackageRoot,
   ".electron-builder.generated.json",
@@ -157,11 +158,18 @@ function createSigningPlan(env) {
   };
 }
 
-function resolveElectronBuilderConfig(baseConfig, env) {
+function resolveElectronBuilderConfig(baseConfig, env, arcVersion) {
   const signingPlan = createSigningPlan(env);
   const releaseChannel = resolveDesktopReleaseChannel(env);
   const releaseConfig = createDesktopReleaseConfig(releaseChannel);
   const config = cloneJson(baseConfig);
+  // Arc's packaged version (CFBundleShortVersionString, artifact names) is
+  // Arc's own release version, never the BB-lockstep apps/desktop/package.json
+  // version electron-builder would otherwise default to. electron-builder has
+  // no top-level "version" option (verified against a real packaging run);
+  // extraMetadata is the documented override, and it also patches the
+  // packaged package.json electron-builder ships inside the app.
+  config.extraMetadata = { ...config.extraMetadata, version: arcVersion };
   const mac = {
     ...config.mac,
     icon: releaseConfig.macIconPath,
@@ -186,11 +194,25 @@ function resolveElectronBuilderConfig(baseConfig, env) {
   config.appId = releaseConfig.appId;
   config.artifactName = releaseConfig.artifactName;
   config.productName = releaseConfig.applicationName;
-  // Arc Agent fork: no built-in update feed. electron-builder then ships no
-  // app-update.yml, so electron-updater has nothing to fetch and the app never
-  // reverts the rebrand via an upstream update. Re-enable by restoring the
-  // publish block below (and point it at an Arc Agent release channel).
 
+  // Arc owns its update source, never BB's. No Arc release feed is
+  // configured here yet, so `publish` stays absent: electron-builder ships
+  // no app-update.yml, and electron-updater has nothing to fetch from
+  // anywhere, including BB's github.com/get-bb/bb releases. Wire this up
+  // only once an Arc-controlled release feed exists; never point it at a
+  // BB-controlled URL.
+  const arcUpdateFeedBaseUrl = env.ARC_DESKTOP_UPDATE_FEED_BASE_URL?.trim();
+  if (arcUpdateFeedBaseUrl) {
+    config.publish = [
+      {
+        channel: releaseChannel,
+        provider: "generic",
+        url: `${arcUpdateFeedBaseUrl}${releaseConfig.releaseTag}/`,
+      },
+    ];
+  } else {
+    delete config.publish;
+  }
 
   return {
     config,
@@ -215,6 +237,20 @@ function createElectronBuilderEnv(signingPlan) {
 async function readBaseConfig() {
   const configText = await readFile(baseConfigPath, "utf8");
   return JSON.parse(configText);
+}
+
+async function readArcVersion() {
+  const versionText = await readFile(arcVersionPath, "utf8");
+  const parsed = JSON.parse(versionText);
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    typeof parsed.arcVersion !== "string" ||
+    parsed.arcVersion.length === 0
+  ) {
+    throw new Error("apps/desktop/arc-version.json must define arcVersion");
+  }
+  return parsed.arcVersion;
 }
 
 async function writeGeneratedConfig(config) {
@@ -256,9 +292,11 @@ async function main() {
   const printConfig = args.includes(printConfigFlag);
   const electronBuilderArgs = args.filter((arg) => arg !== printConfigFlag);
   const baseConfig = await readBaseConfig();
+  const arcVersion = await readArcVersion();
   const { config, signingPlan } = resolveElectronBuilderConfig(
     baseConfig,
     process.env,
+    arcVersion,
   );
 
   if (printConfig) {

@@ -145,7 +145,7 @@ interface EmitIpcPayloadArgs {
 async function loadPreload(): Promise<BbDesktopApi> {
   electronMock.reset();
   vi.resetModules();
-  process.env.BB_DESKTOP_VERSION = "0.0.0-test";
+  process.env.ARC_DESKTOP_APP_VERSION = "0.0.0-test";
   await import("../src/preload.js");
   const api = electronMock.exposedApi;
   expect(electronMock.exposedName).toBe("bbDesktop");

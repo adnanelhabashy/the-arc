@@ -249,7 +249,7 @@ describe("applyServerMove", () => {
     expect(stores.notices).toEqual([
       {
         detail:
-          "bb now opens the server on Studio desktop. This computer stays connected to it as a regular machine.",
+          "Arc Agent now opens the server on Studio desktop. This computer stays connected to it as a regular machine.",
         message: "Your bb server moved to Studio desktop",
       },
     ]);

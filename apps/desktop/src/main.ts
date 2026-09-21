@@ -50,7 +50,10 @@ import {
   buildArcManagedRuntimeEnvironment,
   resolveActiveArcRuntimes,
 } from "@bb/arc-domains/arc-runtime/environment.js";
-import { resolveArcPlatformIdentity } from "@bb/arc-domains/arc-runtime/manifest.js";
+import {
+  readArcRuntimeManifest,
+  resolveArcPlatformIdentity,
+} from "@bb/arc-domains/arc-runtime/manifest.js";
 import { createArcRuntimePaths } from "@bb/arc-domains/arc-runtime/paths.js";
 import {
   resolveBbAppProcessRuntime,
@@ -436,7 +439,7 @@ function canReplaceAppImage(appImagePath: string): boolean {
 
 function resolveDesktopUpdateFeedUrl(
   args: ResolveDesktopUpdateFeedUrlArgs,
-): string {
+): string | null {
   const rawFeedUrl = args.env.BB_DESKTOP_VERSION_FEED_URL?.trim();
   if (rawFeedUrl === undefined || rawFeedUrl.length === 0) {
     return createDesktopUpdateFeedUrl(args.platform);
@@ -444,32 +447,80 @@ function resolveDesktopUpdateFeedUrl(
   return rawFeedUrl;
 }
 
-function readDesktopAboutFacts(applicationName: string): DesktopAboutFacts {
+// Arc's own product version, independent of the BB base version tracked by
+// package.json (see arc-version.json and getDesktopVersion(BB_DESKTOP_VERSION)
+// for that separate provenance value). Used for update comparison, the About
+// panel, and everywhere the runtime manifest records which Arc build acted on it.
+function getArcAppVersion(): string {
+  return getDesktopVersion(process.env.ARC_DESKTOP_APP_VERSION);
+}
+
+async function readActiveArcRuntimeVersions(): Promise<{
+  claudeVersion: string | null;
+  codexVersion: string | null;
+  ompVersion: string | null;
+}> {
+  const runtimePaths = createArcRuntimePaths({
+    userDataPath: app.getPath("userData"),
+  });
+  const platform = resolveArcPlatformIdentity({
+    arch: process.arch,
+    platform: process.platform,
+  });
+  const result = await readArcRuntimeManifest({
+    createdByArcVersion: getArcAppVersion(),
+    manifestPath: runtimePaths.manifestPath,
+    platform,
+  });
+  // An unsupported-schema manifest carries no parsed runtimes at all: report
+  // every runtime as not-installed rather than guessing, the same fail-safe
+  // resolveActiveArcRuntimes already applies for the same case.
+  if (result.kind === "unsupported-version") {
+    return { claudeVersion: null, codexVersion: null, ompVersion: null };
+  }
+  return {
+    claudeVersion: result.manifest.runtimes["claude-code"].activeVersion,
+    codexVersion: result.manifest.runtimes.codex.activeVersion,
+    ompVersion: result.manifest.runtimes.omp.activeVersion,
+  };
+}
+
+async function readDesktopAboutFacts(
+  applicationName: string,
+): Promise<DesktopAboutFacts> {
+  const runtimeVersions = await readActiveArcRuntimeVersions();
   return {
     applicationName,
+    bbBaseVersion: getDesktopVersion(process.env.BB_DESKTOP_VERSION),
+    bbUpstreamCommit: process.env.BB_UPSTREAM_COMMIT ?? "",
     buildDate: process.env.BB_DESKTOP_BUILD_DATE ?? "",
     channel: DESKTOP_RELEASE_CHANNEL,
+    claudeVersion: runtimeVersions.claudeVersion,
+    codexVersion: runtimeVersions.codexVersion,
     commit: process.env.BB_DESKTOP_COMMIT ?? "",
     electronVersion: process.versions.electron,
+    ompVersion: runtimeVersions.ompVersion,
     osArch: arch(),
     osRelease: release(),
     osType: osType(),
     platform: process.platform,
     pluginSdkVersion: process.env.BB_DESKTOP_PLUGIN_SDK_VERSION ?? "",
-    version: getDesktopVersion(process.env.BB_DESKTOP_VERSION),
+    version: getArcAppVersion(),
   };
 }
 
-function installAboutPanel(applicationName: string): void {
+async function installAboutPanel(applicationName: string): Promise<void> {
   app.setAboutPanelOptions(
-    createDesktopAboutPanelOptions(readDesktopAboutFacts(applicationName)),
+    createDesktopAboutPanelOptions(
+      await readDesktopAboutFacts(applicationName),
+    ),
   );
 }
 
 async function showAboutDialog(): Promise<void> {
   const { copyButtonId, ...messageBoxOptions } =
     createDesktopAboutDialogOptions(
-      readDesktopAboutFacts(app.getName()),
+      await readDesktopAboutFacts(app.getName()),
       Date.now(),
     );
   const parentWindow = getFocusedApplicationWindow();
@@ -1981,9 +2032,10 @@ async function spawnOwnedRuntime(
     arch: process.arch,
     platform: process.platform,
   });
+  const arcAppVersion = getArcAppVersion();
   try {
     const bootstrapResults = await prepareArcManagedRuntimes({
-      createdByArcVersion: app.getVersion(),
+      createdByArcVersion: arcAppVersion,
       onDiagnostic: (message) => {
         desktopLogger.warn(message);
       },
@@ -2005,7 +2057,7 @@ async function spawnOwnedRuntime(
   }
   try {
     const claudeResult = await prepareManagedClaudeCode({
-      createdByArcVersion: app.getVersion(),
+      createdByArcVersion: arcAppVersion,
       onDiagnostic: (message) => {
         desktopLogger.warn(message);
       },
@@ -2023,7 +2075,7 @@ async function spawnOwnedRuntime(
     );
   }
   const activeArcRuntimes = await resolveActiveArcRuntimes({
-    createdByArcVersion: app.getVersion(),
+    createdByArcVersion: arcAppVersion,
     onDiagnostic: (message) => {
       desktopLogger.warn(message);
     },
@@ -2036,7 +2088,7 @@ async function spawnOwnedRuntime(
     env: {
       ...buildArcManagedRuntimeEnvironment({
         activeRuntimes: activeArcRuntimes,
-        arcAppVersion: app.getVersion(),
+        arcAppVersion,
         arcSeedRoot: resolveArcRuntimeSeedRoot({
           paths: createDesktopPathContext(),
         }),
@@ -2333,7 +2385,7 @@ async function runDesktopApp(): Promise<void> {
     ? DESKTOP_RELEASE_INFO.applicationName
     : "bb-dev";
   app.setName(applicationName);
-  installAboutPanel(applicationName);
+  await installAboutPanel(applicationName);
 
   if (!app.requestSingleInstanceLock()) {
     app.quit();
@@ -2428,7 +2480,7 @@ async function runDesktopApp(): Promise<void> {
   const serverUrl = resolveDesktopServerUrl({ env: process.env });
   builtinServerUrl = serverUrl;
   desktopBridgePath = bridgePath;
-  const desktopVersion = getDesktopVersion(process.env.BB_DESKTOP_VERSION);
+  const desktopVersion = getArcAppVersion();
   const desktopPlatform = resolveBbDesktopPlatform(process.platform);
   const desktopUpdateFeedUrl = resolveDesktopUpdateFeedUrl({
     env: process.env,
@@ -2537,16 +2589,18 @@ async function runDesktopApp(): Promise<void> {
   const desktopUpdateSupport = resolveDesktopUpdateSupport({
     canReplaceAppImage,
     env: process.env,
+    feedConfigured: DESKTOP_RELEASE_INFO.updateReleaseBaseUrl !== null,
     platform: desktopPlatform,
   });
   desktopUpdateService = createDesktopUpdateService({
     channel: DESKTOP_RELEASE_CHANNEL,
     currentVersion: desktopVersion,
     enabled:
+      desktopUpdateFeedUrl !== null &&
       desktopUpdateSupport.versionCheck &&
       // Arc Agent fork: no upstream version feed; opt-in via env only.
       process.env.BB_DESKTOP_VERSION_CHECK === "1",
-    feedUrl: desktopUpdateFeedUrl,
+    feedUrl: desktopUpdateFeedUrl ?? "",
     logger: desktopLogger,
     platform: desktopPlatform,
   });

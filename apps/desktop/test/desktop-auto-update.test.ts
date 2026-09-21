@@ -208,7 +208,7 @@ function createDeferredDownload(): DeferredDownload {
 }
 
 describe("desktop auto-update service", () => {
-  it("configures electron-updater for the desktop-latest GitHub release assets", () => {
+  it("configures electron-updater with the resolved Arc feed config when enabled", () => {
     const updater = new DesktopAutoUpdaterAdapterStub();
     const messages = createLoggerMessages();
 

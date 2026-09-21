@@ -15,10 +15,6 @@ import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { z } from "zod";
 import { describe, expect, it } from "vitest";
-import {
-  createDesktopReleaseInfo,
-  DESKTOP_AUTO_UPDATE_FEED_CONFIG,
-} from "../src/desktop-update-provider.js";
 
 const desktopPackageRoot = process.cwd();
 const require = createRequire(resolve(desktopPackageRoot, "package.json"));
@@ -109,15 +105,17 @@ const electronBuilderConfigSchema = z
     appId: z.string().min(1),
     artifactName: z.string().min(1),
     productName: z.string().min(1),
-    publish: z.tuple([
-      z
-        .object({
-          channel: z.enum(["latest", "nightly"]),
-          provider: z.literal("generic"),
-          url: z.string().min(1),
-        })
-        .passthrough(),
-    ]),
+    publish: z
+      .tuple([
+        z
+          .object({
+            channel: z.enum(["latest", "nightly"]),
+            provider: z.literal("generic"),
+            url: z.string().min(1),
+          })
+          .passthrough(),
+      ])
+      .optional(),
     toolsets: z.object({
       appimage: z.literal("1.0.3"),
     }),
@@ -579,27 +577,43 @@ describe("electron-builder signing config", () => {
     }
   });
 
-  it("keeps the updater provider pointed at desktop-latest release assets", async () => {
+  it("ships no publish/update-feed block, and never points one at BB's release repository", async () => {
     const configText = await readFile(
       resolve(desktopPackageRoot, "electron-builder.config.json"),
       "utf8",
     );
     const config = electronBuilderConfigSchema.parse(JSON.parse(configText));
 
-    expect(config.publish[0]).toMatchObject(DESKTOP_AUTO_UPDATE_FEED_CONFIG);
-    expect(DESKTOP_AUTO_UPDATE_FEED_CONFIG.url).toBe(
-      "https://github.com/get-bb/bb/releases/download/desktop-latest/",
-    );
+    expect(config.publish).toBeUndefined();
+
+    const { config: resolvedStable } = await readResolvedConfig({
+      ARC_DESKTOP_UPDATE_FEED_BASE_URL: undefined,
+    });
+    expect(resolvedStable.publish).toBeUndefined();
   });
 
-  it("creates a separate nightly app identity and update feed", async () => {
+  it("only ever publishes to an Arc-controlled origin, never to get-bb/bb", async () => {
+    const { config } = await readResolvedConfig({
+      ARC_DESKTOP_UPDATE_FEED_BASE_URL: "https://releases.arc.example/",
+    });
+
+    expect(config.publish).toEqual([
+      {
+        channel: "latest",
+        provider: "generic",
+        url: "https://releases.arc.example/desktop-latest/",
+      },
+    ]);
+    expect(config.publish?.[0]?.url).not.toContain("get-bb/bb");
+  });
+
+  it("creates a separate nightly app identity with no default update feed", async () => {
     const { config } = await readResolvedConfig({
       BB_DESKTOP_RELEASE_CHANNEL: "nightly",
     });
-    const nightlyRelease = createDesktopReleaseInfo("nightly");
 
-    expect(config.appId).toBe("dev.bb.desktop.nightly");
-    expect(config.productName).toBe("bb Nightly");
+    expect(config.appId).toBe("io.github.adnanelhabashy.arcagent.nightly");
+    expect(config.productName).toBe("Arc Agent Nightly");
     expect(config.artifactName).toBe("bb-nightly-${version}-${arch}.${ext}");
     expect(config.linux.icon).toBe("assets/icon-nightly.png");
     expect(config.linux.executableName).toBe("bb-nightly");
@@ -610,11 +624,22 @@ describe("electron-builder signing config", () => {
     await expect(
       access(resolve(desktopPackageRoot, "assets/icon-nightly.png")),
     ).resolves.toBeUndefined();
-    expect(config.publish[0]).toEqual({
-      channel: "nightly",
-      provider: "generic",
-      url: nightlyRelease.updateReleaseBaseUrl,
+    expect(config.publish).toBeUndefined();
+  });
+
+  it("keeps the nightly channel's Arc feed separate from stable's", async () => {
+    const { config } = await readResolvedConfig({
+      ARC_DESKTOP_UPDATE_FEED_BASE_URL: "https://releases.arc.example/",
+      BB_DESKTOP_RELEASE_CHANNEL: "nightly",
     });
+
+    expect(config.publish).toEqual([
+      {
+        channel: "nightly",
+        provider: "generic",
+        url: "https://releases.arc.example/desktop-nightly/",
+      },
+    ]);
   });
 
   it("rejects unknown desktop release channels", async () => {
