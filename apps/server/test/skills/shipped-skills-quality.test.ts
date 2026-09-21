@@ -1,7 +1,10 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { listBundledPluginRegistrations } from "../../src/services/plugins/builtin-registry.js";
+import {
+  bundledPluginSourcePresent,
+  listBundledPluginRegistrations,
+} from "../../src/services/plugins/builtin-registry.js";
 import { readPluginManifest } from "../../src/services/plugins/manifest.js";
 import { testLogger } from "../helpers/test-app.js";
 import { resolveProjectSkillSourceFromContent } from "../../src/services/skills/injected-skills.js";
@@ -17,9 +20,9 @@ function skillDirectories(
 }
 
 const pluginManifests = await Promise.all(
-  listBundledPluginRegistrations().map((plugin) =>
-    readPluginManifest(plugin.rootDir),
-  ),
+  listBundledPluginRegistrations()
+    .filter(bundledPluginSourcePresent)
+    .map((plugin) => readPluginManifest(plugin.rootDir)),
 );
 const SHIPPED_SKILLS = [
   ...skillDirectories(resolveBuiltinSkillsRootPath()),

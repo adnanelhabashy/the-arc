@@ -145,7 +145,19 @@ describe("machine environment settings", () => {
 });
 
 it("isolates projects on a shared machine and restores global values after removal", async () => {
-  await withTestHarness(async (harness) => {
+  // machineEnvironmentView shells out to real `gh` for git health on every
+  // view when GH_TOKEN is not overridden, and resolveHostEnvironment does
+  // the same for every non-primary host resolution; those network round
+  // trips dominate runtime on machines with an authenticated gh. This test
+  // covers project isolation, not git credentials, so stub both probes.
+  const gitHealth = vi
+    .spyOn(gitCredentials, "machineGitHealth")
+    .mockResolvedValue({ status: "ready", statusMessage: "test" });
+  const gitCredentialsProbe = vi
+    .spyOn(gitCredentials, "resolveGitCredentials")
+    .mockResolvedValue([]);
+  try {
+    await withTestHarness(async (harness) => {
     const sdk = createBbSdk({
       transport: createHttpTransport({
         baseUrl: "http://localhost",
@@ -246,5 +258,9 @@ it("isolates projects on a shared machine and restores global values after remov
         source: { core: "project-environment" },
       }),
     );
-  });
+    });
+  } finally {
+    gitHealth.mockRestore();
+    gitCredentialsProbe.mockRestore();
+  }
 });

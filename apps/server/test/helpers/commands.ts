@@ -530,7 +530,10 @@ function isCapturedRpcForHarness(
 export async function waitForQueuedCommand(
   harness: TestAppHarness,
   predicate: (queued: QueuedCommand) => boolean,
-  timeoutMs = 1_000,
+  // Each withTestHarness boots the full app including bundled-plugin
+  // reconciliation, so first-request dispatch can exceed one second under
+  // load; the assertions below care about the command, not dispatch speed.
+  timeoutMs = 5_000,
 ): Promise<QueuedCommand> {
   const deadline = Date.now() + timeoutMs;
 
@@ -560,7 +563,7 @@ export async function waitForQueuedCommandAfter(
   harness: TestAppHarness,
   afterCursor: number,
   predicate: (queued: QueuedCommand) => boolean,
-  timeoutMs = 1_000,
+  timeoutMs = 5_000,
 ): Promise<QueuedCommand> {
   return waitForQueuedCommand(
     harness,

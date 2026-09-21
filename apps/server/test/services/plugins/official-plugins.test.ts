@@ -19,6 +19,7 @@ import {
 } from "../../../src/services/plugins/plugin-service.js";
 import {
   BUNDLED_PLUGINS,
+  bundledPluginSourcePresent,
   listBundledPluginRegistrations,
   type BundledPluginRegistration,
 } from "../../../src/services/plugins/builtin-registry.js";
@@ -78,8 +79,29 @@ function createService(args: {
 }
 
 describe("official plugin registry invariants", () => {
-  it("declares the plugin id each bundled manifest actually derives", async () => {
+  // Registry identities known to BB but intentionally without source in the
+  // Arc checkout. connect is excluded by product decision (it opens a
+  // getbb.app cloud tunnel); the others are BB capabilities Arc chose not to
+  // restore. If a source-present plugin's directory ever goes missing, it
+  // lands in this set and the test below fails.
+  const INTENTIONALLY_SOURCE_ABSENT = [
+    "agent-annotations",
+    "connect",
+    "pdf-preview",
+    "plugin-api-tester",
+  ];
+
+  it("keeps the source-absent registry entries to the intentional set", () => {
+    const absent = listBundledPluginRegistrations()
+      .filter((registration) => !bundledPluginSourcePresent(registration))
+      .map((registration) => registration.name)
+      .sort();
+    expect(absent).toEqual(INTENTIONALLY_SOURCE_ABSENT);
+  });
+
+  it("declares the plugin id each source-present bundled manifest derives", async () => {
     for (const registration of listBundledPluginRegistrations()) {
+      if (!bundledPluginSourcePresent(registration)) continue;
       const manifest = await readPluginManifest(registration.rootDir);
       expect(derivePluginId(manifest.packageName), registration.name).toBe(
         registration.pluginId,

@@ -29,9 +29,8 @@ import {
 } from "../../../src/services/plugin-catalog/marketplace-manifest.js";
 import { BUNDLED_CURATED_MARKETPLACE } from "../../../src/services/plugin-catalog/curated-marketplace.js";
 import {
-  BUILTIN_PLUGINS,
   BUNDLED_PLUGINS,
-  OFFICIAL_PLUGINS,
+  bundledPluginSourcePresent,
   listBundledPluginRegistrations,
 } from "../../../src/services/plugins/builtin-registry.js";
 
@@ -43,6 +42,13 @@ const V2_MANIFEST_URL = CURATED_MARKETPLACE_V2_URL;
 const CUSTOM_V1_MANIFEST_URL =
   "https://marketplace.test/marketplace/v1/marketplace.json";
 const SEED_ENTRY_COUNT = BUNDLED_CURATED_MARKETPLACE.plugins.length;
+
+// The bundled marketplace document is generated from plugin sources that
+// exist in this checkout; registry entries whose source is absent (e.g.
+// connect, intentionally excluded from Arc) never become catalog entries.
+const PRESENT_BUNDLED = listBundledPluginRegistrations().filter(
+  bundledPluginSourcePresent,
+);
 
 const VALID_SVG = Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M0 0h16v16H0z"/></svg>',
@@ -184,15 +190,19 @@ describe("plugin catalog service", () => {
   it("lists bundled plugins and the seeded official catalog", async () => {
     const catalog = service();
     expect(catalog.status()).toEqual({
-      pluginCount: BUNDLED_PLUGINS.length + SEED_ENTRY_COUNT,
-      includedPluginCount: BUILTIN_PLUGINS.length,
-      optionalPluginCount: OFFICIAL_PLUGINS.length + SEED_ENTRY_COUNT,
+      pluginCount: PRESENT_BUNDLED.length + SEED_ENTRY_COUNT,
+      includedPluginCount: BUNDLED_PLUGINS.filter(
+        (plugin) => plugin.autoInstall,
+      ).length,
+      optionalPluginCount:
+        PRESENT_BUNDLED.length + SEED_ENTRY_COUNT -
+        BUNDLED_PLUGINS.filter((plugin) => plugin.autoInstall).length,
     });
 
     const results = await catalog.search("");
     expect(results.map((entry) => entry.entryId).sort()).toEqual(
       [
-        ...BUNDLED_PLUGINS.map((plugin) => plugin.name),
+        ...PRESENT_BUNDLED.map((plugin) => plugin.name),
         ...BUNDLED_CURATED_MARKETPLACE.plugins.map((entry) => entry.id),
       ].sort(),
     );
@@ -203,11 +213,18 @@ describe("plugin catalog service", () => {
       icon: "FileText",
       iconUrl: null,
       category: "File Viewers & Editors",
-      screenshots: [],
+      screenshots: [
+        "https://getbb.app/marketplace/v2/screenshots/docs/docs-21ddb6757-inline-review-desktop.png",
+        "https://getbb.app/marketplace/v2/screenshots/docs/docs-f4957b72f-inline-editing-desktop.png",
+        "https://getbb.app/marketplace/v2/screenshots/docs/docs-f4957b72f-ask-mobile.png",
+        "https://getbb.app/marketplace/v2/screenshots/docs/docs-63b536e70-workspace-desktop.png",
+        "https://getbb.app/marketplace/v2/screenshots/docs/docs-21ddb6757-html-desktop.png",
+        "https://getbb.app/marketplace/v2/screenshots/docs/docs-21ddb6757-vault-desktop.png",
+      ],
       collections: [
         {
           id: "bb-official",
-          rank: BUNDLED_PLUGINS.findIndex(
+          rank: PRESENT_BUNDLED.findIndex(
             (plugin) => plugin.pluginId === "simple-notes",
           ),
         },
@@ -225,7 +242,7 @@ describe("plugin catalog service", () => {
       {
         id: "bb-official",
         displayName: "BB Official",
-        pluginIds: BUNDLED_PLUGINS.map((plugin) => plugin.pluginId),
+        pluginIds: PRESENT_BUNDLED.map((plugin) => plugin.pluginId),
       },
     ]);
     for (const category of PLUGIN_CATALOG_CATEGORIES) {
@@ -568,7 +585,7 @@ describe("plugin catalog service", () => {
         {
           id: "bb-official",
           displayName: "BB Official",
-          pluginIds: BUNDLED_PLUGINS.map((plugin) => plugin.pluginId),
+          pluginIds: PRESENT_BUNDLED.map((plugin) => plugin.pluginId),
         },
         {
           id: "new-and-notable",
@@ -612,7 +629,7 @@ describe("plugin catalog service", () => {
         {
           id: "bb-official",
           displayName: "BB Official",
-          pluginIds: BUNDLED_PLUGINS.map((plugin) => plugin.pluginId),
+          pluginIds: PRESENT_BUNDLED.map((plugin) => plugin.pluginId),
         },
       ]);
     });
@@ -773,7 +790,7 @@ describe("plugin catalog service", () => {
         "HTTP 503",
       );
       expect((await catalog.search("")).length).toBe(
-        BUNDLED_PLUGINS.length + SEED_ENTRY_COUNT,
+        PRESENT_BUNDLED.length + SEED_ENTRY_COUNT,
       );
       expect(getPluginMarketplace(db, "bb-community")?.lastError).toContain(
         "HTTP 503",

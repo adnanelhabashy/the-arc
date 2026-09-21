@@ -108,6 +108,7 @@ import { scheduleThreadProvisioningAdvance } from "./thread-provisioning.js";
 import { isPreStartThreadStatus } from "./thread-status.js";
 import { resolveThreadHostCommandEnvironment } from "./thread-command-environment.js";
 import { settleDanglingBackgroundTasksForStoppedThreadInTransaction } from "./background-task-reconciliation.js";
+import { abortPluginToolCallsForThreads } from "../plugins/plugin-tool-calls.js";
 
 type ThreadStartCommand = Awaited<ReturnType<typeof buildThreadStartCommand>>;
 type ThreadStopCommand = ReturnType<typeof buildThreadStopCommand>;
@@ -1089,6 +1090,7 @@ export function requestThreadStorageDeletion(
     threadIds: [thread.id],
     reason: "thread-deleted",
   });
+  abortPluginToolCallsForThreads([thread.id], "thread-deleted");
   if (thread.environmentId === null) {
     markThreadStorageDeleted(deps.db, { threadId: thread.id });
     finalizeStoppedThread(deps, { threadId: thread.id });
@@ -1870,6 +1872,10 @@ function interruptActiveThreads(
     threadIds: results.map((result) => result.threadId),
     reason: pendingInteractionStopReason(effectiveReason),
   });
+  abortPluginToolCallsForThreads(
+    results.map((result) => result.threadId),
+    "thread-stopped",
+  );
 
   for (const result of results) {
     const eventTypes: ThreadEventType[] = ["system/thread/interrupted"];
@@ -2011,6 +2017,7 @@ export function finalizeStoppedThreadInTransaction(
         reason: pendingInteractionStopReason(interruptionReason),
       },
     );
+    abortPluginToolCallsForThreads([finalizedThread.id], "thread-stopped");
     if (!appendedThreadInterruptedEvent) {
       appendThreadInterruptedEventIfMissingInTransaction(deps, {
         reason: interruptionReason,
@@ -2027,6 +2034,7 @@ export function finalizeStoppedThreadInTransaction(
         reason: "thread-deleted",
       },
     );
+    abortPluginToolCallsForThreads([finalizedThread.id], "thread-deleted");
 
     clearThreadProvisionSchedule(finalizedThread.id);
     if (
