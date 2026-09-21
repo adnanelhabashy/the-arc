@@ -1385,3 +1385,45 @@ Built with `pnpm --filter @bb/desktop package` (exit 0, no signing identity on t
 ### Gate
 
 PASS. Every Phase 14 objective is met and verified in the installed app: reads are cheap and current (0.01s, zero vendor calls, measured), no surface forces a provider fetch to display anything, account state is scoped by account identity end to end (proven live for Plus ↔ Team on one thread), mutations invalidate instead of waiting for a TTL, no polling storm exists (0 requests idle over 12s), and the product invariants are intact (Codex/Claude/OMP only, 23 restored BB plugins, connect inert, plugin provenance hardening, per-thread accounts, managed runtimes, Arc update ownership).
+
+## Pre-Phase-15 — legacy provider update UI removal (2026-09-21)
+
+### Step 1 — Trace
+
+The visible control was `apps/app/src/components/sidebar/SidebarUpdatesBadge.tsx`: a chip of `<Icon name="Download">` plus the provider's icon mark, rendered for every provider CLI issue and linking to Settings → Updates. The issue came from `useUpdateInventory` → `buildProviderCliIssue` (`apps/app/src/components/provider-cli/provider-cli-install.tsx`) over the host daemon's `GET /hosts/:id/provider-clis/status`, and the click path was `useProviderCliInstallRunner` → `startProviderCliInstall` → the daemon's install route (running the status's `installAction.command`).
+
+Live status before the change — the root cause, not a guess:
+
+```
+codex       installed true  source external  current 0.154.0  latest 0.155.1
+            needsUpdate true  path /Users/adnan/.local/bin/codex
+            installAction {kind: "update", label: "Update", command: "codex update"}
+claude-code installed true  source external  current 2.1.278  latest 2.1.278
+            needsUpdate false  path …/Arc Agent/arc-runtimes/runtimes/claude-code/2.1.278/claude
+            installAction null
+```
+
+So the probe resolved the user's *PATH* Codex while Arc runs its managed 0.155.1, and Claude only escaped the same duplicate because its probe resolves the managed binary (via `BB_CLAUDE_CODE_EXECUTABLE`) and happened to match npm's latest. `acp-omp` already declared `providerInstallation: false`, so OMP was never affected.
+
+### Step 2–4 — Rule and scope
+
+Ownership had to be declared where the fact exists. Plugin host workers are forked through `sanitizeInheritedChildProcessEnv`, which strips every `BB_*` variable, so a provider *host* artifact cannot observe that the application supplied its runtime; provider *declarations* are imported into the server process itself, which does carry those variables. The rule therefore lives in the provider plugins: withdraw `maintenance.installation` when the application supplied the executable. `maintenance.health` and `usage` are untouched (Arc's runtime health and usage keep working), no other install/update control exists in `provider-codex`, `provider-claude-code`, or `provider-acp` (checked: settings descriptors, composer actions, strings, per-agent `providerInstallation`), and login / account / model / usage / provider-settings surfaces are unchanged.
+
+### Step 6–8 — Tests, regression, deployment
+
+Two new test files assert the rule in both directions (application supplies the runtime → withdrawn; standalone → unchanged). Suites: provider-codex, provider-claude-code, provider-acp, provider-usage, `@bb/arc-domains`, `@bb/scripts` (11 tasks) and `@bb/app`, `@bb/desktop` (6 tasks) green; typecheck 97/97 packages. Rebuilt with `pnpm --filter @bb/desktop package`, verified the builtin bundles carry the rule (`OffersInstallationMaintenance` present in both `builtin-plugins/*/dist/server.js`), installed to `/Applications/Arc Agent.app`, relaunched.
+
+Visual and API verification on the installed app:
+
+| Check | Before | After |
+|---|---|---|
+| `provider-clis/status` | `codex` with `needsUpdate: true` + `installAction` | `{}` |
+| `system/providers?capability=installation` | codex, claude-code | `[]` |
+| provider maintenance matrix | codex/claude `installation: true` | all three `installation: false`, `health: true`, usage unchanged, `available: true` |
+| sidebar provider update chip | present (Download + Codex icon) | **absent**; zero `[data-icon="Download"]` nodes app-wide |
+| Settings → Updates | Codex row with an Update action | machine row only ("Arc Agent app 1.0.0 — Up to date") |
+| Codex provider settings | unchanged | settings intact, zero install/update controls |
+| Mission Control → Agents | runtime status | unchanged: OMP 18.2.7 / Codex 0.155.1 / Claude Code 2.1.278, "Source: Arc-managed", Update |
+| update controls anywhere in the app | several | exactly one — Mission Control's Arc-owned runtime Update |
+
+Agent set unchanged: the provider registry lists exactly `codex`, `claude-code`, `acp-omp`, and Mission Control shows exactly those three agents.

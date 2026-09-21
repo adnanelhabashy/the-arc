@@ -2,6 +2,7 @@ import { registerUsageSource } from "./src/usage-source.js";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { codexExtensionKinds } from "./src/extension-kinds.js";
 import { CODEX_NATIVE_ROOTS_DECLARATION } from "./src/native-roots.js";
+import { codexOffersInstallationMaintenance } from "./src/runtime-ownership.js";
 import { hardenCodexShellSnapshotDir } from "./src/shell-snapshot-hardening.js";
 
 export default function plugin(bb: BbPluginApi) {
@@ -49,7 +50,11 @@ export default function plugin(bb: BbPluginApi) {
       ],
     },
     ...CODEX_NATIVE_ROOTS_DECLARATION,
-    maintenance: { health: true, usage: true, installation: true },
+    maintenance: {
+      health: true,
+      usage: true,
+      installation: codexOffersInstallationMaintenance(process.env),
+    },
     capabilities: {
       supportsServiceTier: true,
       supportsNativeUserQuestion: false,

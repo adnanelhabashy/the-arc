@@ -6,6 +6,7 @@ import {
   DEFAULT_CLAUDE_CODE_MODEL,
 } from "./src/model-catalog-data.js";
 import { CLAUDE_NATIVE_ROOTS_DECLARATION } from "./src/native-roots.js";
+import { claudeCodeOffersInstallationMaintenance } from "./src/runtime-ownership.js";
 
 export default function plugin(bb: BbPluginApi) {
   registerUsageSource(bb);
@@ -53,7 +54,11 @@ export default function plugin(bb: BbPluginApi) {
       iconTint: { light: "#D97757", dark: "#D97757" },
     },
     ...CLAUDE_NATIVE_ROOTS_DECLARATION,
-    maintenance: { health: true, usage: true, installation: true },
+    maintenance: {
+      health: true,
+      usage: true,
+      installation: claudeCodeOffersInstallationMaintenance(process.env),
+    },
     capabilities: {
       supportsServiceTier: false,
       supportsNativeUserQuestion: true,
