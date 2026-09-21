@@ -808,6 +808,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Require the Arc release repository
+        run: |
+          set -euo pipefail
+
+          # `git push`/`gh release` below act on whatever repository this
+          # workflow run belongs to (github.token is scoped to that repo
+          # only; it cannot write anywhere else). Failing loudly here if that
+          # repository is ever not the approved Arc release repo is cheaper
+          # and safer than trusting an implicit remote/context to always
+          # resolve where we expect — Arc desktop releases must never be
+          # published to get-bb/bb or any other repository.
+          if [[ "${{ github.repository }}" != "adnanelhabashy/the-arc" ]]; then
+            echo "::error::Refusing to publish Arc Nightly desktop from ${{ github.repository }}; the only approved Arc release repository is adnanelhabashy/the-arc."
+            exit 1
+          fi
+
       - name: Require one version across platforms
         env:
           LINUX_VERSION: ${{ needs.nightly-desktop-linux.outputs.version }}
@@ -840,6 +856,15 @@ jobs:
       - name: Publish moving nightly desktop release
         env:
           GH_TOKEN: ${{ github.token }}
+          # Explicit, not inferred from the checkout's remote: every `gh
+          # release` call below targets this repository by name, so a
+          # misconfigured checkout/remote can never redirect an Arc release
+          # elsewhere. github.token itself can only ever write to the
+          # repository this workflow run belongs to (enforced by GitHub, not
+          # by this file), so the "Require the Arc release repository" step
+          # above is what actually prevents publishing anywhere else — this
+          # is defense-in-depth, making that same intent explicit here too.
+          GH_REPO: adnanelhabashy/the-arc
           VERSION: ${{ needs.nightly-desktop-macos.outputs.version }}
         run: |
           set -euo pipefail
