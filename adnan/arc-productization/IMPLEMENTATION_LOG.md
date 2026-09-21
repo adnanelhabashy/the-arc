@@ -1484,3 +1484,26 @@ OMP accounts stay broker-owned; the resolver is read-only. Refresh reuses Phase 
 - `apps/app/src/hooks/queries/arc-usage-race.test.tsx` — the late-response race against the real query cache.
 - `apps/app/src/hooks/cache-owners/arc-cache-owner.test.ts` — query keys separate provider/model variants; prefix invalidation still covers them.
 - `adnan/plugins/adnan-mission-control/components/accounts-usage-disclosure.test.tsx` — all accounts grouped, Kimi zero-remaining shown, no fabricated zero, stale kept, refresh + link.
+
+### Steps 13–14 — Invariants, tests, build, deploy, live verification
+
+Regression: `@bb/arc-domains`, `bb-plugin-arc-core`, `bb-plugin-adnan-mission-control`, `bb-plugin-provider-usage`, `@bb/app` — 9/9 tasks green; typecheck green for every touched package. `@bb/server`'s full-suite run showed 7 failures that are pre-existing and load/network-bound (the same names appear in the Phase 14 log: `install-machine-script` "defaults the data dir…", `automations-personal`, `server-access` ×2, plus a `builtin-plugins` 5s timeout); each passes in isolation on this tree.
+
+Built with `pnpm --filter @bb/desktop package` (exit 0), installed over `/Applications/Arc Agent.app` (previous bundle kept as `/Applications/Arc Agent.app.pre-omp-unification`), relaunched. `~/.bb` (accounts, threads, settings, managed runtimes) untouched; the pre-Phase-15 install rule still holds: `system/providers` → `codex`/`claude-code`/`acp-omp`, all `installation: false`, `health: true`, `available: true`.
+
+Live verification on real accounts:
+
+| Check | Result |
+|---|---|
+| `arc.usage.current` (omp, `kimi-code/kimi-for-coding`) | `activeAccount` Kimi Code, `resolvedBy: provider`, 1 resource |
+| `arc.usage.current` (omp, `opencode-go/ox-alpha-free`) | `activeAccount` OpenCode Go, `accountKey: null` + `accountSourceId`, 1 resource |
+| `arc.usage.current` (omp, no model) | `activeAccountUnknown: true`, both OMP resources listed |
+| `arc.usage.current` (codex, bound to the Plus key) | `resolvedBy: binding`, Plus only |
+| thread popup, OMP thread (`thr_vik55v6eec`, model `kimi-code/kimi-for-coding`) | `Context window 3% used · 28k / 1m tokens · 97% left` + `Active account Kimi Code` + `Weekly limit 0 remaining` + `5h limit 100 remaining`, account named once |
+| thread popup after switching the model to `opencode-go/ox-alpha-free` | `Active account OpenCode Go` + `5 Hour limit 99% left` / `Weekly limit 95% left` / `Monthly limit 74% left`; the Kimi quota is gone, the context window unchanged |
+| thread popup "View all usage" | `/plugins/adnan-mission-control/mission-control/usage` (was the plugin root, which renders "This plugin panel is not available") |
+| sidebar "Accounts & Usage" | OMP (OpenCode Go 98/95/74%, Kimi Code weekly 0 remaining, 5h 100 remaining), Codex (Plus + Team with emails), Claude Code (Pro) — five accounts, one surface |
+| Mission Control → Usage & Limits | unchanged data, resets intact, no repeated provider label |
+| bb "Provider usage" panel | still opens, still shows the Account Pooler machine (capability preserved) |
+
+Cold-start note: immediately after launch an OMP resource can be `available` with no windows yet (the broker measurement has not been filled). The popup then reads `Active account Kimi Code` + `No usage reported`, which is the honest state; arc-core's background fill and its published change signal replace it within seconds (observed: one such frame, then the measured windows on every subsequent read).
