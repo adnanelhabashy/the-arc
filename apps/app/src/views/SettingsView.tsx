@@ -72,6 +72,7 @@ import { ProjectsSettingsSection } from "@/components/settings/ProjectsSettingsS
 import { ArchivedThreadsSettingsSection } from "@/components/settings/ArchivedThreadsSettingsSection";
 import { CliSkillsSettingsSection } from "@/components/settings/CliSkillsSettingsSection";
 import { MarketplacesSettingsSection } from "@/components/settings/MarketplacesSettingsSection";
+import { OnboardingReplaySettingsSection } from "@/components/settings/OnboardingReplaySettingsSection";
 import {
   useUpdateGeneralSettings,
   useUpdateAppearance,
@@ -1286,6 +1287,7 @@ export function SettingsView() {
         />
         <CliSkillsSettingsSection />
         <VoiceInputSettingsSection />
+        <OnboardingReplaySettingsSection />
         <PrivacySettingsSection
           telemetryEnabled={generalSettings.telemetryEnabled}
           onTelemetryEnabledChange={(enabled) =>

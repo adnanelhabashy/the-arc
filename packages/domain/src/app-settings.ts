@@ -41,6 +41,7 @@ export const appSettingsSchema = z
       .nullable(),
     machineGitCredentialsEnabled: z.boolean(),
     defaultMachineAccess: z.string().min(1).nullable(),
+    onboardingCompleted: z.boolean(),
   })
   .strict();
 export type AppSettings = z.infer<typeof appSettingsSchema>;
@@ -58,6 +59,7 @@ export const defaultAppSettings: AppSettings = {
   machineServerUrl: null,
   defaultMachineAccess: null,
   machineGitCredentialsEnabled: true,
+  onboardingCompleted: false,
 };
 
 export const appSettingsUpdateSchema = z.union([

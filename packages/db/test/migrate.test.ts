@@ -1999,6 +1999,7 @@ describe("migrate", () => {
         streamerMode: false,
         telemetryEnabled: true,
         managedBranchPrefix: "bb/",
+        onboardingCompleted: false,
       });
       expect(
         db.$client

@@ -1285,6 +1285,8 @@ export function pluginMarketplacesQueryKey() {
 const ARC_ACCOUNTS_QUERY_KEY = "arcAccounts";
 const ARC_STATUS_QUERY_KEY = "arcStatus";
 const ARC_CURRENT_AGENT_USAGE_QUERY_KEY = "arcCurrentAgentUsage";
+const ARC_AGENTS_QUERY_KEY = "arcAgents";
+const ARC_OMP_PROVIDERS_QUERY_KEY = "arcOmpProviders";
 
 export function arcAccountsQueryKey() {
   return [ARC_ACCOUNTS_QUERY_KEY] as const;
@@ -1292,6 +1294,14 @@ export function arcAccountsQueryKey() {
 
 export function arcStatusQueryKey() {
   return [ARC_STATUS_QUERY_KEY] as const;
+}
+
+export function arcAgentsQueryKey() {
+  return [ARC_AGENTS_QUERY_KEY] as const;
+}
+
+export function arcOmpProvidersQueryKey() {
+  return [ARC_OMP_PROVIDERS_QUERY_KEY] as const;
 }
 
 export function arcCurrentAgentUsageQueryKey(

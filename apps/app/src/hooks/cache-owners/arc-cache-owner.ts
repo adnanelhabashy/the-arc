@@ -2,6 +2,8 @@ import type { QueryClient } from "@tanstack/react-query";
 import {
   allArcCurrentAgentUsageQueryKeyPrefix,
   arcAccountsQueryKey,
+  arcAgentsQueryKey,
+  arcOmpProvidersQueryKey,
   arcStatusQueryKey,
 } from "../queries/query-keys";
 
@@ -22,6 +24,18 @@ export function invalidateArcStatus(queryClient: QueryClient): Promise<void> {
 export function invalidateArcUsage(queryClient: QueryClient): Promise<void> {
   return queryClient.invalidateQueries({
     queryKey: allArcCurrentAgentUsageQueryKeyPrefix(),
+  });
+}
+
+export function invalidateArcAgents(queryClient: QueryClient): Promise<void> {
+  return queryClient.invalidateQueries({ queryKey: arcAgentsQueryKey() });
+}
+
+export function invalidateArcOmpProviders(
+  queryClient: QueryClient,
+): Promise<void> {
+  return queryClient.invalidateQueries({
+    queryKey: arcOmpProvidersQueryKey(),
   });
 }
 
@@ -57,16 +71,19 @@ export function invalidateArcChangedKind(
 ): void {
   switch (kind) {
     case "accounts":
+      void invalidateArcAccounts(queryClient);
+      void invalidateArcUsage(queryClient);
+      return;
     case "omp":
       void invalidateArcAccounts(queryClient);
+      void invalidateArcOmpProviders(queryClient);
       void invalidateArcUsage(queryClient);
       return;
     case "usage":
       void invalidateArcUsage(queryClient);
       return;
     case "agents":
-      // The app has no Arc runtime/agent-status surface; runtime status is
-      // Mission Control's, which subscribes to the same signal itself.
+      void invalidateArcAgents(queryClient);
       return;
     default:
       return;

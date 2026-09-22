@@ -49,6 +49,8 @@ const CACHE_OWNER_QUERY_KEY_IMPORTS: CacheOwnerQueryKeyImportRegistry = {
   "hooks/cache-owners/arc-cache-owner.ts": [
     "allArcCurrentAgentUsageQueryKeyPrefix",
     "arcAccountsQueryKey",
+    "arcAgentsQueryKey",
+    "arcOmpProvidersQueryKey",
     "arcStatusQueryKey",
   ],
   "hooks/cache-owners/cache-invalidation-groups.ts": [

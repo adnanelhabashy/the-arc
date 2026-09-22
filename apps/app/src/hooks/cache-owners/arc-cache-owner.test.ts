@@ -13,7 +13,9 @@ import {
 import {
   allArcCurrentAgentUsageQueryKeyPrefix,
   arcAccountsQueryKey,
+  arcAgentsQueryKey,
   arcCurrentAgentUsageQueryKey,
+  arcOmpProvidersQueryKey,
   arcStatusQueryKey,
 } from "../queries/query-keys";
 
@@ -84,18 +86,18 @@ describe("arc cache invalidation", () => {
     ).toBe(true);
   });
 
-  it("leaves account and usage caches alone for a kind the app does not show", () => {
+  it("invalidates only the agents cache for an agents change", () => {
     const { queryClient } = createQueryClientTestHarness();
     queryClient.setQueryData(arcAccountsQueryKey(), { accounts: [] });
+    queryClient.setQueryData(arcAgentsQueryKey(), { agents: [] });
     queryClient.setQueryData(
       arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus", null),
       { resources: [] },
     );
 
-    // Runtime status belongs to Mission Control, which subscribes itself.
     invalidateArcChangedKind(queryClient, "agents");
-    invalidateArcChangedKind(queryClient, "not-a-kind");
 
+    expect(stateOf(queryClient, arcAgentsQueryKey())).toBe(true);
     expect(stateOf(queryClient, arcAccountsQueryKey())).toBe(false);
     expect(
       stateOf(
@@ -103,6 +105,33 @@ describe("arc cache invalidation", () => {
         arcCurrentAgentUsageQueryKey("codex", "openai:chatgpt:plus", null),
       ),
     ).toBe(false);
+  });
+
+  it("invalidates accounts, OMP providers, and usage for an omp change", () => {
+    const { queryClient } = createQueryClientTestHarness();
+    queryClient.setQueryData(arcAccountsQueryKey(), { accounts: [] });
+    queryClient.setQueryData(arcOmpProvidersQueryKey(), { providers: [] });
+    queryClient.setQueryData(
+      arcCurrentAgentUsageQueryKey("omp", null, null),
+      { resources: [] },
+    );
+
+    invalidateArcChangedKind(queryClient, "omp");
+
+    expect(stateOf(queryClient, arcAccountsQueryKey())).toBe(true);
+    expect(stateOf(queryClient, arcOmpProvidersQueryKey())).toBe(true);
+    expect(
+      stateOf(queryClient, arcCurrentAgentUsageQueryKey("omp", null, null)),
+    ).toBe(true);
+  });
+
+  it("ignores a kind the app does not show", () => {
+    const { queryClient } = createQueryClientTestHarness();
+    queryClient.setQueryData(arcAccountsQueryKey(), { accounts: [] });
+
+    invalidateArcChangedKind(queryClient, "not-a-kind");
+
+    expect(stateOf(queryClient, arcAccountsQueryKey())).toBe(false);
   });
 
   it("invalidates from the signal the app receives over the socket", () => {

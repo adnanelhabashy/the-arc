@@ -2,10 +2,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { request } from "@/lib/api";
 import { toRelativeUrl } from "@/lib/api-server";
 import { appSurfaceRequestInit } from "@/lib/app-surface";
-import { invalidateArcUsage } from "../cache-owners/arc-cache-owner";
+import {
+  invalidateArcAccounts,
+  invalidateArcAgents,
+  invalidateArcOmpProviders,
+  invalidateArcUsage,
+} from "../cache-owners/arc-cache-owner";
 import {
   arcAccountsQueryKey,
+  arcAgentsQueryKey,
   arcCurrentAgentUsageQueryKey,
+  arcOmpProvidersQueryKey,
   arcStatusQueryKey,
 } from "./query-keys";
 import { requireEnabledQueryArg } from "./query-helpers";
@@ -259,4 +266,262 @@ export function useArcUsageRefresh() {
       void invalidateArcUsage(queryClient);
     },
   });
+}
+
+// Agent runtime readiness (Codex / Claude Code / OMP) — installed/installing/
+// broken state, distinct from account (login) readiness. Used by onboarding.
+export type ArcRuntimeState =
+  | "not-prepared"
+  | "preparing"
+  | "ready"
+  | "ready-with-warning"
+  | "broken"
+  | "unsupported"
+  | "unavailable";
+
+export type ArcAgentProviderState = "unknown" | "ready" | "unavailable" | "error";
+
+export type ArcAgentAccountState =
+  | "unknown"
+  | "not-connected"
+  | "connected"
+  | "expired"
+  | "error";
+
+export type ArcAgentOverallState =
+  | "not-prepared"
+  | "preparing"
+  | "runtime-ready"
+  | "account-required"
+  | "ready"
+  | "broken"
+  | "unsupported"
+  | "unavailable";
+
+export type ArcRuntimeCompatibility = "supported" | "untested" | "blocked";
+
+export type ArcRuntimeSource =
+  | "arc-bundled"
+  | "arc-managed-download"
+  | "official-managed-install"
+  | "external-override";
+
+export interface ArcAgentAction {
+  id:
+    | "prepare"
+    | "repair"
+    | "open-settings"
+    | "connect-account"
+    | "update"
+    | "rollback";
+  available: boolean;
+  reason?: string;
+}
+
+export interface ArcAgentRuntimeStatus {
+  state: ArcRuntimeState;
+  version: string | null;
+  compatibility: ArcRuntimeCompatibility | null;
+  compatibilityReason: string | null;
+  source: ArcRuntimeSource | null;
+  knownGoodVersion: string | null;
+}
+
+export interface ArcAgentStatus {
+  id: ArcAgentId;
+  displayName: string;
+  runtimeId: ArcAgentId;
+  providerId: string;
+  runtime: ArcAgentRuntimeStatus;
+  provider: { state: ArcAgentProviderState };
+  account: { state: ArcAgentAccountState };
+  overallState: ArcAgentOverallState;
+  actions: ArcAgentAction[];
+  observedAt: number;
+}
+
+export function useArcAgentsList() {
+  return useQuery({
+    queryKey: arcAgentsQueryKey(),
+    queryFn: () =>
+      arcRpcCall<{ agents: ArcAgentStatus[] }>("arc.agents.list", null),
+    staleTime: 15_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useArcAgentPrepare() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: ArcAgentId) =>
+      arcRpcCall<{ agent: ArcAgentStatus }>("arc.agents.prepare", { id }),
+    onSuccess: () => {
+      void invalidateArcAgents(queryClient);
+    },
+  });
+}
+
+export function useArcAgentRepair() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: ArcAgentId) =>
+      arcRpcCall<{ agent: ArcAgentStatus }>("arc.agents.repair", { id }),
+    onSuccess: () => {
+      void invalidateArcAgents(queryClient);
+    },
+  });
+}
+
+// Account login flows (ChatGPT device code, Claude manual auth code, OMP
+// browser/device/api-key). Secrets never round-trip through React state
+// beyond the single submit call.
+export interface ArcOpenAiLoginChallenge {
+  provider: "openai";
+  sessionId: string;
+  verificationUri: string;
+  userCode: string;
+  expiresAt: number;
+  intervalMs: number;
+}
+
+export interface ArcClaudeLoginChallenge {
+  provider: "anthropic";
+  sessionId: string;
+  authorizeUrl: string;
+  expiresAt: number | null;
+}
+
+export type ArcLoginPollState = "waiting-for-user" | "connected" | "failed";
+
+export type ArcAccountLoginState =
+  | "idle"
+  | "starting"
+  | "waiting-for-user"
+  | "authorizing"
+  | "connected"
+  | "failed"
+  | "expired"
+  | "cancelled";
+
+export interface ArcOpenAiLoginPoll {
+  state: ArcLoginPollState;
+  account: ArcAccount | null;
+  message: string | null;
+}
+
+export interface ArcOpenAiLoginPollResult {
+  poll: ArcOpenAiLoginPoll;
+  state: ArcAccountLoginState;
+}
+
+export interface ArcOmpProvider {
+  id: string;
+  displayName: string;
+  authMethod: "oauth" | "api-key" | "unknown";
+  connectionState: "connected" | "not-connected" | "unknown";
+  hasAccounts: boolean;
+}
+
+export interface ArcOmpLoginChallenge {
+  provider: string;
+  sessionId: string;
+  kind: "oauth" | "api-key";
+  flow: "browser" | "device";
+  userCode: string | null;
+  authorizeUrl: string | null;
+  instructions: string | null;
+  expiresAt: number | null;
+}
+
+export interface ArcOmpLoginPoll {
+  state: ArcLoginPollState;
+  account: ArcAccount | null;
+  message: string | null;
+}
+
+export function useArcOmpProvidersList() {
+  return useQuery({
+    queryKey: arcOmpProvidersQueryKey(),
+    queryFn: () =>
+      arcRpcCall<{ providers: ArcOmpProvider[] }>("arc.omp.providers", null),
+    staleTime: 15_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useArcLogin() {
+  const queryClient = useQueryClient();
+  const onAccountChanged = () => {
+    void invalidateArcAccounts(queryClient);
+    void invalidateArcUsage(queryClient);
+  };
+
+  return {
+    openaiStart: async () => {
+      const result = await arcRpcCall<{ challenge: ArcOpenAiLoginChallenge }>(
+        "arc.login.openai.start",
+        null,
+      );
+      return result.challenge;
+    },
+    openaiPoll: async (sessionId: string) => {
+      const result = await arcRpcCall<ArcOpenAiLoginPollResult>(
+        "arc.login.openai.poll",
+        { sessionId },
+      );
+      if (result.poll.state === "connected") onAccountChanged();
+      return result;
+    },
+    openaiCancel: async (sessionId: string) => {
+      await arcRpcCall<{ ok: true }>("arc.login.openai.cancel", {
+        sessionId,
+      });
+    },
+    claudeStart: async () => {
+      const result = await arcRpcCall<{ challenge: ArcClaudeLoginChallenge }>(
+        "arc.login.claude.start",
+        null,
+      );
+      return result.challenge;
+    },
+    claudeComplete: async (sessionId: string, code: string) => {
+      const result = await arcRpcCall<{ account: ArcAccount }>(
+        "arc.login.claude.complete",
+        { sessionId, code },
+      );
+      onAccountChanged();
+      return result.account;
+    },
+    ompStart: async (provider: string) => {
+      const result = await arcRpcCall<{ challenge: ArcOmpLoginChallenge }>(
+        "arc.omp.login.start",
+        { provider },
+      );
+      return result.challenge;
+    },
+    ompPoll: async (sessionId: string) => {
+      const result = await arcRpcCall<{ poll: ArcOmpLoginPoll }>(
+        "arc.omp.login.poll",
+        { sessionId },
+      );
+      if (result.poll.state === "connected") {
+        onAccountChanged();
+        void invalidateArcOmpProviders(queryClient);
+      }
+      return result.poll;
+    },
+    ompCancel: async (sessionId: string) => {
+      await arcRpcCall<{ ok: true }>("arc.omp.login.cancel", { sessionId });
+    },
+    ompSubmitKey: async (sessionId: string, key: string) => {
+      await arcRpcCall<{ ok: true }>("arc.omp.login.submitKey", {
+        sessionId,
+        key,
+      });
+      onAccountChanged();
+      void invalidateArcOmpProviders(queryClient);
+    },
+  };
 }

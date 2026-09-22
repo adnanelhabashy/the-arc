@@ -68,6 +68,8 @@ import { AppCommandProvider } from "./components/commands/AppCommandProvider";
 import { ProviderCliInstallLogDialogHost } from "./components/provider-cli/provider-cli-install";
 import { ServerMoveOverlay } from "./components/machines/ServerMoveOverlay";
 import { RouteLoadingSkeleton } from "./components/ui/route-loading-skeleton";
+import { OnboardingOverlay } from "./components/onboarding/OnboardingOverlay";
+import { OnboardingProvider } from "./hooks/useOnboarding";
 
 const SettingsView = lazy(() =>
   import("./views/SettingsView").then((m) => ({
@@ -425,27 +427,30 @@ export function App() {
 
   return (
     <QuickCreateProjectProvider>
-      <AppCommandProvider>
-        <RouteNavigationProvider>
-          <RouteNavigationIndicator />
-          <AppNavigationUrlHost>
-            <AppFileExternalNavigationHost>
-              <HashNavigationScroll />
-              <NativeShellReporter />
-              <UiPreferencesSync />
-              <Routes>
-                <Route
-                  path={AUTH_CALLBACK_ROUTE_PATH}
-                  element={<AuthCallbackView />}
-                />
-                <Route path="*" element={<AppRoutes />} />
-              </Routes>
-              <ProviderCliInstallLogDialogHost />
-              <ServerMoveOverlay />
-            </AppFileExternalNavigationHost>
-          </AppNavigationUrlHost>
-        </RouteNavigationProvider>
-      </AppCommandProvider>
+      <OnboardingProvider>
+        <AppCommandProvider>
+          <RouteNavigationProvider>
+            <RouteNavigationIndicator />
+            <AppNavigationUrlHost>
+              <AppFileExternalNavigationHost>
+                <HashNavigationScroll />
+                <NativeShellReporter />
+                <UiPreferencesSync />
+                <Routes>
+                  <Route
+                    path={AUTH_CALLBACK_ROUTE_PATH}
+                    element={<AuthCallbackView />}
+                  />
+                  <Route path="*" element={<AppRoutes />} />
+                </Routes>
+                <ProviderCliInstallLogDialogHost />
+                <ServerMoveOverlay />
+                <OnboardingOverlay />
+              </AppFileExternalNavigationHost>
+            </AppNavigationUrlHost>
+          </RouteNavigationProvider>
+        </AppCommandProvider>
+      </OnboardingProvider>
     </QuickCreateProjectProvider>
   );
 }

@@ -1498,7 +1498,7 @@ async function retryStartup(): Promise<void> {
       details: error instanceof Error ? error.message : String(error),
       logs: "",
       retryable: false,
-      title: "Could not open bb",
+      title: "Could not open Arc Agent",
     });
   } finally {
     startupRetryPending = false;
@@ -1532,7 +1532,7 @@ async function applyServerTarget(): Promise<void> {
     if (!attached) {
       await loadStartupError({
         details:
-          "Could not connect to the local bb server on this Mac. Check that the port is free or that a compatible bb server is running.",
+          "Could not connect to the local Arc Agent server on this Mac. Check that the port is free or that a compatible Arc Agent server is running.",
         logs: "",
         retryable: true,
         title: "Could not connect",
@@ -1823,14 +1823,32 @@ async function loadWindowUrl(args: LoadWindowUrlArgs): Promise<void> {
   await desktopWindowFactory.loadUrl({ url: args.url });
 }
 
-async function loadLoadingView(): Promise<void> {
+async function loadLoadingView(
+  message = "Preparing local services…",
+): Promise<void> {
   bbAppLoaded = false;
   await loadWindowUrl({
     url: createLocalViewUrl({
       viewModel: {
         kind: "loading",
-        message: "Starting local services and opening the bb workspace.",
-        title: "Opening bb",
+        message,
+        title: "Starting Arc Agent",
+      },
+    }),
+  });
+}
+
+// Updates the loading screen's message in place without resetting
+// bbAppLoaded/startupRetryUrl a second time — a clean-machine first launch
+// can spend several minutes downloading and verifying managed runtimes, and
+// a message that never changes reads as a frozen window.
+async function updateLoadingMessage(message: string): Promise<void> {
+  await loadWindowUrl({
+    url: createLocalViewUrl({
+      viewModel: {
+        kind: "loading",
+        message,
+        title: "Starting Arc Agent",
       },
     }),
   });
@@ -2093,6 +2111,7 @@ async function spawnOwnedRuntime(
     platform: process.platform,
   });
   const arcAppVersion = getArcAppVersion();
+  await updateLoadingMessage("Preparing managed runtimes…");
   try {
     const bootstrapResults = await prepareArcManagedRuntimes({
       createdByArcVersion: arcAppVersion,
@@ -2142,6 +2161,7 @@ async function spawnOwnedRuntime(
     platform: arcPlatform,
     runtimePaths: arcRuntimePaths,
   });
+  await updateLoadingMessage("Setting up your workspace…");
   const bbProcess = startBbAppProcess({
     bridgePath: args.bridgePath,
     cwd: homedir(),
@@ -2231,7 +2251,7 @@ async function startOwnedRuntime(
       )}.`,
       logs: bbProcess.logs.text(),
       retryable: false,
-      title: "Could not start bb",
+      title: "Could not start Arc Agent",
     });
     setCurrentRuntime(null);
     return null;
@@ -2244,11 +2264,11 @@ async function startOwnedRuntime(
   await loadStartupError({
     details:
       raceResult.result.kind === "incompatible"
-        ? `Port ${args.serverUrl} is responding, but it does not look like bb: ${raceResult.result.reason}.`
-        : `Timed out waiting for bb at ${args.serverUrl}: ${raceResult.result.reason}.`,
+        ? `Port ${args.serverUrl} is responding, but it does not look like Arc Agent: ${raceResult.result.reason}.`
+        : `Timed out waiting for Arc Agent at ${args.serverUrl}: ${raceResult.result.reason}.`,
     logs: bbProcess.logs.text(),
     retryable: false,
-    title: "Could not start bb",
+    title: "Could not start Arc Agent",
   });
   await stopOwnedRuntime();
   return null;
@@ -2327,11 +2347,11 @@ async function decideOnExistingServer(
   if (stopResult.kind === "unverified") {
     await loadStartupError({
       details:
-        `The bb at ${probe.serverUrl} records process ${String(stopResult.pid)}, but that ` +
-        "process no longer matches the record. bb did not stop it. Stop it yourself, then open bb again.",
+        `Arc Agent at ${probe.serverUrl} records process ${String(stopResult.pid)}, but that ` +
+        "process no longer matches the record. Arc Agent did not stop it. Stop it yourself, then open Arc Agent again.",
       logs: "",
       retryable: false,
-      title: "Could not stop the running bb",
+      title: "Could not stop the running Arc Agent",
     });
     return "quit";
   }
@@ -2340,27 +2360,27 @@ async function decideOnExistingServer(
       details: `Arc Agent could not stop process ${String(stopResult.pid)}, even after SIGKILL.`,
       logs: "",
       retryable: false,
-      title: "Could not stop the running bb",
+      title: "Could not stop the running Arc Agent",
     });
     return "quit";
   }
   if (stopResult.kind === "replaced") {
     await loadStartupError({
       details:
-        `Another bb started at ${probe.serverUrl} while the question was open, so bb stopped nothing. ` +
-        "Open bb again to see the copy that runs now.",
+        `Another Arc Agent started at ${probe.serverUrl} while the question was open, so Arc Agent stopped nothing. ` +
+        "Open Arc Agent again to see the copy that runs now.",
       logs: "",
       retryable: false,
-      title: "Could not stop the running bb",
+      title: "Could not stop the running Arc Agent",
     });
     return "quit";
   }
   if (!(await waitForServerToStop(probe.serverUrl))) {
     await loadStartupError({
-      details: `The bb at ${probe.serverUrl} stopped, but the address is still in use.`,
+      details: `Arc Agent at ${probe.serverUrl} stopped, but the address is still in use.`,
       logs: "",
       retryable: false,
-      title: "Could not stop the running bb",
+      title: "Could not stop the running Arc Agent",
     });
     return "quit";
   }
@@ -2413,7 +2433,7 @@ async function initializeRuntime(args: InitializeRuntimeArgs): Promise<void> {
 
   if (existingProbe.kind === "incompatible") {
     await loadStartupError({
-      details: `Port ${args.serverUrl} is already in use, but it is not a compatible bb server: ${existingProbe.reason}.`,
+      details: `Port ${args.serverUrl} is already in use, but it is not a compatible Arc Agent server: ${existingProbe.reason}.`,
       logs: "",
       retryable: false,
       title: "Port conflict",
@@ -2900,6 +2920,6 @@ void runDesktopApp().catch((error) => {
     details: message,
     logs: "",
     retryable: false,
-    title: "Could not open bb",
+    title: "Could not open Arc Agent",
   });
 });
