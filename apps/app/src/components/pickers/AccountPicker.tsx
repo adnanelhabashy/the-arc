@@ -110,7 +110,8 @@ export function useAccountRequiresResolution(
       existingThreadState.accountResolved === true
     ) {
       const stored = accounts.find(
-        (account) => accountIdentity(account) === existingThreadState.accountKey,
+        (account) =>
+          accountIdentity(account) === existingThreadState.accountKey,
       );
       return (
         stored === undefined ||
@@ -144,7 +145,10 @@ export function AccountPicker({
 }: AccountPickerProps) {
   const { data } = useArcAccountsList({ enabled: agentId !== null });
   const accounts = useMemo(
-    () => (agentId === null ? [] : filterAccounts(data?.accounts ?? [], agentId, providerFamily)),
+    () =>
+      agentId === null
+        ? []
+        : filterAccounts(data?.accounts ?? [], agentId, providerFamily),
     [data, agentId, providerFamily],
   );
 
@@ -188,9 +192,9 @@ export function AccountPicker({
           : "Select account"
         : value === null
           ? "Auto"
-          : (selectedNewThreadAccount
-              ? accountLabel(selectedNewThreadAccount)
-              : "Select account");
+          : selectedNewThreadAccount
+            ? accountLabel(selectedNewThreadAccount)
+            : "Select account";
 
   function commitSelection(accountKey: string) {
     if (isResolvedExisting) {
@@ -245,7 +249,12 @@ export function AccountPicker({
           {isWarning ? (
             <Icon name="AlertTriangle" className="size-3.5 shrink-0" />
           ) : null}
-          <span className="min-w-0 truncate">{triggerLabel}</span>
+          <span
+            key={triggerLabel}
+            className="min-w-0 truncate motion-safe:animate-in motion-safe:fade-in motion-safe:duration-150"
+          >
+            {triggerLabel}
+          </span>
           <Icon
             name="ChevronDown"
             className="size-3.5 shrink-0 text-muted-foreground"
@@ -291,14 +300,16 @@ export function AccountPicker({
             <DropdownMenuLabel>Account</DropdownMenuLabel>
             {isLegacyUnknown ? (
               <p className="px-2 pb-2 text-xs leading-snug text-muted-foreground">
-                This thread was created before account selection was
-                available. Choose an account to continue.
+                This thread was created before account selection was available.
+                Choose an account to continue.
               </p>
             ) : null}
             {isUnavailable ? (
               <p className="px-2 pb-2 text-xs leading-snug text-muted-foreground">
                 This thread was using{" "}
-                {storedAccount ? accountLabel(storedAccount) : "a removed account"}
+                {storedAccount
+                  ? accountLabel(storedAccount)
+                  : "a removed account"}
                 , but that account is no longer available. Choose another to
                 continue.
               </p>

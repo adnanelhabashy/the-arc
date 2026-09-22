@@ -240,7 +240,7 @@ export function AppSidebar({
           item={pluginSidebarFooter.activeItem}
           onDismiss={pluginSidebarFooter.dismiss}
         />
-        <SidebarMenu className="flex-row flex-wrap-reverse items-center gap-1">
+        <SidebarMenu className="flex-row flex-wrap-reverse items-center gap-0.5 border-t border-sidebar-border/25 pt-1.5">
           <PluginSidebarFooterItems
             activeDisclosureKey={pluginSidebarFooter.activeKey}
             onDisclosureCommand={pluginSidebarFooter.handleCommand}

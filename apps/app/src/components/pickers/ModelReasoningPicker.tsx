@@ -981,8 +981,9 @@ export function ModelReasoningPicker({
         {modelIsLoading ? null : (
           <>
             <span
+              key={triggerModelBase}
               className={cn(
-                "min-w-0 truncate",
+                "min-w-0 truncate motion-safe:animate-in motion-safe:fade-in motion-safe:duration-150",
                 triggerModelValueIsDestructive && "text-destructive-text",
               )}
             >

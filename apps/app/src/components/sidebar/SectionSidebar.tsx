@@ -41,7 +41,7 @@ export function SectionSidebarRow({
       className={cn(
         PROJECT_LIST_ACTION_BUTTON_CLASS,
         "w-full",
-        active && "bg-sidebar-accent text-sidebar-foreground",
+        active && "bg-sidebar-accent font-medium text-sidebar-foreground",
       )}
     >
       <Link
@@ -85,12 +85,19 @@ export function SectionSidebarActionRow({
   );
 }
 
-export function SectionSidebarLabel({ children }: { children: ReactNode }) {
+export function SectionSidebarLabel({
+  children,
+  sticky = false,
+}: {
+  children: ReactNode;
+  sticky?: boolean;
+}) {
   return (
     <div
       className={cn(
         CHROME_SECTION_LABEL_CLASS,
         SIDEBAR_STANDARD_ROW_PADDING_CLASS,
+        sticky && "sticky top-0 z-10 bg-sidebar",
       )}
     >
       {children}

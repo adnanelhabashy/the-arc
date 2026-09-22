@@ -44,6 +44,7 @@ interface RootComposeSecondaryContentProps {
   compactScrollContent: ReactNode;
   isCompactHomeLayout: boolean;
   contentClassName?: string;
+  contentAlignment?: "top" | "centered";
   isSecondaryPanelOpen: boolean;
   onToggleSecondaryPanel: () => void;
   secondaryPanel: RootSecondaryPanelProps;
@@ -67,10 +68,12 @@ export function RootComposeSecondaryContent({
   compactScrollContent,
   isCompactHomeLayout,
   contentClassName,
+  contentAlignment = "top",
   isSecondaryPanelOpen,
   onToggleSecondaryPanel,
   secondaryPanel,
 }: RootComposeSecondaryContentProps) {
+  const isCenteredContent = contentAlignment === "centered";
   const paneContext = useOptionalPaneContext();
   const secondaryPanelHost = paneContext?.secondaryPanelHost ?? null;
   const composerHost = usePluginComposerHost();
@@ -116,11 +119,17 @@ export function RootComposeSecondaryContent({
           </RootComposeCompactHome>
         </div>
       ) : (
-        <div className="@container/page min-h-0 flex-1 overflow-y-auto">
+        <div
+          className={cn(
+            "@container/page min-h-0 flex-1 overflow-y-auto",
+            isCenteredContent && "flex flex-col pb-16",
+          )}
+        >
           <div
             className={cn(
               "mx-auto flex w-full flex-col px-4 pb-4 pt-2",
               ROOT_COMPOSE_MAX_WIDTH_CLASS,
+              isCenteredContent && "my-auto",
               contentClassName,
             )}
             style={PAGE_SHELL_CONTENT_STYLE}

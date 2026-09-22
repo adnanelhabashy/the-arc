@@ -11,7 +11,10 @@ import { canOpenNativeScreen, shellOpenNative } from "@/lib/native-shell";
 import { getPluginConfigurationRoutePath } from "@/lib/route-paths";
 import { useSettingsNavState } from "./settings-nav";
 import type { SettingsNavState } from "./settings-nav";
-import { getSettingsSectionRoutePath } from "./settings-sections";
+import {
+  getSettingsSectionRoutePath,
+  SETTINGS_NAV_SECTION_GROUPS,
+} from "./settings-sections";
 
 interface SettingsSidebarProps {
   onResizeMouseDown: (event: ReactMouseEvent<HTMLDivElement>) => void;
@@ -50,21 +53,29 @@ export function SettingsSidebarContent({
       onResizeMouseDown={onResizeMouseDown}
       testIdPrefix={testIdPrefix}
     >
-      <SectionSidebarLabel>Settings</SectionSidebarLabel>
-      <div className="mt-1 space-y-0.5">
-        {sections
-          .filter((section) => section.id !== "archived")
-          .map((section) => (
-            <SectionSidebarRow
-              key={section.id}
-              active={activeSection === section.id}
-              label={section.label}
-              to={getSettingsSectionRoutePath(section.id)}
-            >
-              <SectionSidebarIcon name={section.icon} />
-            </SectionSidebarRow>
-          ))}
-      </div>
+      {SETTINGS_NAV_SECTION_GROUPS.map((group) => {
+        const groupSections = sections.filter(
+          (section) => section.group === group.id,
+        );
+        if (groupSections.length === 0) return null;
+        return (
+          <div key={group.id} className="mt-4 first:mt-0">
+            <SectionSidebarLabel sticky>{group.label}</SectionSidebarLabel>
+            <div className="mt-1 space-y-0.5">
+              {groupSections.map((section) => (
+                <SectionSidebarRow
+                  key={section.id}
+                  active={activeSection === section.id}
+                  label={section.label}
+                  to={getSettingsSectionRoutePath(section.id)}
+                >
+                  <SectionSidebarIcon name={section.icon} />
+                </SectionSidebarRow>
+              ))}
+            </div>
+          </div>
+        );
+      })}
       {hasPlugins ? (
         <>
           <div className="mt-4">

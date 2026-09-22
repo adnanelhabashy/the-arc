@@ -1120,11 +1120,22 @@ export function SettingsView() {
   const updateAppearanceMutation = useUpdateAppearance();
   const appThemePreview = useAppThemePreview();
   const location = useLocation();
-  const { activePluginId, activeSection, hasUnknownSection } =
-    useSettingsNavState();
+  const {
+    activePluginId,
+    activeSection,
+    hasUnknownSection,
+    pluginEntries,
+    sections,
+  } = useSettingsNavState();
   if (hasUnknownSection) {
     return <Navigate to={SETTINGS_ROUTE_PATH} replace />;
   }
+  const pageTitle =
+    activePluginId !== null
+      ? (pluginEntries.find((entry) => entry.id === activePluginId)?.label ??
+        "Plugin settings")
+      : (sections.find((section) => section.id === activeSection)?.label ??
+        "Settings");
 
   if (activeSection === "plugins") {
     const pluginId = matchPath(SETTINGS_PLUGIN_ROUTE_PATH, location.pathname)
@@ -1324,7 +1335,14 @@ export function SettingsView() {
 
   return (
     <PageShell contentClassName="pt-4 md:pt-5">
-      <div className="mx-auto w-full max-w-3xl space-y-10">{content}</div>
+      <div className="mx-auto w-full max-w-3xl space-y-10">
+        <header className="border-b border-border-hairline pb-3">
+          <h1 className="truncate text-base font-semibold text-foreground">
+            {pageTitle}
+          </h1>
+        </header>
+        {content}
+      </div>
     </PageShell>
   );
 }

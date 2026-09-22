@@ -335,13 +335,17 @@ function PromptSubmitButton({
       }}
       className={cn(
         className,
+        "active:scale-[0.98] transition-[transform,color,background-color,border-color] duration-[120ms] ease-out motion-reduce:transition-none",
         !hasInput &&
           "border border-border text-muted-foreground/50 disabled:opacity-100",
         label !== undefined && !isCompact && "size-auto h-8 gap-1.5 px-2.5",
       )}
     >
       {isBusy ? (
-        <Icon name="Loading" className="size-4 animate-spin motion-reduce:animate-none" />
+        <Icon
+          name="Loading"
+          className="size-4 animate-spin motion-reduce:animate-none"
+        />
       ) : (
         <>
           <Icon name={icon ?? "CornerDownLeft"} className="size-4" />
@@ -3155,6 +3159,7 @@ export function PromptBoxInternal({
       }}
       className={cn(
         "group/promptbox relative w-full rounded-xl border border-border bg-background shadow-lift",
+        "transition-[border-color] duration-[140ms] ease-out focus-within:border-foreground/25 motion-reduce:transition-none",
         showCompactLayout && "overflow-hidden",
       )}
     >
@@ -3315,7 +3320,7 @@ export function PromptBoxInternal({
             <div
               data-promptbox-action-row=""
               className={cn(
-                "relative flex shrink-0 select-none flex-row items-center gap-3 pb-2 pl-3.5 pr-2 pt-1.5",
+                "relative flex shrink-0 select-none flex-row items-center gap-3 pb-2 pl-4 pr-2 pt-1.5",
                 showCompactLayout && "absolute inset-y-0 right-2 gap-0 p-0",
               )}
             >
@@ -3488,7 +3493,6 @@ export function PromptBoxInternal({
                                   "ml-1",
                                   COARSE_POINTER_PROMPT_ACTION_BUTTON_CLASS,
                                 ],
-                            "transition-colors",
                           )}
                           disabledReason={
                             !canSubmit

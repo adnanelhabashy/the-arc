@@ -2060,6 +2060,11 @@ export const ProjectThreadTree = memo(function ProjectThreadTree({
             ? "Threads unavailable"
             : undefined
         }
+        hint={
+          threadListState.status === "unavailable"
+            ? undefined
+            : "Start a new thread to work here."
+        }
         showIcon={variant === "section"}
         className={getProjectThreadTreeEmptyStateClassName(variant)}
       />
@@ -2238,6 +2243,11 @@ export const ChronologicalSectionThreadSections = memo(
           threadListState.status === "unavailable"
             ? "Threads unavailable"
             : undefined
+        }
+        hint={
+          threadListState.status === "unavailable"
+            ? undefined
+            : "Start a new thread to work here."
         }
         className={getProjectThreadTreeEmptyStateClassName("section")}
       />

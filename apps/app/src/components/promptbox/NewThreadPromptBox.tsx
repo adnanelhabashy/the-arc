@@ -335,7 +335,7 @@ const DefaultNewThreadComposer = memo(function DefaultNewThreadComposer({
         header={modeConfig.header}
         footerStart={<ExecutionControls {...execution} />}
       />
-      <div className="mt-1 flex select-none items-center justify-between gap-2 px-3.5">
+      <div className="mt-1 flex min-w-0 select-none items-center justify-between gap-2 pl-4 pr-3.5">
         <div className="flex min-w-0 flex-1 items-center gap-1">
           {project ? (
             <ProjectSelector

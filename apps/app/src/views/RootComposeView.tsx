@@ -1822,6 +1822,7 @@ function RootComposeSurface({
   ]);
   const [machineSetupTarget, setMachineSetupTarget] =
     useState<ProjectMachineSetupDialogTarget | null>(null);
+  const [composeEngaged, setComposeEngaged] = useState(false);
   const currentProjectName = currentProject?.name ?? null;
   const currentProjectGitRemoteUrl = currentProject?.gitRemoteUrl ?? null;
   const handleRequestMachineSetup = useCallback(
@@ -1941,6 +1942,8 @@ function RootComposeSurface({
   );
 
   const isCompactHomeLayout = isCompactViewport && !showEmptyWelcome;
+  const isComposeInvitation =
+    !showEmptyWelcome && !isForkDraft && !startedComposing && !composeEngaged;
 
   const promptBox = renderPromptBox({
     id: "root-compose-prompt",
@@ -1992,8 +1995,11 @@ function RootComposeSurface({
               contentClassName={
                 showEmptyWelcome
                   ? ROOT_COMPOSE_EMPTY_WELCOME_CONTENT_CLASS
-                  : ROOT_COMPOSE_SIDEBAR_ACTION_ALIGNED_TOP_PADDING_CLASS
+                  : isComposeInvitation
+                    ? undefined
+                    : ROOT_COMPOSE_SIDEBAR_ACTION_ALIGNED_TOP_PADDING_CLASS
               }
+              contentAlignment={isComposeInvitation ? "centered" : "top"}
               isCompactHomeLayout={isCompactHomeLayout}
               compactScrollContent={
                 showEmptyWelcome ? null : (
@@ -2043,7 +2049,20 @@ function RootComposeSurface({
                   }
                 />
               ) : (
-                promptBox
+                <div
+                  className="flex min-w-0 flex-col"
+                  onKeyDownCapture={() => setComposeEngaged(true)}
+                  onPointerDownCapture={() => setComposeEngaged(true)}
+                >
+                  {isComposeInvitation ? (
+                    <p className="mb-3 text-center text-sm text-subtle-foreground">
+                      {currentProjectName === null || isProjectless
+                        ? "Start a coding session"
+                        : `Start a coding session in ${currentProjectName}`}
+                    </p>
+                  ) : null}
+                  {promptBox}
+                </div>
               )}
             </RootComposeSecondaryContent>
           </AppNavigationHostProvider>

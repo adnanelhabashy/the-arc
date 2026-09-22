@@ -889,7 +889,8 @@ function SidebarNavRowChrome({
               PROJECT_LIST_ACTION_BUTTON_CLASS,
               "w-full pr-7",
               accessory && "pr-18",
-              isActive && "bg-sidebar-accent text-sidebar-foreground",
+              isActive &&
+                "bg-sidebar-accent font-medium text-sidebar-foreground",
               loading &&
                 "text-sidebar-foreground/55 dark:text-sidebar-foreground/55 [&_[data-icon-root]]:opacity-60",
             )}
