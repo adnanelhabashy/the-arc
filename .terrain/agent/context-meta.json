@@ -1,0 +1,10 @@
+{
+  "project": "the-arc",
+  "repo_path": ".",
+  "output_file": "context.md",
+  "generated_at": "2026-09-22T08:57:46.361852+00:00",
+  "section_count": 6,
+  "char_count": 8464,
+  "baseline_git_head": "ab4ec8bd0f12ab71ff562be808526cfc83a1bb9d",
+  "language": "en"
+}
