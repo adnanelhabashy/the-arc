@@ -25,12 +25,43 @@ export function clampPercent(value: number): number {
   return Math.min(Math.max(value, 0), 100);
 }
 
-export function percentTone(usedPercent: number): string {
-  const remaining = 100 - usedPercent;
-  if (remaining < 20) return "bg-red-400";
-  if (remaining <= 50) return "bg-amber-400";
-  return "bg-emerald-400/80";
+/** Where a window sits between healthy and spent, for tone only. */
+export type QuotaState = "ok" | "low" | "exhausted" | "unknown";
+
+/**
+ * The provider's own status when it reported one, otherwise the bar's own
+ * number. A window with nothing measurable stays `unknown` and is never
+ * painted as though it had been measured — the same rule that keeps a missing
+ * measurement out of the percentage (UNKNOWN != ZERO).
+ */
+export function quotaState(window: ArcUsageWindow): QuotaState {
+  if (window.status === "exhausted") return "exhausted";
+  if (window.status === "warning") return "low";
+  if (window.remainingAmount !== null && window.remainingAmount <= 0) {
+    return "exhausted";
+  }
+  if (window.remainingPercent !== null && window.remainingPercent <= 0) {
+    return "exhausted";
+  }
+  const used = windowBarPercent(window);
+  if (used === null) return "unknown";
+  if (used >= 100) return "exhausted";
+  if (used >= 80) return "low";
+  return "ok";
 }
+
+/**
+ * Risk tone per state: healthy quota stays quiet ink so that colour only ever
+ * means something, low quota takes the warning tier and an exhausted window
+ * the destructive one. Both tiers are theme tokens, so they hold their
+ * contrast in light mode too.
+ */
+export const QUOTA_TONE: Record<QuotaState, { bar: string; value: string }> = {
+  ok: { bar: "bg-foreground/45", value: "text-foreground" },
+  low: { bar: "bg-warning", value: "text-warning-text" },
+  exhausted: { bar: "bg-destructive", value: "text-destructive-text" },
+  unknown: { bar: "bg-foreground/45", value: "text-muted-foreground" },
+};
 
 /** Compact countdown like "2h 14m"; dates beyond 48h render as "Sep 24". */
 export function resetText(resetsAt: number, now: number): string {
@@ -99,6 +130,49 @@ export function windowValueText(window: ArcUsageWindow): string | null {
     return formatRemainingAmount(window.remainingAmount, window.unit);
   }
   return null;
+}
+
+export const EXHAUSTED_LABEL = "Exhausted";
+
+/**
+ * What a window says it has left. A provider that reported exhaustion without
+ * an amount still has something to say, so the state fills in where the
+ * number is missing rather than rendering "n/a".
+ */
+export function windowValueLabel(window: ArcUsageWindow): string {
+  const value = windowValueText(window);
+  if (value !== null) return value;
+  return quotaState(window) === "exhausted" ? EXHAUSTED_LABEL : "n/a";
+}
+
+/** The same window, spelled the same way by every provider that reports it. */
+const WINDOW_LABEL_ALIASES: Record<string, string> = {
+  "5 hour limit": "5h",
+  "5-hour limit": "5h",
+  "5h limit": "5h",
+  "five-hour limit": "5h",
+  "weekly limit": "Weekly",
+  "monthly limit": "Monthly",
+};
+
+/** Providers name the same window differently; anything unlisted is theirs. */
+export function windowDisplayLabel(window: ArcUsageWindow): string {
+  return WINDOW_LABEL_ALIASES[window.label.trim().toLowerCase()] ?? window.label;
+}
+
+/**
+ * The account's own name, which is what the user picked between: its provider
+ * plus its plan. An OMP provider account has no plan of its own and already
+ * carries the provider as its plan label, so neither is ever printed twice.
+ */
+export function accountTitle(resource: ArcUsageResource): string {
+  const plan =
+    resource.planLabel === null ? "" : resource.planLabel.trim();
+  const titled = plan.charAt(0).toUpperCase() + plan.slice(1);
+  if (titled === "" || titled === resource.providerLabel) {
+    return resource.providerLabel;
+  }
+  return `${resource.providerLabel} ${titled}`;
 }
 
 /** Why a resource carries no measurement, in the user's terms. */

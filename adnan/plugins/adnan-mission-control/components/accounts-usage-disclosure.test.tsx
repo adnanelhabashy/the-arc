@@ -174,23 +174,34 @@ it("shows every account Arc knows, grouped by the agent it serves", () => {
   expect(screen.getByText("OMP")).toBeTruthy();
   expect(screen.getByText("Codex")).toBeTruthy();
   expect(screen.getByText("Claude Code")).toBeTruthy();
-  expect(screen.getByText("plus · plus@example.com")).toBeTruthy();
-  expect(screen.getByText("team · team@example.com")).toBeTruthy();
-  expect(screen.getByText("pro · claude@example.com")).toBeTruthy();
+  expect(screen.getByText("Plus · plus@example.com")).toBeTruthy();
+  expect(screen.getByText("Team · team@example.com")).toBeTruthy();
+  expect(screen.getByText("Pro · claude@example.com")).toBeTruthy();
   // OMP provider accounts have no plan or email to show, so the account is
   // named by the provider itself — once, not twice on the same row.
   expect(screen.getAllByText("Kimi Code")).toHaveLength(1);
   expect(screen.getAllByText("OpenCode Go")).toHaveLength(1);
 });
 
-it("renders each provider's own limit values, including a Kimi zero remaining", () => {
+it("says a spent window is exhausted instead of printing its zero", () => {
   renderDisclosure([kimi(), openCode()]);
 
-  expect(screen.getByText("Weekly limit")).toBeTruthy();
-  expect(screen.getByText("0 remaining")).toBeTruthy();
+  // The provider's own labels are normalised, so both providers' 5h window
+  // reads the same, and a spent window says so in the sidebar's short form.
+  expect(screen.getByText("Weekly")).toBeTruthy();
+  expect(screen.getByText("Exhausted")).toBeTruthy();
+  expect(screen.queryByText("0 remaining")).toBeNull();
   expect(screen.getByText("100 remaining")).toBeTruthy();
-  expect(screen.getByText("5 Hour limit")).toBeTruthy();
+  // Both providers' five-hour window now reads "5h".
+  expect(screen.getAllByText("5h")).toHaveLength(2);
   expect(screen.getByText("89% remaining")).toBeTruthy();
+});
+
+it("keeps a healthy window's value in the plain text tier", () => {
+  renderDisclosure([openCode()]);
+
+  expect(screen.getByText("89% remaining").className).not.toContain("text-warning");
+  expect(screen.getByText("89% remaining").className).not.toContain("text-destructive");
 });
 
 it("never shows a fabricated zero for a resource that reported nothing", () => {

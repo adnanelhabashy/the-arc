@@ -12,46 +12,49 @@ import type {
   ArcUsageWindow,
 } from "@/lib/arc-types";
 import { useArcUsage } from "@/lib/data";
-import { EmptyState, relativeTime } from "@/components/common";
+import { EmptyState, RefreshIcon, relativeTime } from "@/components/common";
 import {
-  percentTone,
+  QUOTA_TONE,
+  accountTitle,
+  quotaState,
   resetText,
   resourceStatusText,
   windowBarPercent,
-  windowValueText,
+  windowDisplayLabel,
+  windowValueLabel,
 } from "@/components/usage-window-format";
 import { cn } from "@/lib/utils";
 
 function WindowRow({ window, now }: { window: ArcUsageWindow; now: number }) {
   const used = windowBarPercent(window);
-  const value = windowValueText(window);
+  const label = windowDisplayLabel(window);
+  const value = windowValueLabel(window);
+  const tone = QUOTA_TONE[quotaState(window)];
 
   // A window with neither a reported fraction nor a known limit renders its
   // amount alone — a bar there would fabricate a percentage.
   if (used === null) {
     return (
-      <div className="flex items-baseline justify-between gap-2 text-[12px]">
-        <span className="truncate text-muted-foreground">{window.label}</span>
-        {value !== null ? (
-          <span className="font-medium tabular-nums">{value}</span>
-        ) : (
-          <span className="text-muted-foreground">n/a</span>
-        )}
+      <div className="flex items-baseline justify-between gap-3 text-xs">
+        <span className="truncate text-muted-foreground">{label}</span>
+        <span className={cn("shrink-0 font-medium tabular-nums", tone.value)}>
+          {value}
+        </span>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-baseline justify-between gap-2 text-[12px]">
-        <span className="truncate text-muted-foreground">{window.label}</span>
-        {value !== null ? (
-          <span className="font-medium tabular-nums">{value}</span>
-        ) : null}
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between gap-3 text-xs">
+        <span className="truncate text-muted-foreground">{label}</span>
+        <span className={cn("shrink-0 font-medium tabular-nums", tone.value)}>
+          {value}
+        </span>
       </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <div
-          className={cn("h-full rounded-full", percentTone(used))}
+          className={cn("h-full rounded-full", tone.bar)}
           style={{ width: `${used}%` }}
         />
       </div>
@@ -76,7 +79,7 @@ function ResourceBody({
   if (resource.status === "error") {
     return (
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] text-red-400">
+        <span className="text-[11px] text-destructive-text">
           {resourceStatusText(resource)}
         </span>
         <button
@@ -99,14 +102,14 @@ function ResourceBody({
 
   const windows = resource.windows;
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2.5">
       {windows.length === 0 ? (
         <span className="text-[11px] text-muted-foreground">No limit windows reported</span>
       ) : (
         windows.map((window) => <WindowRow key={window.id} window={window} now={now} />)
       )}
       {resource.stale ? (
-        <span className="text-[10px] text-muted-foreground/80">
+        <span className="text-[10px] text-muted-foreground">
           Last updated {relativeTime(resource.fetchedAt ?? resource.observedAt ?? now, now)} · could not refresh
         </span>
       ) : null}
@@ -124,41 +127,31 @@ function ResourceCard({
   onRetry: () => void;
 }) {
   const navigate = useBbNavigate();
-  // An OMP provider account has no plan or email of its own, so its plan
-  // label is its provider name — printing it under the same title would
-  // repeat the provider twice on one card.
-  const detail = [resource.planLabel, resource.accountEmail]
-    .filter((value) => value !== null && value !== resource.providerLabel)
-    .join(" · ");
   return (
-    <article className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
-      <div className="flex min-w-0 items-start justify-between gap-2">
+    <article className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3.5">
+      <header className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-[13px] font-medium">{resource.providerLabel}</div>
-          {detail !== "" ? (
-            <div className="truncate text-[11px] text-muted-foreground">
-              {detail}
-            </div>
+          <h4 className="truncate text-[13px] font-medium">
+            {accountTitle(resource)}
+          </h4>
+          {resource.accountEmail ? (
+            <p className="truncate text-[11px] text-muted-foreground">
+              {resource.accountEmail}
+            </p>
           ) : null}
         </div>
         {resource.accountSourceId !== null ? (
           <button
             type="button"
             onClick={() => navigate.toPluginPanel("mission-control", { subPath: "accounts" })}
-            className="shrink-0 text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            className="shrink-0 cursor-pointer text-[11px] text-muted-foreground/70 underline-offset-2 transition-colors hover:text-foreground hover:underline"
           >
             Manage account
           </button>
         ) : null}
-      </div>
+      </header>
 
       <ResourceBody resource={resource} now={now} onRetry={onRetry} />
-
-      {resource.fetchedAt !== null ? (
-        <span className="text-right text-[10px] tabular-nums text-muted-foreground/70">
-          Updated {relativeTime(resource.fetchedAt, now)}
-        </span>
-      ) : null}
     </article>
   );
 }
@@ -182,7 +175,7 @@ function AgentGroup({
       {resources.length === 0 ? (
         <EmptyState title={empty} />
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 items-start gap-3 @2xl:grid-cols-2">
           {resources.map((resource) => (
             <ResourceCard key={resource.id} resource={resource} now={now} onRetry={() => onRetry(resource.id)} />
           ))}
@@ -241,9 +234,9 @@ export function UsageLimitsPage() {
   );
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
+    <div className="@container flex flex-col gap-4 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold">Usage &amp; Limits</h2>
           {snapshot !== null ? (
             <p className="text-[11px] tabular-nums text-muted-foreground">updated {relativeTime(snapshot.generatedAt, now)}</p>
@@ -253,23 +246,10 @@ export function UsageLimitsPage() {
           type="button"
           onClick={() => void refreshAll().catch(() => {})}
           aria-label="Refresh usage and limits"
-          className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+          className="-mr-1 -mt-0.5 inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
         >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            className={cn("size-3.5", isFetching && "animate-spin")}
-          >
-            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-            <path d="M21 3v5h-5" />
-            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-            <path d="M3 21v-5h5" />
-          </svg>
+          <RefreshIcon spinning={isFetching} className="size-3.5" />
+          <span className="hidden @md:inline">Refresh</span>
         </button>
       </div>
       <AgentGroup title="OMP" resources={omp} now={now} onRetry={refreshResource} empty="No OMP usage sources." />

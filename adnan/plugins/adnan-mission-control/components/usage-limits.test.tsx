@@ -198,6 +198,7 @@ describe("UsageLimitsPage", () => {
         sourceKind: "omp",
         accountKey: null,
         providerLabel: "OpenCode Go",
+        planLabel: null,
         agentIds: ["omp"],
         windows: [percentWindow({ usedPercent: 73, remainingPercent: 27 })],
         status: "available",
@@ -236,5 +237,64 @@ describe("UsageLimitsPage", () => {
     ]);
     expect(screen.getAllByText("Kimi Code")).toHaveLength(1);
     expect(screen.getByText("0% remaining")).toBeTruthy();
+  });
+
+  it("titles a pooled account with its provider and its plan", () => {
+    renderUsage([
+      resource({ accountEmail: "plus@example.com", windows: [percentWindow()] }),
+    ]);
+    expect(screen.getByText("ChatGPT Plus")).toBeTruthy();
+    expect(screen.getByText("plus@example.com")).toBeTruthy();
+  });
+
+  it("keeps the provider's own number for a spent window and marks it as an error", () => {
+    renderUsage([
+      resource({
+        windows: [
+          amountWindow({
+            id: "kimi-weekly",
+            label: "Weekly limit",
+            status: "exhausted",
+            usedAmount: 100,
+            limitAmount: 100,
+            remainingAmount: 0,
+            unit: "unknown",
+          }),
+        ],
+      }),
+    ]);
+    expect(screen.getByText("Weekly")).toBeTruthy();
+    expect(
+      screen.getByText("0 remaining").className,
+    ).toContain("text-destructive-text");
+  });
+
+  it("grades a nearly spent window as a warning rather than an error", () => {
+    renderUsage([
+      resource({
+        planLabel: null,
+        providerLabel: "Claude",
+        agentIds: ["claude-code"],
+        windows: [percentWindow({ usedPercent: 93, remainingPercent: 7 })],
+      }),
+    ]);
+    expect(screen.getByText("7% remaining").className).toContain(
+      "text-warning-text",
+    );
+  });
+
+  it("says a window is exhausted when the provider reported no amount at all", () => {
+    renderUsage([
+      resource({
+        windows: [
+          percentWindow({
+            status: "exhausted",
+            usedPercent: null,
+            remainingPercent: null,
+          }),
+        ],
+      }),
+    ]);
+    expect(screen.getByText("Exhausted")).toBeTruthy();
   });
 });

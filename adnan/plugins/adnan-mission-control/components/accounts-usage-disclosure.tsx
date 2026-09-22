@@ -18,11 +18,15 @@ import {
 } from "@get-bb/plugin-sdk/app";
 import type { ArcUsageResource } from "@/lib/arc-types";
 import { useArcUsage } from "@/lib/data";
-import { relativeTime } from "@/components/common";
+import { RefreshIcon, relativeTime } from "@/components/common";
+import { Icon } from "@/components/ui/icon";
 import {
+  EXHAUSTED_LABEL,
+  QUOTA_TONE,
+  quotaState,
   resourceStatusText,
-  windowBarPercent,
-  windowValueText,
+  windowDisplayLabel,
+  windowValueLabel,
 } from "@/components/usage-window-format";
 import { cn } from "@/lib/utils";
 
@@ -34,48 +38,44 @@ const GROUPS: { agentId: "omp" | "codex" | "claude-code"; title: string }[] = [
 
 // An account is named by what the provider gave Arc: its plan and email when
 // it has them, its provider label otherwise (an OMP provider account has no
-// email or plan to show).
+// email or plan to show). The plan is capitalised because providers report it
+// lowercase, and the page titles the same account from the same value.
 function accountName(resource: ArcUsageResource): string {
-  const detail = [resource.planLabel, resource.accountEmail]
+  const plan = resource.planLabel === null ? null : resource.planLabel.trim();
+  const titled =
+    plan === null || plan === "" ? null : plan.charAt(0).toUpperCase() + plan.slice(1);
+  const detail = [titled, resource.accountEmail]
     .filter((value) => value !== null)
     .join(" · ");
   return detail === "" ? resource.providerLabel : detail;
 }
 
 function WindowLine({ window }: { window: ArcUsageResource["windows"][number] }) {
-  const value = windowValueText(window);
-  const used = windowBarPercent(window);
-  // Tone follows the provider's own number; a window with no reported
-  // fraction or limit keeps the default tone rather than guessing one.
-  const toneClass =
-    used === null
-      ? "text-sidebar-foreground"
-      : used >= 80
-        ? "text-red-400"
-        : used >= 50
-          ? "text-amber-400"
-          : "text-sidebar-foreground";
+  const state = quotaState(window);
+  // The sidebar has room for one word where the page can afford the exact
+  // number: a spent window says so instead of printing "0 remaining".
+  const value = state === "exhausted" ? EXHAUSTED_LABEL : windowValueLabel(window);
   return (
-    <div className="flex items-baseline justify-between gap-2 text-2xs">
+    <div className="flex items-baseline justify-between gap-2 text-2xs leading-3">
       <span className="min-w-0 truncate text-subtle-foreground">
-        {window.label}
+        {windowDisplayLabel(window)}
       </span>
-      <span className={cn("shrink-0 tabular-nums", toneClass)}>
-        {value ?? "n/a"}
+      <span className={cn("shrink-0 tabular-nums", QUOTA_TONE[state].value)}>
+        {value}
       </span>
     </div>
   );
 }
 
-function AccountRow({ resource }: { resource: ArcUsageResource }) {
+function AccountRow({ resource, now }: { resource: ArcUsageResource; now: number }) {
   const status = resource.status === "available" ? "" : resourceStatusText(resource);
   const name = accountName(resource);
   // An account named by its provider (an OMP provider account has no plan or
   // email) would otherwise print the same label twice on one row.
   const showProvider = name !== resource.providerLabel;
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-baseline justify-between gap-2 text-xs">
+    <div className="flex flex-col">
+      <div className="flex items-baseline justify-between gap-2 text-xs leading-tight">
         <span className="min-w-0 truncate font-medium text-sidebar-foreground">
           {name}
         </span>
@@ -92,7 +92,7 @@ function AccountRow({ resource }: { resource: ArcUsageResource }) {
           No limit windows reported
         </span>
       ) : (
-        <div className="flex flex-col gap-0.5 pl-2">
+        <div className="flex flex-col">
           {resource.windows.map((window) => (
             <WindowLine key={window.id} window={window} />
           ))}
@@ -101,7 +101,7 @@ function AccountRow({ resource }: { resource: ArcUsageResource }) {
       {resource.stale ? (
         <span className="text-2xs text-subtle-foreground">
           Last updated{" "}
-          {relativeTime(resource.fetchedAt ?? resource.observedAt ?? Date.now(), Date.now())}{" "}
+          {relativeTime(resource.fetchedAt ?? resource.observedAt ?? now, now)}{" "}
           · could not refresh
         </span>
       ) : null}
@@ -132,36 +132,35 @@ export function AccountsUsageDisclosure({
   })).filter((group) => group.resources.length > 0);
 
   return (
-    <div
-      className="flex flex-col gap-2 rounded-md border border-sidebar-border bg-sidebar p-2 text-sidebar-foreground"
-      aria-label="Accounts & Usage"
-    >
+    <div className="flex flex-col gap-1 p-2" aria-label="Accounts & Usage">
       <div className="flex items-center justify-between gap-2">
         <span className="text-2xs font-medium tracking-wider text-subtle-foreground uppercase">
           Accounts &amp; Usage
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
+          {data !== null ? (
+            <span className="mr-0.5 min-w-0 truncate text-2xs tabular-nums text-subtle-foreground">
+              {relativeTime(data.generatedAt, now)}
+            </span>
+          ) : null}
           <button
             type="button"
             onClick={() => void refreshAll().catch(() => {})}
             aria-label="Refresh accounts and usage"
             className="-m-1 inline-flex size-6 cursor-pointer items-center justify-center rounded-full text-subtle-foreground transition-colors hover:bg-state-hover hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-              className={cn("size-3", isFetching && "animate-spin")}
-            >
-              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-              <path d="M21 3v5h-5" />
-              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-              <path d="M3 21v-5h5" />
-            </svg>
+            <RefreshIcon spinning={isFetching} className="size-3" />
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              navigate.toPluginPanel("mission-control", { subPath: "usage" })
+            }
+            aria-label="View all usage"
+            title="View all usage"
+            className="-m-1 inline-flex size-6 cursor-pointer items-center justify-center rounded-full text-subtle-foreground transition-colors hover:bg-state-hover hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Icon name="ExternalLink" className="size-3" />
           </button>
           <button
             type="button"
@@ -208,31 +207,16 @@ export function AccountsUsageDisclosure({
         </span>
       ) : (
         grouped.map((group) => (
-          <section key={group.agentId} className="flex flex-col gap-1.5">
-            <h3 className="text-2xs font-semibold tracking-wider text-subtle-foreground uppercase">
+          <section key={group.agentId} className="flex flex-col gap-1">
+            <h3 className="text-2xs leading-3 font-semibold tracking-wider text-subtle-foreground uppercase">
               {group.title}
             </h3>
             {group.resources.map((resource) => (
-              <AccountRow key={resource.id} resource={resource} />
+              <AccountRow key={resource.id} resource={resource} now={now} />
             ))}
           </section>
         ))
       )}
-
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-2xs tabular-nums text-subtle-foreground">
-          {data !== null ? `updated ${relativeTime(data.generatedAt, now)}` : ""}
-        </span>
-        <button
-          type="button"
-          onClick={() =>
-            navigate.toPluginPanel("mission-control", { subPath: "usage" })
-          }
-          className="text-2xs text-subtle-foreground underline-offset-2 hover:text-sidebar-foreground hover:underline"
-        >
-          View all usage
-        </button>
-      </div>
     </div>
   );
 }
