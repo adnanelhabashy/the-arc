@@ -66,6 +66,7 @@ import {
   startBbAppProcess,
 } from "./bb-process.js";
 import { openExistingServerDialog } from "./existing-server-dialog.js";
+import { parseExternalHttpUrl } from "./external-url.js";
 import {
   readForeignRuntimeDetails,
   stopForeignRuntime,
@@ -2033,16 +2034,11 @@ function registerDesktopUpdateIpc(): void {
       if (typeof payload !== "string") {
         return;
       }
-      let parsed: URL;
-      try {
-        parsed = new URL(payload);
-      } catch {
+      const url = parseExternalHttpUrl(payload);
+      if (url === null) {
         return;
       }
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-        return;
-      }
-      void shell.openExternal(parsed.toString());
+      void shell.openExternal(url);
     },
   );
 }
@@ -2867,7 +2863,11 @@ async function runDesktopApp(): Promise<void> {
       return quitting;
     },
     openExternalUrl(openArgs) {
-      void shell.openExternal(openArgs.url);
+      const url = parseExternalHttpUrl(openArgs.url);
+      if (url === null) {
+        return;
+      }
+      void shell.openExternal(url);
     },
     preloadPath,
     userDataPath,
