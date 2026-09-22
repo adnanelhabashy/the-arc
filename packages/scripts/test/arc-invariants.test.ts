@@ -10,7 +10,12 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+const repoRoot = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "..",
+);
 const read = (rel: string) => readFileSync(resolve(repoRoot, rel), "utf8");
 
 const STABLE_APP_ID = "io.github.adnanelhabashy.arcagent";
@@ -19,7 +24,9 @@ const RELEASE_REPO = "adnanelhabashy/the-arc";
 
 describe("Arc product identity", () => {
   it("electron-builder ships the stable Arc bundle id and product name", () => {
-    const config = JSON.parse(read("apps/desktop/electron-builder.config.json"));
+    const config = JSON.parse(
+      read("apps/desktop/electron-builder.config.json"),
+    );
     expect(config.appId).toBe(STABLE_APP_ID);
     expect(config.productName).toBe("Arc Agent");
   });
@@ -31,6 +38,86 @@ describe("Arc product identity", () => {
     expect(src).toContain(`appId: "${NIGHTLY_APP_ID}"`);
     expect(src).toContain(`applicationName: "Arc Agent Nightly"`);
   });
+});
+
+const ICNS_PIXEL_SIZES: Record<string, number> = {
+  icp4: 16,
+  ic04: 16,
+  icp5: 32,
+  ic05: 32,
+  ic11: 32,
+  icp6: 64,
+  ic06: 64,
+  ic12: 64,
+  ic07: 128,
+  ic08: 256,
+  ic13: 256,
+  ic09: 512,
+  ic14: 512,
+  ic10: 1024,
+};
+
+const REQUIRED_ICON_SIZES = [16, 32, 64, 128, 256, 512, 1024];
+
+function readIcnsEntryTypes(rel: string): { types: string[]; offset: number } {
+  const bytes = readFileSync(resolve(repoRoot, rel));
+  expect(bytes.toString("ascii", 0, 4)).toBe("icns");
+  expect(bytes.readUInt32BE(4)).toBe(bytes.length);
+  const types: string[] = [];
+  let offset = 8;
+  while (offset + 8 <= bytes.length) {
+    const length = bytes.readUInt32BE(offset + 4);
+    types.push(bytes.toString("ascii", offset, offset + 4));
+    if (length < 8) {
+      break;
+    }
+    offset += length;
+  }
+  return { types, offset };
+}
+
+describe("Arc app icon", () => {
+  // The shipped icns was once a hand-assembled set with no 1024px or @2x
+  // representation, so macOS upscaled a 512px rep into the Dock and Finder.
+  // These guard the canonical master plus every representation macOS asks for.
+  const icnsFiles = [
+    "apps/desktop/assets/icon.icns",
+    "apps/desktop/assets/icon-nightly.icns",
+  ];
+
+  it.each(icnsFiles)(
+    "%s is an icns container whose entries fill it exactly",
+    (file) => {
+      const { offset } = readIcnsEntryTypes(file);
+      expect(offset).toBe(readFileSync(resolve(repoRoot, file)).length);
+    },
+  );
+
+  it.each(icnsFiles)(
+    "%s carries every macOS representation up to 1024px",
+    (file) => {
+      const { types } = readIcnsEntryTypes(file);
+      const sizes = types
+        .map((type) => ICNS_PIXEL_SIZES[type])
+        .filter((size): size is number => size !== undefined);
+      for (const size of REQUIRED_ICON_SIZES) {
+        expect(sizes).toContain(size);
+      }
+    },
+  );
+
+  it.each([
+    "apps/desktop/assets/icon.png",
+    "apps/desktop/assets/icon-nightly.png",
+    "apps/desktop/assets/icon-dev.png",
+  ])(
+    "%s is a 1024px master so every representation comes from one canvas",
+    (file) => {
+      const bytes = readFileSync(resolve(repoRoot, file));
+      expect(bytes.readUInt32BE(16)).toBe(1024);
+      expect(bytes.readUInt32BE(20)).toBe(1024);
+    },
+  );
 });
 
 describe("Arc release ownership", () => {

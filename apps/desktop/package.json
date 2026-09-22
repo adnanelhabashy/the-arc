@@ -14,6 +14,7 @@
     "desktop:build": "pnpm run build && node scripts/run-electron-builder.mjs --mac --arm64 --publish always",
     "desktop:build:linux": "pnpm run build && node scripts/run-electron-builder.mjs --linux --x64 --publish never",
     "desktop:version-feed": "tsx scripts/generate-version-feed.mts",
+    "generate:app-icon": "node scripts/generate-app-icon.mjs",
     "dev": "pnpm run prepare-runtime && pnpm run prepare-arc-runtimes && pnpm run build && node --conditions=source --import tsx scripts/run-electron-dev.mjs",
     "dist": "pnpm run prepare-runtime && pnpm run prepare-arc-runtimes && pnpm run desktop:build",
     "dist:linux": "pnpm run prepare-runtime && pnpm run prepare-arc-runtimes && pnpm run desktop:build:linux",

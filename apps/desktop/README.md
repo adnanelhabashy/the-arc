@@ -247,6 +247,15 @@ The nightly desktop is a separate installation:
   `desktop-version-linux.json` (Linux)
 - icon: `assets/icon-nightly.icns` and `assets/icon-nightly.png`
 
+App icons come from one 1024px master per channel (`assets/icon.png`,
+`icon-nightly.png`, `icon-dev.png`) whose artwork fills the canvas edge to edge;
+macOS 26 draws its own icon tile behind the artwork, so a transparent margin
+reads as a white border in the Dock and Finder. `pnpm run generate:app-icon`
+recomposes a padded master to full bleed, trims the light edge fringe, and
+writes the ten-representation `.icns` with `iconutil`. Run it after changing any
+master, and never hand-edit a `.icns` — an icns that lacks the 1024px or @2x
+representations is upscaled by macOS at large Dock and Finder sizes.
+
 Download it from
 [`desktop-nightly`](https://github.com/get-bb/bb/releases/tag/desktop-nightly)
 or run the CLI build with:
