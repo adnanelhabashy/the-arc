@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { StoryCard, StoryRow } from "../../apps/app/.ladle/story-card.js";
-import { ProviderUsageStatusContent, type UsageStoreSnapshot } from "./app.js";
 import { UsageSettingsContent } from "./settings.js";
 import type {
   ProviderUsage,
@@ -144,17 +143,6 @@ const scenarios: Record<Exclude<ScenarioName, "loading">, UsageSnapshot> = {
   },
 };
 
-function storySnapshot(name: ScenarioName): UsageStoreSnapshot {
-  if (name === "loading") {
-    return { data: null, error: null, isRefreshing: true };
-  }
-  return {
-    data: scenarios[name],
-    error: name === "failedRefresh" ? "Couldn’t refresh usage." : null,
-    isRefreshing: false,
-  };
-}
-
 function SettingsPreview({ scenario }: { scenario: ScenarioName }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const machines = scenario === "loading" ? [] : scenarios[scenario].machines;
@@ -167,19 +155,6 @@ function SettingsPreview({ scenario }: { scenario: ScenarioName }) {
         error={scenario === "failedRefresh"}
         onSelect={setSelectedId}
         onRefresh={() => {}}
-      />
-    </div>
-  );
-}
-
-function FooterPreview({ scenario }: { scenario: ScenarioName }) {
-  return (
-    <div className="w-[303px] overflow-hidden rounded-xl border border-sidebar-border bg-sidebar text-sidebar-foreground">
-      <ProviderUsageStatusContent
-        dismiss={() => {}}
-        snapshot={storySnapshot(scenario)}
-        threadMachineId={null}
-        refreshEnabled={false}
       />
     </div>
   );
@@ -212,18 +187,6 @@ export function Settings() {
       {storyRows.map(({ label, scenario }) => (
         <StoryRow key={scenario} label={label} hint={descriptions[scenario]}>
           <SettingsPreview scenario={scenario} />
-        </StoryRow>
-      ))}
-    </StoryCard>
-  );
-}
-
-export function Disclosure() {
-  return (
-    <StoryCard labelWidth="180px">
-      {storyRows.map(({ label, scenario }) => (
-        <StoryRow key={scenario} label={label} hint={descriptions[scenario]}>
-          <FooterPreview scenario={scenario} />
         </StoryRow>
       ))}
     </StoryCard>

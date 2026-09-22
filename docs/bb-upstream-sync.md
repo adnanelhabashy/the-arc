@@ -124,6 +124,14 @@ sync PR's diff knows where to look closely instead:
 - `.github/workflows/publish-bb-app.yml`, `.github/workflows/build-desktop.yml` — release workflows
 - `packages/arc-domains/src/arc-runtime/**` — managed runtime manifest/activation/rollback
 - `plugins/account-pool/**` — Account Pooler, per-thread routing
+- `plugins/provider-usage/app.tsx` — Arc registers no sidebar-footer disclosure
+  (the BB panel renders only the pooled subset of what Arc's `Accounts & Usage`
+  already shows, and only through a `usedPercent` contract that cannot express
+  amount-only windows; see ADR-094). The plugin's server RPC, settings section,
+  and `refresh-usage` content script are load-bearing and must survive a sync —
+  a sync must not silently restore the `experimental_sidebarFooter` registration.
+  `plugins/provider-usage/app.test.tsx` and the `Disclosure` story were deleted
+  with the panel; review a sync that reintroduces them.
 - `plugins/provider-acp/src/native-roots/omp.ts` — OMP isolation
 - `adnan/arc-productization/DECISIONS.md` — ADR log (append-only; a conflict
   here almost always means both sides added ADRs and just needs a renumber,
