@@ -64,6 +64,7 @@ import { PluginSettingsPage } from "@/components/plugin/PluginSettings";
 import { FileOpenersSettingsSection } from "@/components/settings/FileOpenersSettingsSection";
 import { VoiceInputSettingsSection } from "@/components/settings/VoiceInputSettingsSection";
 import { CommunitySettingsSection } from "@/components/settings/CommunitySettingsSection";
+import { DiagnosticsSettingsSection } from "@/components/settings/DiagnosticsSettingsSection";
 import { UpdatesSettingsSection } from "@/components/settings/UpdatesSettingsSection";
 import { KeyboardSettingsSection } from "@/components/settings/KeyboardSettingsSection";
 import { BrowserSettingsSection } from "@/components/settings/BrowserSettingsSection";
@@ -1144,6 +1145,8 @@ export function SettingsView() {
   let content: ReactNode = null;
   if (activePluginId !== null) {
     content = <PluginSettingsPage pluginId={activePluginId} />;
+  } else if (activeSection === "diagnostics") {
+    content = <DiagnosticsSettingsSection />;
   } else if (activeSection === "providers") {
     content = (
       <ProvidersSettingsSection
