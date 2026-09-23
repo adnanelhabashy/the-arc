@@ -1507,3 +1507,70 @@ Live verification on real accounts:
 | bb "Provider usage" panel | still opens, still shows the Account Pooler machine (capability preserved) |
 
 Cold-start note: immediately after launch an OMP resource can be `available` with no windows yet (the broker measurement has not been filled). The popup then reads `Active account Kimi Code` + `No usage reported`, which is the honest state; arc-core's background fill and its published change signal replace it within seconds (observed: one such frame, then the measured windows on every subsequent read).
+
+---
+
+## Arc Global Agent Runtime Fix (permission resolver + Codex Code Mode host)
+
+Two architectural problems, fixed centrally rather than per provider or per feature.
+
+### G1–G3 — one provider-aware permission policy
+
+**Root cause.** `clampPermissionModeToCeiling` returned the requested mode as soon as it was at or below the ceiling, before consulting the provider's supported set. With the default ceiling `full`, `auto` for a provider supporting only `accept-edits`/`full` (every ACP provider) returned `auto` and then threw `Provider "acp-omp" only supports accept-edits, full permission mode.` The three compensating fallback ladders each preferred the *highest* available mode, so an unsupported `auto` silently became Full Access — including as a new OMP thread's default.
+
+**Files.** `packages/domain/src/permission-resolution.ts` (new: `resolveEffectivePermissionMode`, `permissionModesWithinCeiling`, `describePermissionModeUnsupported`, `PRODUCT_DEFAULT_PERMISSION_MODE`); `packages/domain/src/shared-types.ts` (non-escalating `clampPermissionModeToCeiling`, `normalizeRecordedPermissionMode`); `apps/server/src/services/hosts/permission-ceiling.ts` (the server's single boundary); `apps/server/src/services/providers/provider-capability-error.ts` (new, shared with reasoning-level validation); `thread-default-policy.ts` / `thread-execution-plan.ts` / `thread-commands.ts` / `thread-create.ts` (migrated, duplicated resolvers deleted); `plugins/automations/src/provider-permissions.ts` (policy deleted), `service.ts`, `cli.ts`; `plugins/workflows/src/service.ts` (policy deleted); `apps/app/src/hooks/thread-creation-options/selection-state.ts`, `useThreadCreationOptions.ts`; `adnan/plugins/adnan-mission-control/server.ts`, `components/agents.tsx`.
+
+**Also fixed.** Mission Control's `thread_delegate` persisted and displayed `role.permissionMode` and then never forwarded it, so a delegated child inherited the parent's mode instead.
+
+**Tests.** Rewritten where they encoded the removed policy: `packages/domain/test/permission-ceiling.test.ts`, `permission-resolution.test.ts` (new), `apps/app/src/hooks/resolvePermissionModeSelection.test.ts`, `apps/server/test/threads/thread-runtime-config.test.ts`, `apps/server/test/public/public-thread-interactions.test.ts`, `plugins/automations/src/server-harness.test.ts`, `apps/server/test/threads/thread-permission-boundary.test.ts` (new). Deleted the tests for the removed `thread-default-policy` functions.
+
+### G4–G5 — the managed Codex Code Mode host
+
+**Root cause.** Arc's launch appended `-c features.code_mode_host=false`, which made Codex select `DisabledCodeModeSessionProvider`. Verified against the real pinned binary that discovery is `<directory of the running codex>/codex-code-mode-host`, with no PATH lookup and no env var, and that Arc's layout resolves to `InstallMethod::Other` (the binary's own `doctor --json` reports `install method = other`).
+
+**Files.** `packages/arc-domains/src/arc-runtime/releases.ts` (companion model, pins, version-lock validation), `manifest.ts` (schema v3, `componentsByVersion`, v1→v2→v3 migration), `paths.ts` (`componentPath`), `acquire.ts` (companion staging from asset and from seed), `components.ts` (new: presence/executable/digest checks), `health.ts` (component checks, stdio liveness probe, `doctor --json` feature assertion via a zod-parsed report), `bootstrap.ts`, `activation.ts`, `update.ts`, `update-download.ts`, `claude-setup.ts`, `arc-agent/manager.ts` (component-aware status); `plugins/provider-codex/src/bridge/bridge.ts` (drops the `features.code_mode_host=false` argument and the launch-env helper it needed); `apps/desktop/third-party-notices/codex.md`.
+
+**Verified live.** Two disposable directories, each holding a copy of the managed `0.155.1` `codex`, against isolated `CODEX_HOME`s and an unreachable base URL: without the sibling helper Codex printed `Code Mode is unavailable because failed to spawn code-mode host …: host executable was not found`; with it, no Code Mode message at all. The helper was also confirmed to have no `--version` flag and to stay alive on `--listen stdio` while stdin is held open (and to exit 0 immediately when it is closed) — which is what the liveness probe asserts.
+
+**Not validated.** A full Code Mode tool round trip needs a live model account; not spent. Windows x64 / Linux x64 are asset-level mappings only, recorded in ADR-095 — this fork pins `darwin-arm64` exclusively and has no platform-selection code.
+
+### Verification
+
+- `pnpm exec turbo run typecheck --continue`: every typecheck task green (27/28 tasks; the one failing task is `@bb/server#test`, not a typecheck).
+- `@bb/domain` 265 · `@bb/client-core` 301 · `@bb/arc-domains` 444 · `@bb/desktop` 432 · `@bb/app` 5141 · `@bb/server` 3032 · `bb-plugin-provider-codex` 331 · `bb-plugin-workflows` 247 · `bb-plugin-automations` 105 · Mission Control 68.
+- `@bb/server`: all permission suites pass. Four failures remain, all environmental — three 5 s daemon/network timeouts and one real join attempt (`bb host daemon exited before it connected to https://machine.getbb.app`), with the failing set shifting between runs.
+- CodeGraph re-synced: `likely_stale: false`, `commits_after_index: 0`, `resolveEffectivePermissionMode` and `requireProviderPermissionMode` resolve with their callers. Terrain remains at its baseline commit (83, dirty-tree deduction) because Terrain indexes commits and this work is uncommitted; it must be re-scanned after the commit.
+
+**Ship steps.** `adnan/plugins/adnan-mission-control/dist/` is a tracked build artifact and is what the running app loads (its `plugins.root_dir` is this checkout), so it was rebuilt with `pnpm --filter bb-plugin-adnan-mission-control build` and is committed with the source; `test/dist-bundle-current.test.ts` fails until both happen. The `codex-code-mode-host` seed is no longer a manual step: `prepare-arc-runtimes.mts` now downloads, verifies and publishes it beside `codex`, so a release build produces it the same way the `codex` and `omp` seeds are produced. The seed already in the gitignored `apps/desktop/resources/arc-runtimes/codex/0.155.1/` keeps a local package build correct.
+
+---
+
+## Follow-up: fresh-profile Code Mode, release packaging, Mission Control bundle, full-only wording
+
+Five gaps closed after the first report, each verified against the real pinned binary or the real build script.
+
+### Fresh profile / clean-install Code Mode
+
+The catalog-gated `features.code_mode=true` was both unnecessary and fed by the user's stale cache. Measured on a **completely empty CODEX_HOME**: `codex features list` reports `code_mode_host` as `stable`/true by default (so Arc's own `-c features.code_mode_host=false` was the only thing disabling it), and a Code-Mode model needs no `features.code_mode` flag at all — Codex promotes `code_mode` from the model's own catalog entry. The catalog-reading module and env marker that the first revision added are gone from the change entirely; the launch passes no `features.code_mode*` argument.
+
+`probeArcRuntimeHealth` now renders the catalog through the managed runtime (`codex debug models --bundled`, offline, ~0.1s) and requires it parseable and non-empty. Two bugs found while wiring it: `execFile`'s 256 KiB default buffer truncates the real 433 KiB catalog, and `doctor --json` exits 1 on a profile without `auth.json` while still printing a complete report — the probe now reads the report rather than the exit code.
+
+Proved by `packages/arc-domains/test/arc-runtime-codex-code-mode.test.ts` (5 cases, real binary, disposable hardlinked layouts, no wall-clock waits): catalog renders with no `models_cache.json` and no Codex on PATH; `code_mode_host` enabled; the app-server answers a real `initialize` handshake and exits 0 on stdin close; no `Code Mode is unavailable` for a Code-Mode model when the helper is a sibling; and that message **does** appear, naming the disposable path, when the helper is absent.
+
+### Release packaging
+
+`prepareRelease` treated a seed as complete on the executable's digest alone, so a seed holding only `codex` would have shipped without the helper. Completeness now covers every seed file (`packages/arc-domains/src/arc-runtime/seed-plan.ts`), companions are downloaded and digest-verified through the same cache path as the executable, and both are published as siblings. `stageArcRuntimeCompanion` was extracting into a directory that already held the executable — the archive extractor asserts an empty destination — and now extracts into one of its own.
+
+Verified by running the real script: clean resources root → both assets fetched, extracted, published with the pinned digests; binary-only seed → rebuilt; complete seed → skipped. `apps/desktop/test/prepare-arc-runtimes.test.ts` drives the real CLI as a subprocess against disposable roots sharing the real asset cache (3 cases).
+
+### Mission Control production bundle
+
+`bb plugin build` generates `dist/`; the running app resolves this plugin from the checkout (`plugins.root_dir` = `/Users/adnan/Projects/bb/adnan/plugins/adnan-mission-control`), so the committed bundle is what loads, and it had drifted. `scripts/build.mjs` (`pnpm --filter bb-plugin-adnan-mission-control build`) builds and records a digest over the build inputs in `dist/source.stamp.json`; `test/dist-bundle-current.test.ts` fails until the build and the commit happen. The bundle was rebuilt and the stamp written (43 inputs); the suite is green.
+
+### Full-only providers
+
+`auto` against a full-only provider still fails and still never becomes Full Access. The message now names modes the way the picker does and spells out the one-option case: `This provider requires Full Access, and Arc will not raise the permission level on its own; select Full Access to run it.` `@bb/domain` owns the labels, `client-core`'s options derive from them, and Mission Control mirrors them for role issues.
+
+### Verification
+
+`@bb/domain` 265 · `@bb/client-core` 301 · `@bb/arc-domains` 444 · `@bb/desktop` 432 · `@bb/app` 5141 · `codex` 331 · `workflows` 247 · `automations` 105 · Mission Control 68. `@bb/server` 3031 passed / **2 failed**, both environmental: a 5s daemon-registration timeout and `install-machine-script`'s real join to `machine.getbb.app`. Every permission suite passes, including the boundary test asserting the full-only wording.
