@@ -14,7 +14,8 @@
     "branding": {
       "icon": "Layers"
     },
-    "server": "./src/server.ts"
+    "server": "./src/server.ts",
+    "host": "./src/voice-host.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -23,6 +24,7 @@
   },
   "dependencies": {
     "@bb/arc-domains": "workspace:*",
+    "bb-arc-voice-host": "workspace:*",
     "zod": "^4.3.6"
   },
   "devDependencies": {

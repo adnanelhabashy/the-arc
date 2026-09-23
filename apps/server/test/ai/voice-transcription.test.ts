@@ -298,6 +298,122 @@ describe("voice transcription", () => {
     }
   });
 
+  it("forwards the request abort signal to the AI service call", async () => {
+    const harness = await createServiceTranscriptionHarness((input) => ({
+      ok: true,
+      model: input.model,
+      text: "hello world",
+    }));
+    try {
+      const controller = new AbortController();
+      await expect(
+        transcribeVoiceInput(harness.deps, {
+          file: voiceFile(),
+          signal: controller.signal,
+        }),
+      ).resolves.toBe("hello world");
+      expect(harness.calls[0]?.options.signal).toBe(controller.signal);
+    } finally {
+      await harness.cleanup();
+    }
+  });
+
+  it("refuses an already-aborted request before calling the service", async () => {
+    const harness = await createServiceTranscriptionHarness(() => {
+      throw new Error("An aborted request must not reach the service");
+    });
+    try {
+      const controller = new AbortController();
+      controller.abort();
+
+      await expect(
+        transcribeVoiceInput(harness.deps, {
+          file: voiceFile(),
+          signal: controller.signal,
+        }),
+      ).rejects.toMatchObject({
+        status: 408,
+        body: { code: "transcription_cancelled", retryable: false },
+      });
+      expect(harness.calls).toHaveLength(0);
+    } finally {
+      await harness.cleanup();
+    }
+  });
+
+  it("suppresses a late success after the request was aborted", async () => {
+    const controller = new AbortController();
+    const harness = await createServiceTranscriptionHarness((input) => {
+      controller.abort();
+      return { ok: true, model: input.model, text: "late transcript" };
+    });
+    try {
+      await expect(
+        transcribeVoiceInput(harness.deps, {
+          file: voiceFile(),
+          signal: controller.signal,
+        }),
+      ).rejects.toMatchObject({
+        status: 408,
+        body: { code: "transcription_cancelled" },
+      });
+      expect(harness.calls).toHaveLength(1);
+    } finally {
+      await harness.cleanup();
+    }
+  });
+
+  it("maps a cancelled host call to a cancelled request without retrying", async () => {
+    const controller = new AbortController();
+    const harness = await createServiceTranscriptionHarness(() => {
+      controller.abort();
+      throw Object.assign(new Error("Host plugin call was cancelled"), {
+        name: "AbortError",
+      });
+    });
+    try {
+      await expect(
+        transcribeVoiceInput(harness.deps, {
+          file: voiceFile(),
+          signal: controller.signal,
+        }),
+      ).rejects.toMatchObject({
+        status: 408,
+        body: { code: "transcription_cancelled", retryable: false },
+      });
+      expect(harness.calls).toHaveLength(1);
+    } finally {
+      await harness.cleanup();
+    }
+  });
+
+  it("propagates route cancellation into the host call and answers 408", async () => {
+    const controller = new AbortController();
+    const harness = await createServiceTranscriptionHarness((input) => {
+      controller.abort();
+      return { ok: true, model: input.model, text: "late transcript" };
+    });
+    try {
+      const form = new FormData();
+      form.set("file", voiceFile());
+
+      const response = await harness.app.request(
+        "/api/v1/system/voice-transcription",
+        { body: form, method: "POST", signal: controller.signal },
+      );
+
+      expect(response.status).toBe(408);
+      await expect(response.json()).resolves.toMatchObject({
+        code: "transcription_cancelled",
+      });
+      expect(harness.calls).toHaveLength(1);
+      expect(harness.calls[0]?.options.signal).toBeInstanceOf(AbortSignal);
+      expect(harness.calls[0]?.options.signal?.aborted).toBe(true);
+    } finally {
+      await harness.cleanup();
+    }
+  });
+
   it("uses the 10 second timeout budget for OpenAI transcription", async () => {
     const harness = await createTestAppHarness({
       transcriptionModel: "openai/gpt-4o-transcribe",

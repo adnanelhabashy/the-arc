@@ -19,6 +19,7 @@ import { Type } from "@earendil-works/pi-ai";
 interface TranscribeVoiceInputArgs {
   file: File;
   prompt?: string;
+  signal?: AbortSignal;
 }
 
 type OptionalJsonValue = JsonValue | null | undefined;
@@ -104,6 +105,15 @@ async function readJsonValue(response: Response): Promise<JsonValue | null> {
   }
 }
 
+function buildTranscriptionCancelledError(): ApiError {
+  return new ApiError(
+    408,
+    "transcription_cancelled",
+    "Voice transcription was cancelled",
+    false,
+  );
+}
+
 function buildTranscriptionTimeoutError(): ApiError {
   return new ApiError(
     504,
@@ -155,7 +165,11 @@ async function transcribeWithAiService(
           prompt: trimPrompt(attemptPrompt),
           timeoutMs,
         },
-        { hostId, timeoutMs: timeoutMs + INFERENCE_POLICY.hostRpcGraceMs },
+        {
+          hostId,
+          timeoutMs: timeoutMs + INFERENCE_POLICY.hostRpcGraceMs,
+          ...(args.signal === undefined ? {} : { signal: args.signal }),
+        },
       );
       if (!result.ok) {
         throw new AiServiceCallError(service.id, result.code, result.message);
@@ -220,6 +234,10 @@ async function transcribeWithOpenAi(
     abortController.abort();
   }, INFERENCE_POLICY.voiceTranscription.timeoutMs);
   timer.unref();
+  const requestSignal =
+    args.signal === undefined
+      ? abortController.signal
+      : AbortSignal.any([abortController.signal, args.signal]);
 
   let response: Response;
   try {
@@ -229,11 +247,14 @@ async function transcribeWithOpenAi(
         authorization: `Bearer ${deps.config.openAiApiKey}`,
       },
       body: formData,
-      signal: abortController.signal,
+      signal: requestSignal,
     });
   } catch (error) {
     if (timedOut) {
       throw buildTranscriptionTimeoutError();
+    }
+    if (args.signal?.aborted === true) {
+      throw buildTranscriptionCancelledError();
     }
     deps.logger.warn(
       runtimeErrorLogFields(deps.config, error),
@@ -271,19 +292,37 @@ export async function transcribeVoiceInput(
   if (args.file.size > VOICE_TRANSCRIPTION_MAX_BYTES) {
     throw new ApiError(400, "invalid_request", "Audio file exceeds 25MB limit");
   }
+  const isAborted = (): boolean => args.signal?.aborted === true;
+  if (isAborted()) {
+    throw buildTranscriptionCancelledError();
+  }
 
   const modelInfo = parseTranscriptionModel(deps.config.transcriptionModel);
-  if (modelInfo.provider === OPENAI_TRANSCRIPTION_PROVIDER) {
-    return transcribeWithOpenAi(deps, modelInfo, args);
+  try {
+    if (modelInfo.provider === OPENAI_TRANSCRIPTION_PROVIDER) {
+      const text = await transcribeWithOpenAi(deps, modelInfo, args);
+      if (isAborted()) {
+        throw buildTranscriptionCancelledError();
+      }
+      return text;
+    }
+    const service = voiceService(deps, modelInfo);
+    if (service === null) {
+      throw new ApiError(
+        501,
+        "not_configured",
+        `No loaded plugin registers AI service "${modelInfo.provider}" for voice transcription`,
+      );
+    }
+    const text = await transcribeWithAiService(deps, service, modelInfo, args);
+    if (isAborted()) {
+      throw buildTranscriptionCancelledError();
+    }
+    return text;
+  } catch (error) {
+    if (isAborted()) {
+      throw buildTranscriptionCancelledError();
+    }
+    throw error;
   }
-  const service = voiceService(deps, modelInfo);
-  if (service !== null) {
-    return transcribeWithAiService(deps, service, modelInfo, args);
-  }
-
-  throw new ApiError(
-    501,
-    "not_configured",
-    `No loaded plugin registers AI service "${modelInfo.provider}" for voice transcription`,
-  );
 }

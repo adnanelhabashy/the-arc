@@ -25,6 +25,7 @@ interface UseVoiceInputOptions {
     signal?: AbortSignal;
   }) => Promise<string>;
   getPromptContext?: () => string | undefined;
+  scopeKey?: string | number;
 }
 
 const MIN_RECORDING_DURATION_MS = 1_000;
@@ -112,17 +113,6 @@ function createRecordingFile(audioBlob: Blob, mimeType: string): File {
   });
 }
 
-function downloadRecording(file: File): void {
-  const url = URL.createObjectURL(file);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = file.name;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-}
-
 export function useVoiceInput(options: UseVoiceInputOptions) {
   const preferredAudioInputDeviceId = useAudioInputDevicePreferenceValue();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -135,6 +125,7 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
   const wakeLockSentinelRef = useRef<WakeLockSentinel | null>(null);
   const wakeLockRequestRef = useRef<Promise<void> | null>(null);
   const shouldHoldWakeLockRef = useRef(false);
+  const scopeKeyRef = useRef(options.scopeKey);
 
   const [state, setState] = useState<VoiceInputState>("idle");
   const [isSupported, setIsSupported] = useState(false);
@@ -251,6 +242,34 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
     });
   }, [requestRecordingWakeLock]);
 
+  useEffect(() => {
+    if (scopeKeyRef.current === options.scopeKey) return;
+    scopeKeyRef.current = options.scopeKey;
+
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state === "recording") {
+      shouldTranscribeRef.current = false;
+      try {
+        recorder.stop();
+      } catch {}
+    }
+    if (transcriptionAbortRef.current) {
+      transcriptionAbortRef.current.abort();
+      transcriptionAbortRef.current = null;
+    }
+    mediaRecorderRef.current = null;
+    chunksRef.current = [];
+    startedAtMsRef.current = null;
+    promptContextRef.current = undefined;
+    releaseRecordingWakeLock();
+    stopMediaStream();
+    setState("idle");
+  }, [
+    options.scopeKey,
+    releaseRecordingWakeLock,
+    stopMediaStream,
+  ]);
+
   const start = useCallback(async () => {
     if (!isSupported) {
       showError(voiceUnsupportedMessage(unsupportedReason));
@@ -327,6 +346,7 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
         const recordedMimeType =
           recorder.mimeType || preferredMimeType || "audio/webm";
         const audioBlob = new Blob(chunks, { type: recordedMimeType });
+        chunks.length = 0;
         const audioFile = createRecordingFile(audioBlob, recordedMimeType);
         const promptContext = promptContextRef.current;
         promptContextRef.current = undefined;
@@ -340,6 +360,10 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
             promptContext,
             signal: abortController.signal,
           });
+          if (abortController.signal.aborted) {
+            setState("idle");
+            return;
+          }
           const normalized = normalizeTranscript(transcript);
           if (normalized.length === 0) {
             throw new Error("Voice transcription returned an empty result.");
@@ -351,14 +375,13 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
             setState("idle");
             return;
           }
+          if (abortController.signal.aborted) {
+            setState("idle");
+            return;
+          }
           setState("error");
           appToast.error("Voice input failed", {
             description: resolveRecordingErrorMessage(error),
-            duration: Infinity,
-            action: {
-              label: "Download recording",
-              onClick: () => downloadRecording(audioFile),
-            },
           });
         } finally {
           if (transcriptionAbortRef.current === abortController) {

@@ -457,6 +457,7 @@ export interface PromptBoxHandle {
   focusEnd: () => void;
   captureHeightForLayoutChange: () => void;
   insertTextAtCursor: (text: string) => void;
+  appendVoiceTranscript: (text: string) => void;
   getTextBeforeCursor: () => string | undefined;
   playVoiceCompletionTransition: () => Promise<void>;
 }
@@ -2526,6 +2527,42 @@ export function PromptBoxInternal({
     [isPointerCoarse, scheduleRevealEditorSelection],
   );
 
+  const appendVoiceTranscript = useCallback(
+    (rawText: string) => {
+      const normalizedText = rawText.replace(/\s+/g, " ").trim();
+      if (normalizedText.length === 0) return;
+
+      const currentEditor = editorRef.current;
+      const currentValue = valueRef.current;
+      if (!currentEditor || currentEditor.isDestroyed) {
+        const needsSeparator =
+          currentValue.length > 0 && !/\s$/.test(currentValue);
+        onChangeRef.current(
+          `${currentValue}${needsSeparator ? " " : ""}${normalizedText}`,
+          [...mentionRangesRef.current],
+        );
+        return;
+      }
+
+      const end = currentEditor.state.doc.content.size;
+      const needsSeparator =
+        currentValue.length > 0 && !/\s$/.test(currentValue);
+      if (!isPointerCoarse) {
+        focusEditorAtEnd(currentEditor);
+      }
+      const insertion = currentEditor.chain();
+      insertion.setTextSelection(end);
+      insertion
+        .insertContent({
+          type: "text",
+          text: `${needsSeparator ? " " : ""}${normalizedText}`,
+        })
+        .run();
+      if (!isPointerCoarse) scheduleRevealEditorSelection();
+    },
+    [isPointerCoarse, scheduleRevealEditorSelection],
+  );
+
   const focusAfterPromptAction = useCallback(
     (currentEditor: Editor) => {
       const focusEditor = () => {
@@ -2652,10 +2689,12 @@ export function PromptBoxInternal({
       captureHeightForLayoutChange: capturePromptBoxHeight,
       focusEnd,
       insertTextAtCursor,
+      appendVoiceTranscript,
       getTextBeforeCursor,
       playVoiceCompletionTransition,
     }),
     [
+      appendVoiceTranscript,
       capturePromptBoxHeight,
       focusEnd,
       getTextBeforeCursor,

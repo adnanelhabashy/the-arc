@@ -22,10 +22,11 @@ function createVoiceAbortError(): DOMException {
 
 export function usePromptVoice(
   promptBoxRef: RefObject<PromptBoxHandle | null>,
+  scopeKey?: string | number,
 ): PromptVoiceConfig {
   const onTranscript = useCallback(
     (text: string) => {
-      promptBoxRef.current?.insertTextAtCursor(text);
+      promptBoxRef.current?.appendVoiceTranscript(text);
     },
     [promptBoxRef],
   );
@@ -51,6 +52,7 @@ export function usePromptVoice(
     onTranscript,
     onTranscribe: transcribeAfterCompletionTransition,
     getPromptContext,
+    scopeKey,
   });
 
   return useMemo<PromptVoiceConfig>(

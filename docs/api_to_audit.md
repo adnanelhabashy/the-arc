@@ -2306,7 +2306,7 @@ one toast.
 
 ## AI services (`bb.experimental_aiServices.register`, `@get-bb/plugin-sdk/ai-services`)
 
-**Kept experimental (2026-08-22).** one consumer (the codex plugin); the 5 MB plugin-served transcription cap (the old direct path allowed 25 MB) and the host-pull alternative are still open; the reserved-id model is now one static SDK list (`SERVER_DIRECT_AI_SERVICE_IDS`), pinned to pi-ai's provider registry by plugin-ai-services.test.ts.
+**Kept experimental (2026-08-22).** two consumers (the codex plugin, and Arc's `arc-voice` for voice only); the 5 MB plugin-served transcription cap (the old direct path allowed 25 MB) and the host-pull alternative are still open; the reserved-id model is now one static SDK list (`SERVER_DIRECT_AI_SERVICE_IDS`), pinned to pi-ai's provider registry by plugin-ai-services.test.ts.
 
 **What it does.** Lets a plugin serve bb's own AI services — server-side
 helper inference (thread titles, commit messages: prompt + JSON Schema in,
@@ -2324,8 +2324,9 @@ plugin cannot register them, so a plugin can never capture that traffic. A
 cross-plugin id collision fails the later plugin's load at the `register`
 call. The
 codex plugin is the first registrant (its ChatGPT client moved out of the
-daemon); `GET /system/config` and `bb settings ai-services` list the registered
-options.
+daemon) and the arc-core plugin registers `arc-voice` for voice only, backed by
+Arc's own Voicebox runtime; `GET /system/config` and `bb settings ai-services`
+list the registered options.
 
 **Audit before stabilizing.**
 

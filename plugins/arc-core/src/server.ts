@@ -64,6 +64,17 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
 
   const instanceId = randomUUID();
 
+  // Arc Voice runs in this plugin's host worker over Arc's own Voicebox
+  // runtime. Standalone bb servers register nothing: the service would have no
+  // host entry to answer on.
+  if (config !== null) {
+    bb.experimental_aiServices.register({
+      id: "arc-voice",
+      displayName: "Arc Voice",
+      kinds: ["voice"],
+    });
+  }
+
   const requireHost = (): ArcServiceHost => {
     if (config === null) {
       throw new ArcUnavailableError(

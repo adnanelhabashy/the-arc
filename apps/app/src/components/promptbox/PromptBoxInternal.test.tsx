@@ -5247,3 +5247,171 @@ describe("voice recording escape", () => {
     expect(cancel).not.toHaveBeenCalled();
   });
 });
+
+describe("PromptBoxInternal voice transcript append", () => {
+  const aliceMention: PromptTextMention = {
+    start: 4,
+    end: 9,
+    resource: {
+      kind: "plugin",
+      pluginId: "sample",
+      icon: null,
+      itemId: "people:alice",
+      label: "Alice",
+    },
+  };
+
+  async function appendVoiceTranscript(
+    promptBoxRef: RefObject<PromptBoxHandle | null>,
+    text: string,
+  ) {
+    await waitFor(() => expect(promptBoxRef.current).not.toBeNull());
+    await act(async () => {
+      promptBoxRef.current?.appendVoiceTranscript(text);
+    });
+  }
+
+  it("appends to an empty draft without submitting", async () => {
+    const { changes, onSubmit, promptBoxRef } = renderPromptBox("");
+
+    await appendVoiceTranscript(promptBoxRef, "deploy the fix");
+
+    expect(latestValue(changes)).toBe("deploy the fix");
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("appends after existing text with exactly one separating space", async () => {
+    const { changes, onSubmit, promptBoxRef } = renderPromptBox(
+      "please check the logs",
+    );
+
+    await appendVoiceTranscript(promptBoxRef, "and then the metrics");
+
+    expect(latestValue(changes)).toBe(
+      "please check the logs and then the metrics",
+    );
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("does not add a second separator after trailing whitespace", async () => {
+    const { changes, promptBoxRef } = renderPromptBox("check the logs ");
+
+    await appendVoiceTranscript(promptBoxRef, "and then the metrics");
+
+    expect(latestValue(changes)).toBe(
+      "check the logs and then the metrics",
+    );
+  });
+
+  it("normalizes whitespace inside a transcript", async () => {
+    const { changes, promptBoxRef } = renderPromptBox("");
+
+    await appendVoiceTranscript(promptBoxRef, "  one   two\nthree  ");
+
+    expect(latestValue(changes)).toBe("one two three");
+  });
+
+  it("ignores a transcript that is only whitespace", async () => {
+    const { changes, promptBoxRef } = renderPromptBox("keep this");
+
+    await appendVoiceTranscript(promptBoxRef, "   ");
+
+    expect(changes).toEqual([]);
+  });
+
+  it("inserts transcript markup characters verbatim", async () => {
+    const { changes, promptBoxRef } = renderPromptBox("compare");
+
+    await appendVoiceTranscript(promptBoxRef, "a < b && c > d");
+
+    expect(latestValue(changes)).toBe("compare a < b && c > d");
+  });
+
+  it("keeps existing mentions and their ranges exactly", async () => {
+    const { changes, promptBoxRef } = renderPromptBox("ask Alice", {
+      initialMentionRanges: [aliceMention],
+    });
+
+    await appendVoiceTranscript(promptBoxRef, "about the release");
+
+    expect(latestValue(changes)).toBe("ask Alice about the release");
+    expect(latestChange(changes)?.mentions).toEqual([aliceMention]);
+  });
+
+  it("keeps attachments while appending", async () => {
+    const items: NonNullable<
+      NonNullable<PromptBoxProps["attachments"]>["items"]
+    > = [
+      { type: "localFile", name: "notes.txt", path: "notes.txt", sizeBytes: 1 },
+    ];
+    const promptBoxRef = createRef<PromptBoxHandle>();
+    const baseProps = createPromptBoxProps({
+      value: "",
+      attachments: { items, onRemove: vi.fn() },
+      promptBoxRef,
+    });
+    render(<PromptBoxInternal {...baseProps} />);
+
+    await appendVoiceTranscript(promptBoxRef, "summarize the notes");
+
+    expect(
+      screen.getByRole("button", { name: "Remove notes.txt" }),
+    ).toBeTruthy();
+  });
+
+  it("appends to the draft that exists when the transcript resolves", async () => {
+    const onChange = vi.fn();
+    const promptBoxRef = createRef<PromptBoxHandle>();
+    const baseProps = createPromptBoxProps({ onChange, promptBoxRef, value: "" });
+    const view = render(<PromptBoxInternal {...baseProps} />);
+
+    view.rerender(
+      <PromptBoxInternal
+        {...baseProps}
+        value="typed while dictating"
+      />,
+    );
+    await appendVoiceTranscript(promptBoxRef, "spoken words");
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      "typed while dictating spoken words",
+      [],
+    );
+  });
+
+  it("appends in order across repeated dictations", async () => {
+    const { changes, promptBoxRef } = renderPromptBox("");
+
+    await appendVoiceTranscript(promptBoxRef, "first");
+    await appendVoiceTranscript(promptBoxRef, "second");
+    await appendVoiceTranscript(promptBoxRef, "third");
+
+    expect(latestValue(changes)).toBe("first second third");
+  });
+
+  it("appends without reopening the editor on coarse pointers", async () => {
+    const restoreMatchMedia = mockPointerCoarse(true);
+    try {
+      const onChange = vi.fn();
+      const promptBoxRef = createRef<PromptBoxHandle>();
+      render(
+        <PromptBoxInternal
+          {...createPromptBoxProps({ onChange, promptBoxRef, value: "kept" })}
+        />,
+      );
+
+      await waitFor(() => expect(promptBoxRef.current).not.toBeNull());
+      const outsideTarget = document.createElement("button");
+      document.body.append(outsideTarget);
+      outsideTarget.focus();
+
+      act(() => promptBoxRef.current?.appendVoiceTranscript("dictated"));
+
+      expect(onChange).toHaveBeenLastCalledWith("kept dictated", []);
+      expect(document.activeElement).toBe(outsideTarget);
+      outsideTarget.remove();
+    } finally {
+      restoreMatchMedia();
+    }
+  });
+});

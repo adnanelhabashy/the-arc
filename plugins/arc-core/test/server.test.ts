@@ -78,6 +78,26 @@ describe("arc-core plugin", () => {
     });
   });
 
+  it("registers the Arc Voice AI service only in Arc mode", async () => {
+    const root = mkdtempSync(join(tmpdir(), "arc-core-test-"));
+    tempRoots.push(root);
+    setArcEnv(root);
+    const host = createFakePluginHost();
+    await plugin(host.bb);
+
+    expect(host.harness.registrations.aiServiceRegistrations).toEqual([
+      { id: "arc-voice", displayName: "Arc Voice", kinds: ["voice"] },
+    ]);
+  });
+
+  it("registers no AI service when the env contract is absent", async () => {
+    setArcEnv(null);
+    const host = createFakePluginHost();
+    await plugin(host.bb);
+
+    expect(host.harness.registrations.aiServiceRegistrations).toEqual([]);
+  });
+
   it("registers the fixed contract methods and nothing arbitrary", async () => {
     setArcEnv(null);
     const host = createFakePluginHost();

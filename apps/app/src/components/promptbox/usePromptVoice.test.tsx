@@ -25,6 +25,18 @@ const voiceInput = {
   cancel: vi.fn(),
 };
 
+function promptBoxHandle(overrides: Partial<PromptBoxHandle> = {}) {
+  return {
+    captureHeightForLayoutChange: vi.fn(),
+    focusEnd: vi.fn(),
+    getTextBeforeCursor: vi.fn(),
+    insertTextAtCursor: vi.fn(),
+    appendVoiceTranscript: vi.fn(),
+    playVoiceCompletionTransition: vi.fn(async () => {}),
+    ...overrides,
+  } satisfies PromptBoxHandle;
+}
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -47,15 +59,12 @@ describe("usePromptVoice", () => {
           finishTransition = resolve;
         }),
     );
-    const insertTextAtCursor = vi.fn();
+    const appendVoiceTranscript = vi.fn();
     const promptBoxRef = {
-      current: {
-        captureHeightForLayoutChange: vi.fn(),
-        focusEnd: vi.fn(),
-        getTextBeforeCursor: vi.fn(),
-        insertTextAtCursor,
+      current: promptBoxHandle({
+        appendVoiceTranscript,
         playVoiceCompletionTransition,
-      } satisfies PromptBoxHandle,
+      }),
     };
 
     renderHook(() => usePromptVoice(promptBoxRef));
@@ -78,6 +87,65 @@ describe("usePromptVoice", () => {
 
     finishTransition?.();
     await expect(transcription).resolves.toBe("Transcript");
+    expect(appendVoiceTranscript).not.toHaveBeenCalled();
+  });
+
+  it("appends the transcript at the end of the draft", () => {
+    vi.mocked(useVoiceInput).mockReturnValue({
+      ...voiceInput,
+      isRecording: false,
+      isProcessing: false,
+      isListening: false,
+    });
+    const appendVoiceTranscript = vi.fn();
+    const insertTextAtCursor = vi.fn();
+    const promptBoxRef = {
+      current: promptBoxHandle({ appendVoiceTranscript, insertTextAtCursor }),
+    };
+
+    renderHook(() => usePromptVoice(promptBoxRef));
+    const options = vi.mocked(useVoiceInput).mock.calls[0]?.[0];
+    options?.onTranscript("spoken words");
+
+    expect(appendVoiceTranscript).toHaveBeenCalledWith("spoken words");
     expect(insertTextAtCursor).not.toHaveBeenCalled();
+  });
+
+  it("drops a transcript that resolves after the request was aborted", async () => {
+    vi.mocked(useVoiceInput).mockReturnValue({
+      ...voiceInput,
+      isRecording: false,
+      isProcessing: true,
+      isListening: false,
+    });
+    vi.mocked(transcribeVoiceInput).mockResolvedValue({ text: "late text" });
+    const promptBoxRef = { current: promptBoxHandle() };
+
+    renderHook(() => usePromptVoice(promptBoxRef));
+    const options = vi.mocked(useVoiceInput).mock.calls[0]?.[0];
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      options?.onTranscribe({
+        file: new File([], "recording.webm", { type: "audio/webm" }),
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("passes the composer scope key into the voice input lifecycle", () => {
+    vi.mocked(useVoiceInput).mockReturnValue({
+      ...voiceInput,
+      isRecording: false,
+      isProcessing: false,
+      isListening: false,
+    });
+
+    renderHook(() => usePromptVoice({ current: promptBoxHandle() }, "thread-1"));
+
+    expect(vi.mocked(useVoiceInput).mock.calls[0]?.[0].scopeKey).toBe(
+      "thread-1",
+    );
   });
 });

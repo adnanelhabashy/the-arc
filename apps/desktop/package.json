@@ -15,12 +15,13 @@
     "desktop:build:linux": "pnpm run build && node scripts/run-electron-builder.mjs --linux --x64 --publish never",
     "desktop:version-feed": "tsx scripts/generate-version-feed.mts",
     "generate:app-icon": "node scripts/generate-app-icon.mjs",
-    "dev": "pnpm run prepare-runtime && pnpm run prepare-arc-runtimes && pnpm run build && node --conditions=source --import tsx scripts/run-electron-dev.mjs",
-    "dist": "pnpm run prepare-runtime && pnpm run prepare-arc-runtimes && pnpm run desktop:build",
-    "dist:linux": "pnpm run prepare-runtime && pnpm run prepare-arc-runtimes && pnpm run desktop:build:linux",
-    "package": "pnpm run prepare-runtime && pnpm run prepare-arc-runtimes && pnpm run build && node scripts/run-electron-builder.mjs --mac --dir --arm64",
-    "package:linux": "pnpm run prepare-runtime && pnpm run prepare-arc-runtimes && pnpm run build && node scripts/run-electron-builder.mjs --linux --dir --x64",
+    "dev": "pnpm run prepare-runtime && pnpm run prepare-arc-runtimes && pnpm run prepare-arc-voice-runtime && pnpm run build && node --conditions=source --import tsx scripts/run-electron-dev.mjs",
+    "dist": "pnpm run prepare-runtime && pnpm run prepare-arc-runtimes && pnpm run prepare-arc-voice-runtime && pnpm run desktop:build",
+    "dist:linux": "pnpm run prepare-runtime && pnpm run prepare-arc-runtimes && pnpm run prepare-arc-voice-runtime && pnpm run desktop:build:linux",
+    "package": "pnpm run prepare-runtime && pnpm run prepare-arc-runtimes && pnpm run prepare-arc-voice-runtime && pnpm run build && node scripts/run-electron-builder.mjs --mac --dir --arm64",
+    "package:linux": "pnpm run prepare-runtime && pnpm run prepare-arc-runtimes && pnpm run prepare-arc-voice-runtime && pnpm run build && node scripts/run-electron-builder.mjs --linux --dir --x64",
     "prepare-arc-runtimes": "tsx scripts/prepare-arc-runtimes.mts",
+    "prepare-arc-voice-runtime": "tsx scripts/prepare-arc-voice-runtime.mts",
     "prepare-runtime": "pnpm exec turbo run build --filter=bb-app --output-logs=new-only",
     "smoke:appimage-lifecycle": "node scripts/smoke-linux-appimage-lifecycle.mjs",
     "smoke:packaged": "node scripts/smoke-packaged-app.mjs",
@@ -40,7 +41,8 @@
     "electron-updater": "^6.8.3",
     "semver": "^7.7.0",
     "ws": "^8.19.0",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "bb-arc-voice-host": "workspace:*"
   },
   "devDependencies": {
     "@bb/config": "workspace:*",

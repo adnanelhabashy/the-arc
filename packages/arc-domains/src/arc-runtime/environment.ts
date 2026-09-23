@@ -22,6 +22,15 @@ export const BB_ARC_RUNTIME_ROOT_ENV = "BB_ARC_RUNTIME_ROOT";
 export const BB_ARC_APP_VERSION_ENV = "BB_ARC_APP_VERSION";
 export const BB_ARC_SEED_ROOT_ENV = "BB_ARC_SEED_ROOT";
 
+// The daemon strips every BB_* variable before forking a plugin host worker,
+// so Arc Voice's own launch variables deliberately avoid the BB_ prefix.
+export const ARC_VOICE_RUNTIME_ROOT_ENV = "ARC_VOICE_RUNTIME_ROOT";
+export const ARC_VOICE_SEED_ROOT_ENV = "ARC_VOICE_SEED_ROOT";
+export const ARC_VOICE_APP_VERSION_ENV = "ARC_VOICE_APP_VERSION";
+
+export const BB_TRANSCRIPTION_ENV = "BB_TRANSCRIPTION";
+export const ARC_VOICE_TRANSCRIPTION_MODEL = "arc-voice/default";
+
 // Verified against oh-my-pi v18.2.6 packages/utils/src/dirs.ts:
 // PI_CONFIG_DIR relocates the OMP user config root (joined under the process
 // home directory); PI_CODING_AGENT_DIR absolutely overrides the OMP agent dir
@@ -214,6 +223,17 @@ export function buildArcManagedRuntimeEnvironment(
   }
   if (args.arcSeedRoot !== undefined) {
     nextEnv[BB_ARC_SEED_ROOT_ENV] = args.arcSeedRoot;
+  }
+
+  if (args.arcAppVersion !== undefined) {
+    nextEnv[ARC_VOICE_RUNTIME_ROOT_ENV] = dirname(args.runtimePaths.root);
+    nextEnv[ARC_VOICE_APP_VERSION_ENV] = args.arcAppVersion;
+    if (args.arcSeedRoot !== undefined) {
+      nextEnv[ARC_VOICE_SEED_ROOT_ENV] = args.arcSeedRoot;
+    }
+    if (nextEnv[BB_TRANSCRIPTION_ENV] === undefined) {
+      nextEnv[BB_TRANSCRIPTION_ENV] = ARC_VOICE_TRANSCRIPTION_MODEL;
+    }
   }
 
   return nextEnv;

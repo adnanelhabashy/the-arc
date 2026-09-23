@@ -139,6 +139,57 @@ describe("Arc-managed Codex environment resolution", () => {
   });
 });
 
+describe("Arc-managed voice environment", () => {
+  it("selects Arc Voice and publishes the host roots for Arc-owned launches", async () => {
+    const userDataPath = join(await tempDir(), "userData");
+    const runtimePaths = createArcRuntimePaths({ userDataPath });
+    const env = buildArcManagedRuntimeEnvironment({
+      activeRuntimes: [],
+      arcAppVersion: "1.2.3",
+      arcSeedRoot: "/opt/arc/resources/arc-runtimes",
+      env: { PATH: "/usr/bin:/bin" },
+      platform: "darwin",
+      runtimePaths,
+    });
+
+    expect(env.BB_TRANSCRIPTION).toBe("arc-voice/default");
+    expect(env.ARC_VOICE_RUNTIME_ROOT).toBe(userDataPath);
+    expect(env.ARC_VOICE_APP_VERSION).toBe("1.2.3");
+    expect(env.ARC_VOICE_SEED_ROOT).toBe("/opt/arc/resources/arc-runtimes");
+  });
+
+  it("keeps an explicit transcription model over the Arc Voice default", async () => {
+    const userDataPath = join(await tempDir(), "userData");
+    const runtimePaths = createArcRuntimePaths({ userDataPath });
+    const env = buildArcManagedRuntimeEnvironment({
+      activeRuntimes: [],
+      arcAppVersion: "1.2.3",
+      arcSeedRoot: "/opt/arc/resources/arc-runtimes",
+      env: { BB_TRANSCRIPTION: "codex/gpt-transcribe", PATH: "/usr/bin:/bin" },
+      platform: "darwin",
+      runtimePaths,
+    });
+
+    expect(env.BB_TRANSCRIPTION).toBe("codex/gpt-transcribe");
+  });
+
+  it("leaves non-Arc launches without voice variables", async () => {
+    const userDataPath = join(await tempDir(), "userData");
+    const runtimePaths = createArcRuntimePaths({ userDataPath });
+    const env = buildArcManagedRuntimeEnvironment({
+      activeRuntimes: [],
+      env: { PATH: "/usr/bin:/bin" },
+      platform: "darwin",
+      runtimePaths,
+    });
+
+    expect(env.BB_TRANSCRIPTION).toBeUndefined();
+    expect(env.ARC_VOICE_RUNTIME_ROOT).toBeUndefined();
+    expect(env.ARC_VOICE_APP_VERSION).toBeUndefined();
+    expect(env.ARC_VOICE_SEED_ROOT).toBeUndefined();
+  });
+});
+
 async function fakeOmp(dir: string, identity: string): Promise<string> {
   await mkdir(dir, { recursive: true });
   const path = join(dir, "omp");
