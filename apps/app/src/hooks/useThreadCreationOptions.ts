@@ -503,14 +503,6 @@ export function useThreadCreationOptions(
     : executionOptionsQuery.data?.permissionCeiling;
   const permissionCeiling: PermissionMode =
     routedCeiling ?? routedHostCeiling ?? "full";
-  const allowedPermissionModes = useMemo(
-    () =>
-      permissionModes.filter(
-        (mode) =>
-          permissionModeRank(mode) <= permissionModeRank(permissionCeiling),
-      ),
-    [permissionCeiling, permissionModes],
-  );
   const permissionModeOptions = useMemo(
     () =>
       PERMISSION_MODE_OPTIONS.filter((option) =>
@@ -573,10 +565,9 @@ export function useThreadCreationOptions(
 
   const permissionMode = resolvePermissionModeSelection({
     rawPermissionMode,
-    permissionModes:
-      allowedPermissionModes.length > 0
-        ? allowedPermissionModes
-        : permissionModes,
+    permissionModes,
+    permissionCeiling,
+    providerId: effectiveProviderId,
   });
   const environmentSelectionValue = rawEnvironmentSelectionValue;
   const touchedFieldsPendingReset =

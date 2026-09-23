@@ -96,6 +96,12 @@ function compatibilityLine(agent: ArcAgentStatus): { label: string; reason: stri
   const compatibility = agent.runtime.compatibility;
   if (compatibility === "untested") return { label: "Untested version", reason: agent.runtime.compatibilityReason };
   if (compatibility === "blocked") return { label: "Unsupported version", reason: agent.runtime.compatibilityReason };
+  // A runtime the manager found broken reports why on the same field: the
+  // managed Codex can be perfectly runnable and still be missing the helper it
+  // needs, and the reason is the only actionable part.
+  if (agent.runtime.state === "broken" && agent.runtime.compatibilityReason !== null) {
+    return { label: "Needs repair", reason: agent.runtime.compatibilityReason };
+  }
   return null;
 }
 
@@ -334,6 +340,9 @@ function AgentCard({
             title={compatibility.reason ?? undefined}
           >
             {compatibility.label}
+            {compatibility.label === "Needs repair" && compatibility.reason !== null
+              ? `: ${compatibility.reason}`
+              : ""}
           </span>
         ) : null}
         <span>{ACCOUNT_LABELS[agent.account.state]}</span>

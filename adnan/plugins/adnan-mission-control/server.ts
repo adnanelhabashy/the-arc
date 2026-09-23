@@ -170,6 +170,24 @@ export type Probe = z.infer<typeof probeSchema>;
 
 const reasoningLevelSchema = z.enum(["none", "low", "medium", "high", "xhigh", "max", "ultra", "ultracode"]);
 const permissionModeSchema = z.enum(["accept-edits", "auto", "full"]);
+type RolePermissionMode = z.infer<typeof permissionModeSchema>;
+
+/** Rank within `permissionModeSchema.options`, lowest privilege first. Mirrors
+ *  `@bb/domain`'s `permissionModeRank`; this plugin is built against a published
+ *  SDK and has no workspace dependency on that package, and the ladder is part
+ *  of the wire contract both sides already share. */
+function permissionModeRank(mode: RolePermissionMode): number {
+  return permissionModeSchema.options.indexOf(mode);
+}
+
+/** The names the composer picker shows for these modes. Mirrored here for the
+ *  same reason as the rank above, so a role issue names the mode the same way
+ *  the surface the user changes it on does. */
+const PERMISSION_MODE_LABELS: Record<RolePermissionMode, string> = {
+  "accept-edits": "Accept Edits",
+  auto: "Approve for me",
+  full: "Full Access",
+};
 
 const roleMappingSchema = z.object({
   /** Stable slug, unique within the mapping list. */
@@ -784,10 +802,21 @@ export default async function plugin(bb: BbPluginApi) {
         provider.permissionModes.length > 0 &&
         !provider.permissionModes.includes(role.permissionMode)
       ) {
+        const roleMode = role.permissionMode;
+        const permittedBelowRole = provider.permissionModes
+          .filter((mode) => permissionModeRank(mode) <= permissionModeRank(roleMode))
+          .sort((left, right) => permissionModeRank(left) - permissionModeRank(right))
+          .map((mode) => PERMISSION_MODE_LABELS[mode]);
+        const supportedLabels = provider.permissionModes.map(
+          (mode) => PERMISSION_MODE_LABELS[mode],
+        );
         issues.push({
           roleId: role.id,
           kind: "permission-mode-unsupported",
-          message: `Provider "${provider.displayName}" does not support permission mode "${role.permissionMode}".`,
+          message:
+            permittedBelowRole.length > 0
+              ? `Provider "${provider.displayName}" cannot run at ${PERMISSION_MODE_LABELS[roleMode]}. Delegating this role would fail; set it to one of ${permittedBelowRole.join(", ")}.`
+              : `Provider "${provider.displayName}" supports ${supportedLabels.join(", ")}, none of which is at or below ${PERMISSION_MODE_LABELS[roleMode]}. Arc will not raise the role's permission to make it work; set this role to ${supportedLabels.join(" or ")}.`,
         });
       }
       if (role.model !== null) {
@@ -1356,6 +1385,7 @@ export default async function plugin(bb: BbPluginApi) {
         model: role.model ?? undefined,
         reasoningLevel: role.reasoningLevel ?? undefined,
         serviceTier: role.serviceTier === "default" || role.serviceTier === "fast" ? role.serviceTier : undefined,
+        ...(role.permissionMode !== null ? { permissionMode: role.permissionMode } : {}),
         prompt,
       });
       const childId = str(asRecord(spawned)?.id);

@@ -21,7 +21,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config vitest.config.ts"
+    "test": "vitest run --config vitest.config.ts",
+    "build": "node scripts/build.mjs"
   },
   "dependencies": {
     "@hugeicons/core-free-icons": "^4.1.3",

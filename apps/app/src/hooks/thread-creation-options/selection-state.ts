@@ -1,4 +1,10 @@
-import type { PermissionMode, ReasoningLevel, ServiceTier } from "@bb/domain";
+import {
+  permissionModesWithinCeiling,
+  resolveEffectivePermissionMode,
+  type PermissionMode,
+  type ReasoningLevel,
+  type ServiceTier,
+} from "@bb/domain";
 import type {
   CreateExecutionInputSources,
   ExecutionInputFieldSource,
@@ -102,6 +108,8 @@ interface ResolveCreateExecutionInputSourceArgs {
 interface ResolvePermissionModeSelectionArgs {
   rawPermissionMode: PermissionMode;
   permissionModes: readonly PermissionMode[];
+  permissionCeiling: PermissionMode;
+  providerId: string;
 }
 
 function hasValue(value: string): boolean {
@@ -293,20 +301,44 @@ export function buildExecutionInputSources({
   };
 }
 
+/**
+ * The mode the composer should hold for the provider that is selected *now*.
+ *
+ * Shares the server's resolver rather than a local ladder, so switching
+ * provider cannot leave a selection the provider cannot execute waiting for
+ * the send to fail. A selection carried over from another provider is not a
+ * preference about this one: when it cannot be honoured, the composer falls
+ * back to the product default for the new provider, and only when even that is
+ * unavailable does it show the least-privileged mode the machine permits —
+ * visibly, as the only option — rather than quietly sending something broader.
+ */
 export function resolvePermissionModeSelection({
   rawPermissionMode,
   permissionModes,
+  permissionCeiling,
+  providerId,
 }: ResolvePermissionModeSelectionArgs): PermissionMode {
-  if (permissionModes.includes(rawPermissionMode)) {
-    return rawPermissionMode;
+  const carried = resolveEffectivePermissionMode({
+    requestedMode: rawPermissionMode,
+    providerId,
+    providerSupportedModes: permissionModes,
+    hostPermissionCeiling: permissionCeiling,
+  });
+  if (carried.kind === "resolved") {
+    return carried.mode;
   }
-  if (permissionModes.includes("auto")) {
-    return "auto";
+  const productDefault = resolveEffectivePermissionMode({
+    providerId,
+    providerSupportedModes: permissionModes,
+    hostPermissionCeiling: permissionCeiling,
+  });
+  if (productDefault.kind === "resolved") {
+    return productDefault.mode;
   }
-  if (permissionModes.includes("full")) {
-    return "full";
-  }
-  return permissionModes[0] ?? "auto";
+  return (
+    permissionModesWithinCeiling(permissionModes, permissionCeiling).at(-1) ??
+    rawPermissionMode
+  );
 }
 
 export function formatModelLabel(value: string): string {
