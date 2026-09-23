@@ -41,6 +41,7 @@ function manifestWith(
     knownGoodVersion: overrides.knownGoodVersion ?? "0.155.1",
     source: "arc-bundled",
     digest: "a".repeat(64),
+    componentsByVersion: {},
     installedAt: 1,
   };
   return manifest;

@@ -6,6 +6,34 @@ import { probeArcRuntimeHealth } from "../src/arc-runtime/health.js";
 
 const tempDirs: string[] = [];
 
+/**
+ * A `codex doctor --json` report carrying the fields the probe reads. The
+ * enabled feature list is the only way to see what Codex resolved after its
+ * own config, `-c` overrides and managed policy were applied.
+ */
+function doctorReport(enabledFeatures: readonly string[]): string {
+  return JSON.stringify({
+    checks: {
+      "config.load": {
+        details: { "enabled feature flags": enabledFeatures.join(", ") },
+      },
+    },
+  });
+}
+
+/**
+ * A `codex debug models` catalog. `tool_mode` is present only on models that
+ * use Code Mode, which is exactly how Codex itself decides.
+ */
+function modelCatalog(slugs: readonly string[]): string {
+  return JSON.stringify({
+    models: slugs.map((slug, index) => ({
+      slug,
+      ...(index === 0 ? { tool_mode: "code_mode_only" } : {}),
+    })),
+  });
+}
+
 async function fakeExecutable(version: string): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "arc-health-test-"));
   tempDirs.push(dir);
@@ -61,12 +89,50 @@ describe("probeArcRuntimeHealth", () => {
       executablePath,
       expectedVersion: "0.156.0",
       runProcess: async (_path, args) => ({
-        stdout: "",
-        ok: args[0] === "doctor",
+        stdout:
+          args[0] === "doctor"
+            ? doctorReport(["code_mode_host"])
+            : modelCatalog(["gpt-6-astra", "gpt-5.5"]),
+        ok: args[0] === "doctor" || args[0] === "debug",
       }),
     });
 
     expect(result.kind).toBe("healthy");
+  });
+
+  it("reports unhealthy when the effective feature set does not enable the code-mode host", async () => {
+    const executablePath = await fakeExecutable("0.156.0");
+
+    const result = await probeArcRuntimeHealth({
+      runtimeId: "codex",
+      executablePath,
+      expectedVersion: "0.156.0",
+      runProcess: async () => ({
+        stdout: doctorReport(["shell_tool"]),
+        ok: true,
+      }),
+    });
+
+    expect(result).toMatchObject({
+      kind: "unhealthy",
+      detail: expect.stringContaining("features.code_mode_host disabled"),
+    });
+  });
+
+  it("reports unhealthy when doctor does not report its feature flags at all", async () => {
+    const executablePath = await fakeExecutable("0.156.0");
+
+    const result = await probeArcRuntimeHealth({
+      runtimeId: "codex",
+      executablePath,
+      expectedVersion: "0.156.0",
+      runProcess: async () => ({ stdout: "{}", ok: true }),
+    });
+
+    expect(result).toMatchObject({
+      kind: "unhealthy",
+      detail: expect.stringContaining("did not report its effective feature flags"),
+    });
   });
 
   it("reports unhealthy when codex doctor fails even though the version matches", async () => {

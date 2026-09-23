@@ -27,6 +27,12 @@ export interface ArcRuntimePaths {
   runtimeRoot: (id: ArcRuntimeId) => string;
   versionRoot: (id: ArcRuntimeId, version: string) => string;
   executablePath: (id: ArcRuntimeId, version: string) => string;
+  /**
+   * A required companion of a runtime, resolved inside the same version
+   * directory as the runtime's own executable. Sibling placement is what makes
+   * the companion discoverable, so this is the only layout a caller may use.
+   */
+  componentPath: (id: ArcRuntimeId, version: string, fileName: string) => string;
 }
 
 export function createArcRuntimePaths(
@@ -34,14 +40,18 @@ export function createArcRuntimePaths(
 ): ArcRuntimePaths {
   const root = join(args.userDataPath, ARC_RUNTIME_ROOT_DIR_NAME);
   const familiesRoot = join(root, RUNTIME_FAMILIES_DIR_NAME);
+  const versionRoot = (id: ArcRuntimeId, version: string): string =>
+    join(familiesRoot, id, version);
 
   return {
     root,
     manifestPath: join(root, RUNTIME_MANIFEST_FILE_NAME),
     stagingRoot: join(root, RUNTIME_STAGING_DIR_NAME),
     runtimeRoot: (id) => join(familiesRoot, id),
-    versionRoot: (id, version) => join(familiesRoot, id, version),
+    versionRoot,
     executablePath: (id, version) =>
-      join(familiesRoot, id, version, arcRuntimeExecutableName(id)),
+      join(versionRoot(id, version), arcRuntimeExecutableName(id)),
+    componentPath: (id, version, fileName) =>
+      join(versionRoot(id, version), fileName),
   };
 }

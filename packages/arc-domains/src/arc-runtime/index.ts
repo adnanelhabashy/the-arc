@@ -3,6 +3,7 @@ export * from "./releases.js";
 export * from "./digest.js";
 export * from "./archive.js";
 export * from "./acquire.js";
+export * from "./components.js";
 export * from "./probe.js";
 export * from "./paths.js";
 export * from "./environment.js";

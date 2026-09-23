@@ -27,6 +27,8 @@ export interface ActivateArcRuntimeVersionArgs {
   version: string;
   source: ArcRuntimeSource;
   digest: string;
+  /** Companion file name → digest of the staged companion, as verified. */
+  components?: Record<string, string>;
   createdByArcVersion: string;
   platform: string;
   runtimePaths: ArcRuntimePaths;
@@ -83,6 +85,10 @@ export async function activateArcRuntimeVersion(
             knownGoodVersion: entry.knownGoodVersion,
             source: args.source,
             digest: args.digest,
+            componentsByVersion: {
+              ...entry.componentsByVersion,
+              [args.version]: args.components ?? {},
+            },
             installedAt: (args.now ?? Date.now)(),
           },
         },
@@ -202,6 +208,23 @@ export async function rollbackArcRuntimeVersion(
         unavailable = `known-good ${args.runtimeId} ${entry.knownGoodVersion} is no longer installed at ${targetExecutable}; rollback cannot proceed without a fresh install`;
         return manifest;
       }
+      // A version is only as restorable as its helpers: rolling back to a
+      // binary whose required companions are gone would restore a runtime that
+      // cannot do what it is for, so the target's recorded components are
+      // checked here rather than discovered after the swap.
+      const targetComponents =
+        entry.componentsByVersion[entry.knownGoodVersion] ?? {};
+      for (const fileName of Object.keys(targetComponents)) {
+        const componentPath = args.runtimePaths.componentPath(
+          args.runtimeId,
+          entry.knownGoodVersion,
+          fileName,
+        );
+        if (!(await isRunnableExecutable(componentPath, isWindows))) {
+          unavailable = `known-good ${args.runtimeId} ${entry.knownGoodVersion} is missing its required helper ${fileName} at ${componentPath}; rollback cannot proceed without a fresh install`;
+          return manifest;
+        }
+      }
       target = {
         from: entry.activeVersion ?? "none",
         to: entry.knownGoodVersion,
@@ -217,6 +240,7 @@ export async function rollbackArcRuntimeVersion(
             knownGoodVersion: entry.knownGoodVersion,
             source: entry.source,
             digest: entry.digest,
+            componentsByVersion: entry.componentsByVersion,
             installedAt: (args.now ?? Date.now)(),
           },
         },

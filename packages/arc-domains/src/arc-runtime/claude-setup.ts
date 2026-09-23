@@ -419,6 +419,10 @@ export async function prepareManagedClaudeCode(
               knownGoodVersion: release.version,
               source: "official-managed-install",
               digest: stagedDigest,
+              componentsByVersion: {
+                ...freshEntry.componentsByVersion,
+                [release.version]: {},
+              },
               installedAt: now(),
             },
           },

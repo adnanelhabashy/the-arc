@@ -132,6 +132,7 @@ async function writeActiveClaude(
     knownGoodVersion: version,
     source: opts.source ?? "official-managed-install",
     digest: "0".repeat(64),
+    componentsByVersion: {},
     installedAt: Date.now(),
   };
   await writeArcRuntimeManifest({

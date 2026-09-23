@@ -9,6 +9,8 @@ import {
   stat,
 } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { stageArcRuntimeCompanionFromSeed } from "./acquire.js";
+import { checkArcRuntimeComponents } from "./components.js";
 import { sha256File } from "./digest.js";
 import {
   mutateArcRuntimeManifest,
@@ -148,6 +150,42 @@ async function installFromSeed(args: {
         manifest,
       };
     }
+    const components: Record<string, string> = {};
+    for (const companion of release.companions ?? []) {
+      const companionSeedPath = join(
+        dirname(seedPath),
+        companion.fileName,
+      );
+      if (
+        !(await isRunnableExecutable(companionSeedPath, isWindows))
+      ) {
+        return {
+          result: {
+            runtimeId: release.runtimeId,
+            action: "failed",
+            detail: `bundled ${companion.fileName} seed not available at ${companionSeedPath}`,
+          },
+          manifest,
+        };
+      }
+      const stagedCompanion = await stageArcRuntimeCompanionFromSeed({
+        companion,
+        seedPath: companionSeedPath,
+        stagingDir,
+        isWindows,
+      });
+      if (stagedCompanion.kind === "rejected") {
+        return {
+          result: {
+            runtimeId: release.runtimeId,
+            action: "failed",
+            detail: stagedCompanion.reason,
+          },
+          manifest,
+        };
+      }
+      components[companion.fileName] = stagedCompanion.digest;
+    }
     const stagedProbe = await probeArcRuntimeVersion({
       executablePath: stagedExecutable,
     });
@@ -189,6 +227,10 @@ async function installFromSeed(args: {
             knownGoodVersion: release.version,
             source: "arc-bundled",
             digest: stagedDigest,
+            componentsByVersion: {
+              ...existing.componentsByVersion,
+              [release.version]: components,
+            },
             installedAt: Date.now(),
           },
         },
@@ -213,7 +255,39 @@ async function decideBootstrap(
       release.runtimeId,
       release.version,
     );
+    const recordedComponents =
+      entry.componentsByVersion[release.version] ?? {};
+    const componentChecks = await checkArcRuntimeComponents({
+      expectations: (release.companions ?? []).map((companion) => ({
+        fileName: companion.fileName,
+        expectedDigest:
+          recordedComponents[companion.fileName] ??
+          companion.executableSha256,
+      })),
+      componentPath: (fileName) =>
+        args.runtimePaths.componentPath(
+          release.runtimeId,
+          release.version,
+          fileName,
+        ),
+      isWindows,
+      verifyDigest: false,
+    });
+    const brokenComponent = componentChecks.find((check) => !check.ok);
     if (await isRunnableExecutable(executablePath, isWindows)) {
+      if (brokenComponent !== undefined) {
+        diagnose(
+          args,
+          `${release.runtimeId} ${release.version} is active but ${brokenComponent.detail}; repairing from bundled seed`,
+        );
+        return installFromSeed({
+          manifest,
+          release,
+          repair: true,
+          runtimePaths: args.runtimePaths,
+          seedPath,
+        });
+      }
       if (entry.digest === null) {
         const digest = await sha256File(executablePath).catch(() => null);
         if (digest !== null) {
@@ -271,7 +345,28 @@ async function decideBootstrap(
       release.runtimeId,
       entry.activeVersion,
     );
-    if (await isRunnableExecutable(executablePath, isWindows)) {
+    // A version other than the pin cannot be judged against this pin's
+    // digests, so only presence and executability are checked here; the
+    // prepare/repair path proves provenance against the right pin.
+    const componentChecks = await checkArcRuntimeComponents({
+      expectations: (release.companions ?? []).map((companion) => ({
+        fileName: companion.fileName,
+        expectedDigest: null,
+      })),
+      componentPath: (fileName) =>
+        args.runtimePaths.componentPath(
+          release.runtimeId,
+          entry.activeVersion ?? release.version,
+          fileName,
+        ),
+      isWindows,
+      verifyDigest: false,
+    });
+    const brokenComponent = componentChecks.find((check) => !check.ok);
+    if (
+      brokenComponent === undefined &&
+      (await isRunnableExecutable(executablePath, isWindows))
+    ) {
       return {
         result: {
           runtimeId: release.runtimeId,
@@ -285,7 +380,9 @@ async function decideBootstrap(
       result: {
         runtimeId: release.runtimeId,
         action: "kept-broken",
-        detail: `${release.runtimeId} ${entry.activeVersion} is active but its executable is broken; recovery is deferred to the runtime repair/update flow`,
+        detail: `${release.runtimeId} ${entry.activeVersion} is active but ${
+          brokenComponent?.detail ?? "its executable is broken"
+        }; recovery is deferred to the runtime repair/update flow`,
       },
       manifest,
     };

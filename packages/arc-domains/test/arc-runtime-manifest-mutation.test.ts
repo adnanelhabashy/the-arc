@@ -42,6 +42,7 @@ function activate(
         knownGoodVersion: version,
         source: "arc-bundled",
         digest: "0".repeat(64),
+        componentsByVersion: {},
         installedAt: 1,
       },
     },

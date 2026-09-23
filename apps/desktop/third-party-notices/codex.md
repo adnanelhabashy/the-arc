@@ -13,6 +13,20 @@ Codex coding agent without installing anything globally.
 - License: Apache License 2.0 (see below)
 - Upstream copyright: Copyright 2025 OpenAI
 
+Arc also bundles the Codex Code Mode host, a first-party companion binary
+published in the same release and version-locked to it:
+
+- Component: codex-code-mode-host (rust build, `codex-rs/code-mode-host`)
+- Bundled version: 0.155.1 (identical to the Codex CLI above; never released
+  independently)
+- Release tag: rust-v0.155.1
+- Downloaded from: https://github.com/openai/codex/releases/download/rust-v0.155.1/codex-code-mode-host-aarch64-apple-darwin.tar.gz
+- License: Apache License 2.0 (see below)
+- Upstream copyright: Copyright 2025 OpenAI
+
+Arc stages it beside the managed `codex` executable, in the same version
+directory, which is where Codex looks for it; Arc never installs it on PATH.
+
 Arc copies the verified executable to a per-user managed location on first
 launch and executes that copy. The signed application bundle seed is treated
 as read-only.

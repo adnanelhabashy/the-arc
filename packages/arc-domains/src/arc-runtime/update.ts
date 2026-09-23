@@ -1,5 +1,5 @@
 import { mkdir, rename, rm } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import {
   activateArcRuntimeVersion,
   promoteArcRuntimeKnownGood,
@@ -122,10 +122,23 @@ export async function updateArcRuntime(
   }
 
   const probeHealth = args.probeHealth ?? probeArcRuntimeHealth;
+  const companions = release.companions ?? [];
+  const healthComponents = companions.map((companion) => ({
+    fileName: companion.fileName,
+    expectedDigest: staged.components[companion.fileName] ?? null,
+    ...(companion.livenessArgs === undefined
+      ? {}
+      : { livenessArgs: companion.livenessArgs }),
+  }));
+  const stagedComponentPath = (fileName: string): string =>
+    join(dirname(staged.executablePath), fileName);
+
   const preHealth = await probeHealth({
     runtimeId: args.runtimeId,
     executablePath: staged.executablePath,
     expectedVersion: release.version,
+    components: healthComponents,
+    componentPath: stagedComponentPath,
   });
   if (preHealth.kind === "unhealthy") {
     await rm(dirname(staged.executablePath), { recursive: true, force: true });
@@ -144,6 +157,7 @@ export async function updateArcRuntime(
     version: release.version,
     source: activationSourceFor(release),
     digest: staged.digest,
+    components: staged.components,
     createdByArcVersion: args.createdByArcVersion,
     platform: args.platform,
     runtimePaths: args.runtimePaths,
@@ -160,6 +174,13 @@ export async function updateArcRuntime(
       release.version,
     ),
     expectedVersion: release.version,
+    components: healthComponents,
+    componentPath: (fileName) =>
+      args.runtimePaths.componentPath(
+        args.runtimeId,
+        release.version,
+        fileName,
+      ),
   });
   if (postHealth.kind === "unhealthy") {
     const rollback = await rollbackArcRuntimeVersion({

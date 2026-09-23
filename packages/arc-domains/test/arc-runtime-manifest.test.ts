@@ -41,6 +41,7 @@ function populatedManifest(): ArcRuntimeManifest {
     knownGoodVersion: "0.155.1",
     source: "arc-bundled",
     digest: "sha256:abc123",
+    componentsByVersion: {},
     installedAt: 1_800_000_000_000,
   };
   manifest.runtimes["claude-code"] = {
@@ -49,6 +50,7 @@ function populatedManifest(): ArcRuntimeManifest {
     knownGoodVersion: null,
     source: "official-managed-install",
     digest: null,
+    componentsByVersion: {},
     installedAt: 1_800_000_000_500,
   };
   return manifest;
@@ -108,6 +110,7 @@ describe("readArcRuntimeManifest", () => {
           previousVersion: "0.154.0",
           source: "arc-bundled",
           digest: "sha256:abc123",
+          componentsByVersion: {},
           installedAt: 1_800_000_000_000,
         },
         "claude-code": {
@@ -115,6 +118,7 @@ describe("readArcRuntimeManifest", () => {
           previousVersion: null,
           source: null,
           digest: null,
+          componentsByVersion: {},
           installedAt: null,
         },
         omp: {
@@ -122,6 +126,7 @@ describe("readArcRuntimeManifest", () => {
           previousVersion: null,
           source: "arc-bundled",
           digest: "sha256:def456",
+          componentsByVersion: {},
           installedAt: 1_800_000_000_100,
         },
       },
@@ -277,6 +282,7 @@ describe("arc runtime manifest schema", () => {
           knownGoodVersion: "0.155.1",
           source: "arc-bundled",
           digest: null,
+          componentsByVersion: {},
           installedAt: null,
           apiKey: "plant",
         },
@@ -286,6 +292,7 @@ describe("arc runtime manifest schema", () => {
           knownGoodVersion: null,
           source: null,
           digest: null,
+          componentsByVersion: {},
           installedAt: null,
         },
         omp: {
@@ -294,6 +301,7 @@ describe("arc runtime manifest schema", () => {
           knownGoodVersion: null,
           source: null,
           digest: null,
+          componentsByVersion: {},
           installedAt: null,
         },
       },

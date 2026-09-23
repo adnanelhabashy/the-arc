@@ -18,6 +18,49 @@ export interface ArcRuntimeRelease {
   executableSha256: string;
   expectedExecutableVersion: string;
   license: string;
+  /**
+   * First-party helpers the runtime cannot function without, published as
+   * separate assets in the *same* release as the primary binary. They are
+   * version-locked by construction — one release tag, one version — so they
+   * are never discovered or versioned independently.
+   */
+  companions?: readonly ArcRuntimeCompanion[];
+}
+
+/**
+ * A required companion executable of a runtime, staged as a sibling of the
+ * runtime's own executable inside the version directory.
+ *
+ * The file name is a hard contract, not a preference: Codex discovers its
+ * code-mode host as `<directory of the running codex>/codex-code-mode-host`
+ * (`codex-rs/install-context/src/lib.rs`), with no PATH lookup and no
+ * environment variable. Arc's managed layout resolves to
+ * `InstallMethod::Other`, so the sibling path is the only one that works.
+ */
+export interface ArcRuntimeCompanion {
+  /** File name inside the version directory; also the discovery contract. */
+  fileName: string;
+  /** Entry name inside the archive, when the published archive names it differently. */
+  archiveEntryName: string;
+  artifactKind: Extract<ArcRuntimeArtifactKind, "archive" | "executable">;
+  assetName: string;
+  downloadUrl: string;
+  /** Digest of the published asset, as reported by the release host. */
+  sha256: string;
+  /** Digest of the executable after extraction or copy. */
+  executableSha256: string;
+  /**
+   * Whether the companion answers `--version`. The code-mode host does not
+   * (it has no such flag), so its identity rests on the release tag plus both
+   * digests rather than on a self-reported version string.
+   */
+  reportsVersion: boolean;
+  /**
+   * Arguments that prove the companion starts, for the health probe's
+   * liveness check. Omitted for a companion with no meaningful offline signal,
+   * in which case presence, executability and digest are the whole proof.
+   */
+  livenessArgs?: readonly string[];
 }
 
 interface TrustedReleaseOrigin {
@@ -56,6 +99,24 @@ export const ARC_CODEX_RELEASE: ArcRuntimeRelease = {
     "8eaf1ad12fe6bf89b1710330f58900014322c7c5af677e43be116d8ac5fc0a9e",
   expectedExecutableVersion: "0.155.1",
   license: "Apache-2.0",
+  companions: [
+    {
+      fileName: "codex-code-mode-host",
+      archiveEntryName: "codex-code-mode-host-aarch64-apple-darwin",
+      artifactKind: "archive",
+      assetName: "codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      downloadUrl:
+        "https://github.com/openai/codex/releases/download/rust-v0.155.1/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      sha256:
+        "e8957108eebd70963b0906857ceb7f7a2b477d1972a7147041c625d4071b508a",
+      executableSha256:
+        "59a702a68f1ef79fceaca644db46b8385ceefbb66035e78b8ade7cdcc21fda55",
+      reportsVersion: false,
+      // Verified against the real 0.155.1 helper: with stdin held open it
+      // stays up serving stdio; with stdin closed it exits 0 immediately.
+      livenessArgs: ["--listen", "stdio"],
+    },
+  ],
 };
 
 export const ARC_OMP_RELEASE: ArcRuntimeRelease = {
@@ -230,5 +291,72 @@ export function validateArcRuntimeRelease(
         "executable artifacts are staged directly, so sha256 and executableSha256 must be identical",
     };
   }
+  for (const companion of release.companions ?? []) {
+    const problem = validateArcRuntimeCompanion(release, companion);
+    if (problem !== null) {
+      return { kind: "invalid", problem };
+    }
+  }
   return { kind: "ok" };
+}
+
+function validateArcRuntimeCompanion(
+  release: ArcRuntimeRelease,
+  companion: ArcRuntimeCompanion,
+): string | null {
+  if (!/^[\w.+@-]+$/.test(companion.fileName)) {
+    return `companion file name "${companion.fileName}" is not a plain file name`;
+  }
+  if (!/^[\w.+@-]+$/.test(companion.archiveEntryName)) {
+    return `companion archive entry "${companion.archiveEntryName}" is not a plain file name`;
+  }
+  if (companion.artifactKind === "executable") {
+    if (companion.sha256 !== companion.executableSha256) {
+      return `companion ${companion.fileName} is staged directly, so sha256 and executableSha256 must be identical`;
+    }
+    if (companion.archiveEntryName !== companion.fileName) {
+      return `companion ${companion.fileName} is staged directly, so its archive entry name is unused and must match its file name`;
+    }
+  }
+  if (companion.artifactKind === "archive" && !companion.assetName.endsWith(".tar.gz")) {
+    return `companion ${companion.fileName} is an archive, so its asset must use the ".tar.gz" extension`;
+  }
+  for (const [label, value] of [
+    ["sha256", companion.sha256],
+    ["executableSha256", companion.executableSha256],
+  ] as const) {
+    if (!isHexDigest(value)) {
+      return `companion ${companion.fileName} ${label} is not a sha256 digest`;
+    }
+  }
+  if (
+    companion.downloadUrl.includes("latest") ||
+    companion.assetName.includes("latest")
+  ) {
+    return `companion ${companion.fileName} must never use a latest alias`;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(companion.downloadUrl);
+  } catch {
+    return `companion ${companion.fileName} downloadUrl is not a valid URL`;
+  }
+  const trustedOrigin = TRUSTED_RELEASE_ORIGINS[release.runtimeId];
+  if (trustedOrigin === undefined) {
+    return `no trusted download origin is recorded for runtime "${release.runtimeId}"`;
+  }
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.host !== trustedOrigin.host ||
+    !parsed.pathname.startsWith(trustedOrigin.pathPrefix)
+  ) {
+    return `companion ${companion.fileName} downloadUrl must be a ${trustedOrigin.host} release asset under ${trustedOrigin.pathPrefix}`;
+  }
+  if (!parsed.pathname.endsWith(`/${companion.assetName}`)) {
+    return `companion ${companion.fileName} downloadUrl must end with its exact pinned asset name`;
+  }
+  if (!parsed.pathname.includes(`/${release.releaseTag}/`)) {
+    return `companion ${companion.fileName} must be published under the same release tag (${release.releaseTag}) as the runtime it belongs to`;
+  }
+  return null;
 }

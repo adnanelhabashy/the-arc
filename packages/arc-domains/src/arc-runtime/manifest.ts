@@ -2,7 +2,8 @@ import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { z } from "zod";
 
-export const ARC_RUNTIME_MANIFEST_SCHEMA_VERSION = 2;
+export const ARC_RUNTIME_MANIFEST_SCHEMA_VERSION = 3;
+const ARC_RUNTIME_MANIFEST_SCHEMA_VERSION_V2 = 2;
 const ARC_RUNTIME_MANIFEST_SCHEMA_VERSION_V1 = 1;
 
 const arcRuntimeEntrySchema = z.object({
@@ -11,6 +12,33 @@ const arcRuntimeEntrySchema = z.object({
   // The version last observed healthy after activation (ADR-076): distinct
   // from activeVersion so an update can occupy activeVersion while pending
   // promotion, and rollback has an explicit, deterministic target.
+  knownGoodVersion: z.string().min(1).nullable(),
+  source: z
+    .enum([
+      "arc-bundled",
+      "arc-managed-download",
+      "official-managed-install",
+      "external-override",
+    ])
+    .nullable(),
+  digest: z.string().min(1).nullable(),
+  /**
+   * Required companions, keyed by version and then by their file name inside
+   * that version's directory. Keyed by version rather than kept flat so a
+   * rollback to a previously-installed version still describes *that*
+   * version's helpers instead of the ones that were active when the rollback
+   * happened.
+   */
+  componentsByVersion: z.record(
+    z.string().min(1),
+    z.record(z.string().min(1), z.string().min(1)),
+  ),
+  installedAt: z.number().int().nonnegative().nullable(),
+});
+
+const arcRuntimeEntrySchemaV2 = z.object({
+  activeVersion: z.string().min(1).nullable(),
+  previousVersion: z.string().min(1).nullable(),
   knownGoodVersion: z.string().min(1).nullable(),
   source: z
     .enum([
@@ -67,14 +95,51 @@ const arcRuntimeManifestSchemaV1 = z.object({
   }),
 });
 
+const arcRuntimeManifestSchemaV2 = z.object({
+  schemaVersion: z.literal(ARC_RUNTIME_MANIFEST_SCHEMA_VERSION_V2),
+  createdByArcVersion: z.string().min(1),
+  platform: z.string().min(1),
+  runtimes: z.object({
+    codex: arcRuntimeEntrySchemaV2,
+    "claude-code": arcRuntimeEntrySchemaV2,
+    omp: arcRuntimeEntrySchemaV2,
+  }),
+});
+
+type ArcRuntimeEntryV1 = z.infer<typeof arcRuntimeEntrySchemaV1>;
+type ArcRuntimeEntryV2 = z.infer<typeof arcRuntimeEntrySchemaV2>;
+type ArcRuntimeEntry = z.infer<typeof arcRuntimeEntrySchema>;
+
+function migrateArcRuntimeEntryV2(entry: ArcRuntimeEntryV2): ArcRuntimeEntry {
+  // A v2 entry predates companions entirely: every runtime it activated was
+  // activated without any, so an empty map is the truthful description rather
+  // than "unknown". A runtime that now requires one reports unhealthy on its
+  // next health probe and is repaired from the seed, which is exactly the
+  // behaviour a genuinely missing helper should produce.
+  return { ...entry, componentsByVersion: {} };
+}
+
+function migrateArcRuntimeManifestV2(
+  v2: z.infer<typeof arcRuntimeManifestSchemaV2>,
+): ArcRuntimeManifest {
+  return {
+    ...v2,
+    schemaVersion: ARC_RUNTIME_MANIFEST_SCHEMA_VERSION,
+    runtimes: {
+      codex: migrateArcRuntimeEntryV2(v2.runtimes.codex),
+      "claude-code": migrateArcRuntimeEntryV2(v2.runtimes["claude-code"]),
+      omp: migrateArcRuntimeEntryV2(v2.runtimes.omp),
+    },
+  };
+}
+
 function migrateArcRuntimeManifestV1(
   v1: z.infer<typeof arcRuntimeManifestSchemaV1>,
 ): ArcRuntimeManifest {
-  const migrateEntry = (
-    entry: z.infer<typeof arcRuntimeEntrySchemaV1>,
-  ): z.infer<typeof arcRuntimeEntrySchema> => ({
+  const migrateEntry = (entry: ArcRuntimeEntryV1): ArcRuntimeEntry => ({
     ...entry,
     knownGoodVersion: entry.activeVersion,
+    componentsByVersion: {},
   });
   return {
     ...v1,
@@ -153,6 +218,7 @@ export function createEmptyArcRuntimeManifest(
     knownGoodVersion: null,
     source: null,
     digest: null,
+    componentsByVersion: {},
     installedAt: null,
   };
   return {
@@ -224,6 +290,11 @@ export async function readArcRuntimeManifest(
   const v1Result = arcRuntimeManifestSchemaV1.safeParse(parsed);
   if (v1Result.success) {
     return { kind: "ok", manifest: migrateArcRuntimeManifestV1(v1Result.data) };
+  }
+
+  const v2Result = arcRuntimeManifestSchemaV2.safeParse(parsed);
+  if (v2Result.success) {
+    return { kind: "ok", manifest: migrateArcRuntimeManifestV2(v2Result.data) };
   }
 
   return {

@@ -99,8 +99,19 @@ export async function downloadAndStageArcRuntimeRelease(
   const assetPath = join(workDir, "asset");
   const stagingDir = join(workDir, "staged");
 
+  const companions = release.companions ?? [];
+  const companionAssetPaths: Record<string, string> = {};
+
   try {
     await download(release.downloadUrl, assetPath);
+    for (const companion of companions) {
+      const companionAssetPath = join(
+        workDir,
+        `companion-${companion.fileName}`,
+      );
+      await download(companion.downloadUrl, companionAssetPath);
+      companionAssetPaths[companion.fileName] = companionAssetPath;
+    }
   } catch (error) {
     await rm(workDir, { recursive: true, force: true });
     return {
@@ -113,6 +124,7 @@ export async function downloadAndStageArcRuntimeRelease(
     release,
     assetPath,
     stagingDir,
+    companionAssetPaths,
   });
   if (staged.kind === "rejected") {
     await rm(workDir, { recursive: true, force: true });

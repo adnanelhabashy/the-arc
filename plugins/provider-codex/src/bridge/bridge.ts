@@ -377,8 +377,23 @@ export function resolveAppServerLaunch(env: NodeJS.ProcessEnv = process.env): {
       : z.array(z.string()).parse(JSON.parse(rawArgs));
   const args = [
     ...baseArgs,
-    "-c",
-    "features.code_mode_host=false",
+    // No `features.code_mode*` override at all, deliberately. Codex's own
+    // defaults are already what Arc wants, verified against the real 0.155.1
+    // binary on a completely empty CODEX_HOME:
+    //
+    // - `features.code_mode_host` is `Stage::Stable`, default **enabled**
+    //   (`codex features list`), so the host Arc ships as a sibling of the
+    //   managed `codex` — where Codex looks for it — is used with no PATH entry
+    //   and no global install. The `-c features.code_mode_host=false` that used
+    //   to be here was the entire cause of "Code Mode is unavailable".
+    // - `features.code_mode` is `Stage::UnderDevelopment`, default disabled,
+    //   and is promoted per model from the catalog entry's own `tool_mode`, so
+    //   Codex enables the tool exactly for the models that ask for it. Passing
+    //   `features.code_mode=true` would force it on for models that do not.
+    //
+    // Nothing here may depend on the user's `models_cache.json`: the catalog
+    // Codex renders for itself (`codex debug models`, offline) is authoritative
+    // and is what the model metadata above is read from.
     "-c",
     "check_for_update_on_startup=false",
   ];
@@ -444,16 +459,6 @@ function appServerLaunchEnv(
       ? {}
       : { [CODEX_POOL_THREAD_ID_ENV]: poolThreadId }),
   };
-}
-
-function buildAppServerEnv(
-  envVars: Readonly<Record<string, string>> | undefined,
-): NodeJS.ProcessEnv {
-  return withoutBridgeRuntimeEnv(
-    sanitizeInheritedChildProcessEnv({
-      env: appServerLaunchEnv(envVars),
-    }),
-  );
 }
 
 function describeCodexLaunchError(error: unknown): string {
@@ -963,8 +968,11 @@ function spawnChildConnection(callbacks: {
   ) => void;
   onExit: (info: CodexAppServerExitInfo) => void;
 }): CodexAppServerConnection {
-  const env = buildAppServerEnv(callbacks.envVars);
-  const launch = resolveAppServerLaunch(appServerLaunchEnv(callbacks.envVars));
+  const launchEnv = appServerLaunchEnv(callbacks.envVars);
+  const env = withoutBridgeRuntimeEnv(
+    sanitizeInheritedChildProcessEnv({ env: launchEnv }),
+  );
+  const launch = resolveAppServerLaunch(launchEnv);
   const { envVars: _envVars, ...connectionCallbacks } = callbacks;
   return createCodexAppServerConnection({
     command: launch.command,

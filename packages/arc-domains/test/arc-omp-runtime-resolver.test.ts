@@ -58,6 +58,7 @@ describe("createArcOmpRuntimeResolver", () => {
       knownGoodVersion: "18.2.6",
       source: "arc-bundled",
       digest: "0".repeat(64),
+      componentsByVersion: {},
       installedAt: 1,
     };
     await writeArcRuntimeManifest({

@@ -154,6 +154,7 @@ describe("prepareArcManagedRuntimes — OMP", () => {
       knownGoodVersion: "18.3.0",
       source: "arc-managed-download",
       digest: "0".repeat(64),
+      componentsByVersion: {},
       installedAt: Date.now(),
     };
     await writeArcRuntimeManifest({
@@ -184,6 +185,7 @@ describe("prepareArcManagedRuntimes — OMP", () => {
       knownGoodVersion: "18.3.0",
       source: "arc-managed-download",
       digest: "0".repeat(64),
+      componentsByVersion: {},
       installedAt: Date.now(),
     };
     await writeArcRuntimeManifest({

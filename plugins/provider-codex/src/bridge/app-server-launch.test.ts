@@ -9,17 +9,29 @@ afterEach(() => vi.unstubAllEnvs());
 const BASE_ARGS = [
   "app-server",
   "-c",
-  "features.code_mode_host=false",
-  "-c",
   "check_for_update_on_startup=false",
 ];
 
 describe("Codex managed-runtime baseline launch", () => {
-  it("always disables the code-mode host probe (Arc never installs codex-code-mode-host)", () => {
+  it("leaves every code-mode feature at Codex's own default", () => {
     expect(resolveAppServerLaunch({})).toEqual({
       command: "codex",
       args: BASE_ARGS,
     });
+    // Codex's defaults are already correct: `code_mode_host` is stable and
+    // enabled, and `code_mode` is promoted per model from the catalog entry's
+    // own `tool_mode`. Any `features.code_mode*` override here would either
+    // disable the host (which was the Code Mode bug) or force the tool on for
+    // models that do not ask for it.
+    expect(resolveAppServerLaunch({}).args.join(" ")).not.toContain(
+      "features.code_mode",
+    );
+  });
+
+  it("ignores a stale code-mode env marker", () => {
+    expect(resolveAppServerLaunch({ BB_CODEX_BRIDGE_CODE_MODE: "1" }).args).toEqual(
+      BASE_ARGS,
+    );
   });
 });
 
