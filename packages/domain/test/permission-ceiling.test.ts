@@ -26,12 +26,19 @@ describe("clampPermissionModeToCeiling", () => {
     ).toBe("accept-edits");
   });
 
-  it("leaves an unsupported mode under the ceiling alone for provider validation", () => {
+  it("refuses to raise an unsupported mode to one the provider offers above it", () => {
     expect(
       clampPermissionModeToCeiling({
         ceiling: "full",
         permissionMode: "accept-edits",
         permissionModes: ["full"],
+      }),
+    ).toBeNull();
+    expect(
+      clampPermissionModeToCeiling({
+        ceiling: "full",
+        permissionMode: "auto",
+        permissionModes: ["accept-edits", "full"],
       }),
     ).toBe("accept-edits");
   });

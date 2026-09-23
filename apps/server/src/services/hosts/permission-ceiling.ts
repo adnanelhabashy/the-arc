@@ -1,23 +1,16 @@
 import { getEnvironment, getHost } from "@bb/db";
-import { clampPermissionModeToCeiling, type PermissionMode } from "@bb/domain";
+import {
+  describePermissionModeUnsupported,
+  resolveEffectivePermissionMode,
+  type PermissionMode,
+  type PermissionModeResolution,
+  type ResolveEffectivePermissionModeArgs,
+} from "@bb/domain";
 import { ApiError } from "../../errors.js";
+import { ProviderCapabilityError } from "../providers/provider-capability-error.js";
 import type { AppDeps } from "../../types.js";
 
 type PermissionCeilingDeps = Pick<AppDeps, "db">;
-
-interface ClampPermissionModeToHostArgs {
-  hostId: string | null;
-  permissionMode: PermissionMode;
-  providerId?: string;
-}
-
-class HostPermissionCeilingConflictError extends ApiError {}
-
-export function isHostPermissionCeilingConflictError(
-  error: unknown,
-): error is HostPermissionCeilingConflictError {
-  return error instanceof HostPermissionCeilingConflictError;
-}
 
 export function getHostPermissionCeiling(
   deps: PermissionCeilingDeps,
@@ -35,25 +28,55 @@ export function resolveEnvironmentHostId(
   return getEnvironment(deps.db, environmentId)?.hostId ?? null;
 }
 
-export function clampPermissionModeToHost(
+export interface ResolveProviderPermissionModeArgs
+  extends Omit<
+    ResolveEffectivePermissionModeArgs,
+    "hostPermissionCeiling" | "providerSupportedModes"
+  > {
+  hostId: string | null;
+}
+
+class HostPermissionCeilingConflictError extends ApiError {}
+
+export function isHostPermissionCeilingConflictError(
+  error: unknown,
+): error is HostPermissionCeilingConflictError {
+  return error instanceof HostPermissionCeilingConflictError;
+}
+
+/**
+ * The server's single permission boundary. Every thread execution — new,
+ * resumed, forked, child, handoff, workflow worker, automation — resolves
+ * through here, so the host ceiling and provider capability are applied once,
+ * in one order, for every caller.
+ */
+function resolveProviderPermissionMode(
   deps: Pick<AppDeps, "db" | "providerRegistry">,
-  args: ClampPermissionModeToHostArgs,
-): PermissionMode {
-  const ceiling = getHostPermissionCeiling(deps, args.hostId);
-  const supported = args.providerId
-    ? deps.providerRegistry.getSupportedPermissionModes(args.providerId)
-    : null;
-  const clamped = clampPermissionModeToCeiling({
-    ceiling,
-    permissionMode: args.permissionMode,
-    ...(supported ? { permissionModes: supported } : {}),
+  args: ResolveProviderPermissionModeArgs,
+): PermissionModeResolution {
+  return resolveEffectivePermissionMode({
+    ...args,
+    providerSupportedModes: deps.providerRegistry.getSupportedPermissionModes(
+      args.providerId,
+    ),
+    hostPermissionCeiling: getHostPermissionCeiling(deps, args.hostId),
   });
-  if (clamped === null) {
-    throw new HostPermissionCeilingConflictError(
-      400,
-      "host_permission_ceiling_conflict",
-      `This machine limits permission mode to ${ceiling}, and provider ${args.providerId} requires a higher mode.`,
-    );
+}
+
+export function requireProviderPermissionMode(
+  deps: Pick<AppDeps, "db" | "providerRegistry">,
+  args: ResolveProviderPermissionModeArgs,
+): PermissionMode {
+  const resolution = resolveProviderPermissionMode(deps, args);
+  if (resolution.kind === "resolved") {
+    return resolution.mode;
   }
-  return clamped;
+  const message = describePermissionModeUnsupported(resolution);
+  throw resolution.reason === "ceiling"
+    ? new HostPermissionCeilingConflictError(
+        400,
+        "host_permission_ceiling_conflict",
+        message,
+      )
+    : new ProviderCapabilityError(400, "invalid_request", message);
 }

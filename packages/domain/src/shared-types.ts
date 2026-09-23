@@ -29,22 +29,36 @@ export function permissionModeRank(permissionMode: PermissionMode): number {
   return permissionModeValues.indexOf(permissionMode);
 }
 
+/**
+ * The highest mode the provider actually supports at or below both the
+ * requested mode and the ceiling, or `null` when the provider offers nothing
+ * that low.
+ *
+ * Both bounds bind, and the provider set is consulted even when the request is
+ * already within the ceiling: a mode the provider cannot execute is not a mode,
+ * and "the provider does not offer anything this low" is reported honestly
+ * rather than by raising the request to something the provider does offer. A
+ * provider that supports only `full` therefore cannot turn a requested
+ * `accept-edits` into `full`.
+ */
 export function clampPermissionModeToCeiling(args: {
   ceiling: PermissionMode;
   permissionMode: PermissionMode;
   permissionModes?: readonly PermissionMode[];
 }): PermissionMode | null {
-  const ceilingRank = permissionModeRank(args.ceiling);
-  if (permissionModeRank(args.permissionMode) <= ceilingRank) {
-    return args.permissionMode;
-  }
+  const bound = Math.min(
+    permissionModeRank(args.permissionMode),
+    permissionModeRank(args.ceiling),
+  );
   const supported = args.permissionModes ?? permissionModeValues;
-  const allowed = supported
-    .filter((mode) => permissionModeRank(mode) <= ceilingRank)
-    .sort(
-      (left, right) => permissionModeRank(right) - permissionModeRank(left),
-    );
-  return allowed[0] ?? null;
+  let best: PermissionMode | null = null;
+  for (const mode of supported) {
+    if (permissionModeRank(mode) > bound) continue;
+    if (best === null || permissionModeRank(mode) > permissionModeRank(best)) {
+      best = mode;
+    }
+  }
+  return best;
 }
 
 export const permissionModeInputSchema = z
@@ -64,6 +78,26 @@ const recordedPermissionModeSchema = z.enum([
 export type RecordedPermissionMode = z.infer<
   typeof recordedPermissionModeSchema
 >;
+
+/**
+ * A mode as stored by an older release, brought forward onto the current
+ * ladder. `workspace-write` and `readonly` both meant "edits allowed, nothing
+ * broader", which is `accept-edits` — never `auto`, which would have widened
+ * the execution.
+ */
+export function normalizeRecordedPermissionMode(
+  permissionMode: RecordedPermissionMode,
+): PermissionMode {
+  switch (permissionMode) {
+    case "accept-edits":
+    case "auto":
+    case "full":
+      return permissionMode;
+    case "workspace-write":
+    case "readonly":
+      return "accept-edits";
+  }
+}
 
 export const permissionEscalationValues = ["ask", "deny"] as const;
 const permissionEscalationSchema = z.enum(permissionEscalationValues);
