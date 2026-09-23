@@ -83,6 +83,7 @@ async function activateRuntime(fixture: Fixture, runtimeId: ArcRuntimeId) {
     source:
       runtimeId === "claude-code" ? "official-managed-install" : "arc-bundled",
     digest: "0".repeat(64),
+    componentsByVersion: {},
     installedAt: 1,
   };
   await writeArcRuntimeManifest({

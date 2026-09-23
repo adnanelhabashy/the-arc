@@ -381,6 +381,7 @@ describe("ArcAgentManager — repair", () => {
       knownGoodVersion: "0.156.0",
       source: "arc-managed-download",
       digest: "0".repeat(64),
+      componentsByVersion: {},
       installedAt: 1,
     };
     await writeArcRuntimeManifest({

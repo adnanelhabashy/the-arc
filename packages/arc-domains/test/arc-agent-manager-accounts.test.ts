@@ -24,6 +24,7 @@ import {
   type ArcRuntimePaths,
 } from "../src/arc-runtime/paths.js";
 import type { ArcRuntimeId } from "../src/arc-runtime/types.js";
+import { ARC_RUNTIME_RELEASES } from "../src/arc-runtime/releases.js";
 
 const PLATFORM = "darwin-arm64";
 const CREATED_BY = "0.43.1";
@@ -80,6 +81,24 @@ async function readManifest(paths: ArcRuntimePaths): Promise<ArcRuntimeManifest>
   return result.manifest;
 }
 
+/** Stages the companions the pinned release requires, so a fixture that means
+ *  "a healthy install" is one. */
+async function stagePinnedCompanions(
+  paths: ArcRuntimePaths,
+  runtimeId: ArcRuntimeId,
+  version: string,
+): Promise<void> {
+  const release = ARC_RUNTIME_RELEASES.find(
+    (candidate) => candidate.runtimeId === runtimeId,
+  );
+  for (const companion of release?.companions ?? []) {
+    await writeRunnableExecutable(
+      paths.componentPath(runtimeId, version, companion.fileName),
+      companion.fileName,
+    );
+  }
+}
+
 async function activateRuntime(
   fixture: Fixture,
   runtimeId: ArcRuntimeId,
@@ -93,6 +112,7 @@ async function activateRuntime(
     source:
       runtimeId === "claude-code" ? "official-managed-install" : "arc-bundled",
     digest: "0".repeat(64),
+    componentsByVersion: {},
     installedAt: 1,
   };
   await writeArcRuntimeManifest({
@@ -103,6 +123,7 @@ async function activateRuntime(
     fixture.paths.executablePath(runtimeId, version),
     `${runtimeId} ${version}`,
   );
+  await stagePinnedCompanions(fixture.paths, runtimeId, version);
 }
 
 function accountSourceFor(

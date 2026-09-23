@@ -1,5 +1,6 @@
 import { rollbackArcRuntimeVersion } from "../arc-runtime/activation.js";
 import { prepareArcManagedRuntimes } from "../arc-runtime/bootstrap.js";
+import { checkArcRuntimeComponents } from "../arc-runtime/components.js";
 import {
   defaultVerifyCodeSignature,
   prepareManagedClaudeCode,
@@ -11,6 +12,7 @@ import {
 } from "../arc-runtime/compatibility.js";
 import {
   readArcRuntimeManifest,
+  type ArcRuntimeManifest,
   type ArcRuntimeManifestReadResult,
 } from "../arc-runtime/manifest.js";
 import type { ArcRuntimePaths } from "../arc-runtime/paths.js";
@@ -18,6 +20,7 @@ import {
   ARC_CLAUDE_CODE_RELEASE,
   ARC_CODEX_RELEASE,
   ARC_OMP_RELEASE,
+  ARC_RUNTIME_RELEASES,
   type ArcRuntimeRelease,
 } from "../arc-runtime/releases.js";
 import type { ArcRuntimeId } from "../arc-runtime/types.js";
@@ -530,9 +533,15 @@ export class ArcAgentManager {
     const runnable = await isExecutableFile(
       this.runtimePaths.executablePath(runtimeId, version),
     );
+    // A version is only usable if its required helpers are there too: Codex
+    // without its code-mode host starts fine and then cannot do Code Mode, so
+    // "the binary runs" is not the question the Agents view is answering.
+    const brokenComponent = runnable
+      ? await this.findBrokenComponent(runtimeId, version, entry)
+      : null;
 
     let state: ArcAgentRuntimeState;
-    if (!runnable) {
+    if (!runnable || brokenComponent !== null) {
       state = "broken";
     } else if (evaluation.compatibility === "blocked") {
       state = "unsupported";
@@ -549,10 +558,37 @@ export class ArcAgentManager {
       state,
       version,
       compatibility: evaluation.compatibility,
-      compatibilityReason: evaluation.reason,
+      compatibilityReason: brokenComponent ?? evaluation.reason,
       source: entry.source,
       knownGoodVersion: entry.knownGoodVersion,
     };
+  }
+
+  private async findBrokenComponent(
+    runtimeId: ArcRuntimeId,
+    version: string,
+    entry: ArcRuntimeManifest["runtimes"][ArcRuntimeId],
+  ): Promise<string | null> {
+    const release =
+      this.releases?.[runtimeId] ??
+      ARC_RUNTIME_RELEASES.find(
+        (candidate) => candidate.runtimeId === runtimeId,
+      );
+    const companions = release?.companions ?? [];
+    if (companions.length === 0) return null;
+    const recorded = entry.componentsByVersion[version] ?? {};
+    const checks = await checkArcRuntimeComponents({
+      expectations: companions.map((companion) => ({
+        fileName: companion.fileName,
+        expectedDigest:
+          recorded[companion.fileName] ?? companion.executableSha256,
+      })),
+      componentPath: (fileName) =>
+        this.runtimePaths.componentPath(runtimeId, version, fileName),
+      isWindows: this.platform.startsWith("win32"),
+      verifyDigest: false,
+    });
+    return checks.find((check) => !check.ok)?.detail ?? null;
   }
 }
 
