@@ -1,4 +1,5 @@
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
+import { PRODUCT_DEFAULT_PERMISSION_MODE } from "@bb/domain";
 import type { AgentEnvironment, PermissionMode } from "./rpc-types.js";
 
 type ProviderPermissionApi = {
@@ -23,7 +24,19 @@ export function providerRoutingForEnvironment(
   return {};
 }
 
-export async function resolvePermissionMode(
+/**
+ * The mode an automation asks for, after the one check this plugin owns: that
+ * the provider it names is actually available on the target machine.
+ *
+ * Compatibility is deliberately *not* decided here. Which supported mode a
+ * request maps to depends on the provider's capabilities and the target
+ * machine's permission ceiling, and the server is the only party that knows
+ * both for the environment an automation runs in. The automation stores what
+ * the user asked for; the server resolves it at spawn time, exactly as it does
+ * for a composer-created thread, and reports an actionable error if nothing at
+ * or below the request is available.
+ */
+export async function resolveRequestedPermissionMode(
   bb: ProviderPermissionApi,
   providerId: string,
   requested: PermissionMode | undefined,
@@ -34,22 +47,5 @@ export async function resolvePermissionMode(
   if (provider === undefined || provider.available === false) {
     throw new Error(`Provider ${providerId} is not available.`);
   }
-  if (
-    requested !== undefined &&
-    !provider.capabilities.permissionModes.includes(requested)
-  ) {
-    throw new Error(
-      `Permission mode ${requested} is not supported by provider ${providerId}.`,
-    );
-  }
-  if (requested !== undefined) return requested;
-  if (provider.capabilities.permissionModes.includes("auto")) {
-    return "auto";
-  }
-  if (provider.capabilities.permissionModes.includes("full")) {
-    return "full";
-  }
-  throw new Error(
-    `Provider ${providerId} has no supported default permission mode.`,
-  );
+  return requested ?? PRODUCT_DEFAULT_PERMISSION_MODE;
 }

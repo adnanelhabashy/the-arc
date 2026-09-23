@@ -1,15 +1,12 @@
 import { getEnvironmentProvider } from "../plugins/plugin-environment-provider-registry.js";
 import type {
-  PermissionMode,
   ProjectExecutionDefaults,
-  RecordedPermissionMode,
   ReasoningLevel,
   ServiceTier,
-  Thread,
 } from "@bb/domain";
 import { getEnvironment } from "@bb/db";
 import { DEFAULT_ENVIRONMENT_PROVIDER_ID } from "../environments/environment-provider-ids.js";
-import { PERSONAL_PROJECT_ID, clampPermissionModeToCeiling } from "@bb/domain";
+import { PERSONAL_PROJECT_ID, PRODUCT_DEFAULT_PERMISSION_MODE } from "@bb/domain";
 import type {
   EnvironmentArgs,
   ProviderEnvironmentArgs,
@@ -30,8 +27,6 @@ import { isLiveParentThread, type ParentThread } from "./thread-parent.js";
 
 export const DEFAULT_SERVICE_TIER: ServiceTier = "default";
 export const DEFAULT_REASONING_LEVEL: ReasoningLevel = "medium";
-
-const DEFAULT_PERMISSION_MODE: PermissionMode = "auto";
 
 function listDefaultProviderIdCandidates(
   registry: ProviderRegistryService,
@@ -70,36 +65,10 @@ interface CreateThreadExecutionDefaultsResolved {
   providerFallbackCandidates: readonly string[];
 }
 
-interface IsManagedChildThreadArgs {
-  parentThread?: ParentThread | null;
-  thread: Pick<Thread, "parentThreadId" | "projectId">;
-}
-
-interface ResolveThreadDefaultPermissionModeArgs {
-  thread: Pick<Thread, "providerId">;
-}
-
-interface ResolveThreadExecutionPermissionModeArgs {
-  lastExecutionPermissionMode?: RecordedPermissionMode;
-  parentThread?: ParentThread | null;
-  parentThreadExecutionPermissionMode?: RecordedPermissionMode;
-  projectExecutionPermissionMode?: PermissionMode;
-  requestedPermissionMode?: PermissionMode;
-  thread: Pick<
-    Thread,
-    "originKind" | "parentThreadId" | "projectId" | "providerId"
-  >;
-}
-
 interface ResolveCreateThreadEnvironmentArgs {
   parentThread: ParentThread | null;
   projectId: string;
   requestedEnvironment: CreateThreadEnvironment;
-}
-
-interface ResolveSupportedPermissionModeArgs {
-  preferredPermissionMode: PermissionMode;
-  providerId: string;
 }
 
 type CreateThreadEnvironment =
@@ -150,35 +119,6 @@ function requireHostEnvironmentId(
   throw new Error("Host environment is missing hostId");
 }
 
-function isManagedChildThread(args: IsManagedChildThreadArgs): boolean {
-  if (args.thread.parentThreadId === null) {
-    return false;
-  }
-
-  return isLiveParentThread({ parentThread: args.parentThread ?? null });
-}
-
-function resolveSupportedPermissionMode(
-  registry: ProviderRegistryService,
-  args: ResolveSupportedPermissionModeArgs,
-): PermissionMode {
-  const permissionModes = registry.getSupportedPermissionModes(args.providerId);
-  if (!permissionModes) {
-    return args.preferredPermissionMode;
-  }
-
-  if (permissionModes.includes(args.preferredPermissionMode)) {
-    return args.preferredPermissionMode;
-  }
-  if (permissionModes.includes(DEFAULT_PERMISSION_MODE)) {
-    return DEFAULT_PERMISSION_MODE;
-  }
-  if (permissionModes.includes("full")) {
-    return "full";
-  }
-  return permissionModes[0] ?? DEFAULT_PERMISSION_MODE;
-}
-
 export function resolveCreateThreadExecutionDefaults(
   registry: ProviderRegistryService,
   args: ResolveCreateThreadExecutionDefaultsArgs,
@@ -214,7 +154,6 @@ export function resolveCreateThreadExecutionDefaults(
 }
 
 export function buildProviderThreadExecutionDefaults(
-  registry: ProviderRegistryService,
   args: {
     model: string;
     providerId: string;
@@ -224,10 +163,7 @@ export function buildProviderThreadExecutionDefaults(
     providerId: args.providerId,
     model: args.model,
     reasoningLevel: DEFAULT_REASONING_LEVEL,
-    permissionMode: resolveSupportedPermissionMode(registry, {
-      providerId: args.providerId,
-      preferredPermissionMode: DEFAULT_PERMISSION_MODE,
-    }),
+    permissionMode: PRODUCT_DEFAULT_PERMISSION_MODE,
     serviceTier: DEFAULT_SERVICE_TIER,
   };
 }
@@ -394,87 +330,4 @@ export async function resolveCreateThreadEnvironment(
   }
 
   return environment;
-}
-
-export function resolveThreadDefaultPermissionMode(
-  registry: ProviderRegistryService,
-  args: ResolveThreadDefaultPermissionModeArgs,
-): PermissionMode {
-  return resolveSupportedPermissionMode(registry, {
-    providerId: args.thread.providerId,
-    preferredPermissionMode: DEFAULT_PERMISSION_MODE,
-  });
-}
-
-export function resolveThreadExecutionPermissionMode(
-  registry: ProviderRegistryService,
-  args: ResolveThreadExecutionPermissionModeArgs,
-): PermissionMode {
-  const permissionMode = resolvePreferredThreadExecutionPermissionMode(
-    registry,
-    args,
-  );
-  if (
-    !isManagedChildThread(args) ||
-    args.parentThreadExecutionPermissionMode === undefined
-  ) {
-    return permissionMode;
-  }
-
-  const ceiling = normalizeRecordedPermissionMode(
-    args.parentThreadExecutionPermissionMode,
-  );
-  const supported = registry.getSupportedPermissionModes(
-    args.thread.providerId,
-  );
-  return (
-    clampPermissionModeToCeiling({
-      ceiling,
-      permissionMode,
-      ...(supported ? { permissionModes: supported } : {}),
-    }) ?? ceiling
-  );
-}
-
-function resolvePreferredThreadExecutionPermissionMode(
-  registry: ProviderRegistryService,
-  args: ResolveThreadExecutionPermissionModeArgs,
-): PermissionMode {
-  if (args.requestedPermissionMode) {
-    return args.requestedPermissionMode;
-  }
-  if (args.lastExecutionPermissionMode) {
-    return normalizeRecordedPermissionMode(args.lastExecutionPermissionMode);
-  }
-
-  if (
-    isManagedChildThread(args) &&
-    args.parentThreadExecutionPermissionMode !== undefined
-  ) {
-    return resolveSupportedPermissionMode(registry, {
-      providerId: args.thread.providerId,
-      preferredPermissionMode: normalizeRecordedPermissionMode(
-        args.parentThreadExecutionPermissionMode,
-      ),
-    });
-  }
-
-  const defaultPermissionMode = resolveThreadDefaultPermissionMode(registry, {
-    thread: args.thread,
-  });
-  return args.projectExecutionPermissionMode ?? defaultPermissionMode;
-}
-
-function normalizeRecordedPermissionMode(
-  permissionMode: RecordedPermissionMode,
-): PermissionMode {
-  switch (permissionMode) {
-    case "accept-edits":
-    case "auto":
-    case "full":
-      return permissionMode;
-    case "workspace-write":
-    case "readonly":
-      return "accept-edits";
-  }
 }

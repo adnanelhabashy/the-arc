@@ -433,7 +433,7 @@ describe("thread runtime config", () => {
       childProviderId: "pi",
       expectedPermissionMode: "full",
       parentProviderId: "pi",
-      name: "defaults Pi child execution permission mode to full",
+      name: "honors the explicit full access a Pi thread requires",
       requestedModel: "openai-codex/gpt-5.4",
     },
   ])(
@@ -472,7 +472,12 @@ describe("thread runtime config", () => {
 
         const execution = await buildExecutionOptions(
           harness.deps,
-          { model: requestedModel },
+          {
+            model: requestedModel,
+            ...(childProviderId === "pi"
+              ? { permissionMode: "full" as const }
+              : {}),
+          },
           { threadId: thread.id },
         );
 
@@ -480,6 +485,36 @@ describe("thread runtime config", () => {
       });
     },
   );
+
+  it("refuses to raise the product default to full for a Pi thread, whose only mode is full", async () => {
+    await withTestHarness(async (harness) => {
+      const { host } = seedHostSession(harness.deps, {
+        id: "host-runtime-pi-product-default-permission-mode",
+      });
+      const { project } = seedProjectWithSource(harness.deps, {
+        hostId: host.id,
+      });
+      const environment = seedEnvironment(harness.deps, {
+        hostId: host.id,
+        projectId: project.id,
+      });
+      const thread = seedThread(harness.deps, {
+        projectId: project.id,
+        environmentId: environment.id,
+        providerId: "pi",
+      });
+
+      await expect(
+        buildExecutionOptions(
+          harness.deps,
+          { model: "openai-codex/gpt-5.4" },
+          { threadId: thread.id },
+        ),
+      ).rejects.toThrow(
+        'Provider "pi" supports Full Access, and none of those is at or below "Approve for me" (the product default). This provider requires Full Access',
+      );
+    });
+  });
 
   it("uses project permission defaults for child threads without parent execution history", async () => {
     await withTestHarness(async (harness) => {
@@ -667,7 +702,9 @@ describe("thread runtime config", () => {
           { model: "openai/codex-mini", permissionMode: "accept-edits" },
           { threadId: thread.id },
         ),
-      ).rejects.toThrow("Provider pi only supports full permission mode.");
+      ).rejects.toThrow(
+        'Provider "pi" supports Full Access, and none of those is at or below "Accept Edits" (the requested permission mode). This provider requires Full Access',
+      );
     });
   });
 
@@ -838,6 +875,9 @@ describe("thread runtime config", () => {
                 : providerId === "pi"
                   ? "pi-model"
                   : "claude-sonnet-4-6",
+            ...(providerId === "pi"
+              ? { permissionMode: "full" as const }
+              : {}),
           },
           { threadId: thread.id },
         );

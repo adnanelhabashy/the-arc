@@ -39,7 +39,9 @@ import {
   resolveExistingThreadExecutionPlan,
   type ExistingThreadExecutionInputRequest,
 } from "./thread-execution-plan.js";
-import { clampPermissionModeToHost } from "../hosts/permission-ceiling.js";
+import {
+  requireProviderPermissionMode,
+} from "../hosts/permission-ceiling.js";
 import type { ProviderRegistryService } from "../providers/provider-registry.js";
 import { resolveProviderPlanCommand } from "../providers/provider-plan-command.js";
 import { workspaceContextFromPath } from "../environments/workspace-command-target.js";
@@ -193,10 +195,10 @@ function resolvePromptMode(
 function toRuntimeExecutionOptions(
   args: RuntimeExecutionOptionsArgs,
 ): RuntimeThreadExecutionOptions {
-  const permissionMode = clampPermissionModeToHost(args.deps, {
+  const permissionMode = requireProviderPermissionMode(args.deps, {
     hostId: args.hostId,
-    permissionMode: args.execution.permissionMode,
     providerId: args.providerId,
+    requestedMode: args.execution.permissionMode,
   });
   const promptMode = resolvePromptMode(args.deps.providerRegistry, {
     input: args.input,

@@ -1167,7 +1167,8 @@ describe("public thread interaction routes", () => {
       expect(response.status).toBe(400);
       await expect(readJson(response)).resolves.toEqual({
         code: "invalid_request",
-        message: "Provider pi only supports full permission mode.",
+        message:
+          'Provider "pi" supports Full Access, and none of those is at or below "Accept Edits" (the requested permission mode). This provider requires Full Access, and Arc will not raise the permission level on its own; select Full Access to run it.',
       });
     });
   });

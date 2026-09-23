@@ -22,7 +22,7 @@ import {
 import { createAutomationId } from "./ids.js";
 import {
   providerRoutingForEnvironment,
-  resolvePermissionMode,
+  resolveRequestedPermissionMode,
 } from "./provider-permissions.js";
 import { publishAutomationChange } from "./realtime.js";
 import { isPrintableWorkingDirectoryPath } from "./limits.js";
@@ -602,7 +602,7 @@ export function createAutomationService(args: {
       validateTrigger(payload.trigger, now);
       assertNotRecursiveCreation(db, payload.createdByThreadId);
       if (payload.execution.mode === "agent") {
-        await resolvePermissionMode(
+        await resolveRequestedPermissionMode(
           bb,
           payload.execution.providerId,
           payload.execution.permissionMode,
@@ -695,7 +695,7 @@ export function createAutomationService(args: {
       }
       if (input.execution !== undefined) {
         if (input.execution.mode === "agent") {
-          await resolvePermissionMode(
+          await resolveRequestedPermissionMode(
             bb,
             input.execution.providerId,
             input.execution.permissionMode,
@@ -730,7 +730,7 @@ export function createAutomationService(args: {
           input.agent.permissionMode !== undefined ||
           input.agent.target?.type === "environment"
         ) {
-          await resolvePermissionMode(
+          await resolveRequestedPermissionMode(
             bb,
             updatedExecution.providerId,
             updatedExecution.permissionMode,

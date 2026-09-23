@@ -12,16 +12,20 @@ import { ApiError } from "../../errors.js";
 import type { AppDeps } from "../../types.js";
 import type { ProviderRegistryService } from "../providers/provider-registry.js";
 import {
-  clampPermissionModeToHost,
   isHostPermissionCeilingConflictError,
   resolveEnvironmentHostId,
+  requireProviderPermissionMode,
 } from "../hosts/permission-ceiling.js";
+import {
+  isProviderCapabilityError,
+  ProviderCapabilityError,
+} from "../providers/provider-capability-error.js";
 import {
   DEFAULT_REASONING_LEVEL,
   DEFAULT_SERVICE_TIER,
-  resolveThreadExecutionPermissionMode,
 } from "./thread-default-policy.js";
 import { getLastExecutionOptions } from "./thread-events.js";
+import { isLiveParentThread } from "./thread-parent.js";
 import { getSupportedReasoningLevelsForProvider } from "./thread-reasoning-policy.js";
 
 interface ExecutionPlanFieldInput<TValue> {
@@ -74,39 +78,25 @@ export function resolveExistingThreadPermissionMode(
   const projectDefaults = getProjectExecutionDefaults(deps.db, {
     projectId: thread.projectId,
   });
-  const projectExecution =
-    projectDefaults?.providerId === thread.providerId ? projectDefaults : null;
   const parentThread =
     thread.parentThreadId !== null
       ? getThread(deps.db, thread.parentThreadId)
       : null;
-  const lastExecutionPermissionMode = getLastExecutionOptions(
-    deps,
-    thread.id,
-  )?.permissionMode;
-  const permissionMode = clampPermissionModeToHost(deps, {
+  const parentExecution =
+    parentThread !== null && isLiveParentThread({ parentThread })
+      ? getLastExecutionOptions(deps, parentThread.id)
+      : null;
+  return requireProviderPermissionMode(deps, {
     hostId: resolveEnvironmentHostId(deps, thread.environmentId),
-    permissionMode: resolveThreadExecutionPermissionMode(
-      deps.providerRegistry,
-      {
-        lastExecutionPermissionMode,
-        parentThread,
-        parentThreadExecutionPermissionMode:
-          parentThread !== null
-            ? getLastExecutionOptions(deps, parentThread.id)?.permissionMode
-            : undefined,
-        projectExecutionPermissionMode: projectExecution?.permissionMode,
-        thread,
-      },
-    ),
     providerId: thread.providerId,
+    recordedMode: getLastExecutionOptions(deps, thread.id)?.permissionMode,
+    ...(parentExecution !== null
+      ? { inheritedMode: parentExecution.permissionMode }
+      : {}),
+    ...(projectDefaults?.providerId === thread.providerId
+      ? { projectDefault: projectDefaults.permissionMode }
+      : {}),
   });
-  validateProviderPermissionMode(
-    deps.providerRegistry,
-    thread.providerId,
-    permissionMode,
-  );
-  return permissionMode;
 }
 
 function createMissingThreadExecutionModelError(threadId: string): ApiError {
@@ -117,8 +107,6 @@ function createMissingThreadExecutionModelError(threadId: string): ApiError {
   );
 }
 
-class ProviderCapabilityValidationError extends ApiError {}
-
 function isMissingThreadExecutionModelError(
   error: unknown,
   threadId: string,
@@ -128,12 +116,6 @@ function isMissingThreadExecutionModelError(
     error.body.code === "internal_error" &&
     error.body.message === `Thread ${threadId} has no stored execution model`
   );
-}
-
-function isProviderCapabilityValidationError(
-  error: unknown,
-): error is ProviderCapabilityValidationError {
-  return error instanceof ProviderCapabilityValidationError;
 }
 
 function hasExecutionInput(input: ExistingThreadExecutionInput): boolean {
@@ -193,23 +175,6 @@ export function buildExistingThreadExecutionInput(
   };
 }
 
-function validateProviderPermissionMode(
-  registry: ProviderRegistryService,
-  providerId: string,
-  permissionMode: PermissionMode,
-): void {
-  const supported = registry.getSupportedPermissionModes(providerId);
-  if (!supported || supported.includes(permissionMode)) {
-    return;
-  }
-
-  throw new ProviderCapabilityValidationError(
-    400,
-    "invalid_request",
-    `Provider ${providerId} only supports ${supported.join(", ")} permission mode.`,
-  );
-}
-
 function validateProviderReasoningLevel(
   registry: ProviderRegistryService,
   providerId: string,
@@ -226,7 +191,7 @@ function validateProviderReasoningLevel(
     return;
   }
 
-  throw new ProviderCapabilityValidationError(
+  throw new ProviderCapabilityError(
     400,
     "invalid_request",
     `Provider ${providerId} does not support ${reasoningLevel} reasoning level. Supported reasoning levels: ${supportedLevels.join(", ")}.`,
@@ -275,7 +240,7 @@ export async function resolveExistingThreadExecutionPlan(
       ? getThread(deps.db, thread.parentThreadId)
       : null;
   const parentExecution =
-    parentThread !== null
+    parentThread !== null && isLiveParentThread({ parentThread })
       ? getLastExecutionOptions(deps, parentThread.id)
       : null;
   const model = resolveRequiredField<string>([
@@ -288,29 +253,17 @@ export async function resolveExistingThreadExecutionPlan(
     throw createMissingThreadExecutionModelError(args.threadId);
   }
 
-  const permissionMode = clampPermissionModeToHost(deps, {
+  const permissionMode = requireProviderPermissionMode(deps, {
     hostId:
       args.hostId === undefined
         ? resolveEnvironmentHostId(deps, thread.environmentId)
         : args.hostId,
-    permissionMode: resolveThreadExecutionPermissionMode(
-      deps.providerRegistry,
-      {
-        requestedPermissionMode: args.input.permissionMode?.value,
-        lastExecutionPermissionMode: lastExecution?.permissionMode,
-        parentThread,
-        parentThreadExecutionPermissionMode: parentExecution?.permissionMode,
-        projectExecutionPermissionMode: projectExecution?.permissionMode,
-        thread,
-      },
-    ),
     providerId: thread.providerId,
+    requestedMode: args.input.permissionMode?.value ?? null,
+    recordedMode: lastExecution?.permissionMode ?? null,
+    inheritedMode: parentExecution?.permissionMode ?? null,
+    projectDefault: projectExecution?.permissionMode ?? null,
   });
-  validateProviderPermissionMode(
-    deps.providerRegistry,
-    thread.providerId,
-    permissionMode,
-  );
 
   const reasoningLevel = resolveFieldWithDefault<ReasoningLevel>(
     [
@@ -360,7 +313,7 @@ export async function tryResolveExistingThreadExecutionPlan(
     }
     if (
       !hasExecutionInput(args.input) &&
-      (isProviderCapabilityValidationError(error) ||
+      (isProviderCapabilityError(error) ||
         isHostPermissionCeilingConflictError(error))
     ) {
       return null;

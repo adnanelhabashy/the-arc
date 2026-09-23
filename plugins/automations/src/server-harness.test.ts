@@ -649,24 +649,19 @@ describe("automations server plugin harness", () => {
   });
 
   it.each([
-    {
-      supported: ["accept-edits", "auto", "full"] as const,
-      expected: "auto",
-    },
-    {
-      supported: ["accept-edits", "full"] as const,
-      expected: "full",
-    },
+    { supported: ["accept-edits", "auto", "full"] as const },
+    { supported: ["accept-edits", "full"] as const },
+    { supported: ["full"] as const },
   ])(
-    "defaults agent automations to $expected for provider capabilities",
-    async ({ supported, expected }) => {
+    "stores the product default permission mode regardless of provider capabilities",
+    async ({ supported }) => {
       const { harness } = await bootAutomationsPlugin([...supported]);
       const result = await harness.runCli([
         "create",
         "--project",
         PROJECT_ID,
         "--name",
-        `CLI agent ${expected}`,
+        `CLI agent ${supported.join("-")}`,
         "--at",
         new Date(Date.now() + 60_000).toISOString(),
         "--prompt",
@@ -684,20 +679,20 @@ describe("automations server plugin harness", () => {
       );
       expect(automation.execution).toMatchObject({
         mode: "agent",
-        permissionMode: expected,
+        permissionMode: "auto",
       });
       await harness.dispose();
     },
   );
 
-  it("rejects an explicit mode the automation provider does not support", async () => {
+  it("stores an explicit mode the provider cannot execute, leaving resolution to the server", async () => {
     const { harness } = await bootAutomationsPlugin(["accept-edits", "full"]);
     const result = await harness.runCli([
       "create",
       "--project",
       PROJECT_ID,
       "--name",
-      "Unsupported auto",
+      "Deferred resolution",
       "--at",
       new Date(Date.now() + 60_000).toISOString(),
       "--prompt",
@@ -708,12 +703,17 @@ describe("automations server plugin harness", () => {
       "gpt-5",
       "--permission-mode",
       "auto",
+      "--json",
     ]);
 
-    expect(result).toMatchObject({ exitCode: 1 });
-    expect(result.stderr).toContain(
-      "Permission mode auto is not supported by provider codex",
+    expect(result.exitCode).toBe(0);
+    const automation = automationDetailResponseSchema.parse(
+      JSON.parse(result.stdout ?? ""),
     );
+    expect(automation.execution).toMatchObject({
+      mode: "agent",
+      permissionMode: "auto",
+    });
     await harness.dispose();
   });
 
@@ -1205,7 +1205,7 @@ describe("automations server plugin harness", () => {
     await harness.dispose();
   });
 
-  it("rejects unsupported partial permission updates through RPC and CLI", async () => {
+  it("stores partial permission updates through RPC and CLI without resolving them", async () => {
     const { harness } = await bootAutomationsPlugin(["accept-edits", "full"]);
     const created = await createAgentAutomation(harness);
 
@@ -1218,19 +1218,19 @@ describe("automations server plugin harness", () => {
           permissionMode: "auto",
         },
       }),
-    ).rejects.toThrow(
-      "Permission mode auto is not supported by provider codex.",
-    );
+    ).resolves.toMatchObject({
+      execution: { mode: "agent", permissionMode: "auto" },
+    });
 
     await expect(
       harness.callRpc("automations_update", {
         projectId: PROJECT_ID,
         automationId: created.id,
-        agent: { permissionMode: "auto" },
+        agent: { permissionMode: "accept-edits" },
       }),
-    ).rejects.toThrow(
-      "Permission mode auto is not supported by provider codex.",
-    );
+    ).resolves.toMatchObject({
+      execution: { mode: "agent", permissionMode: "accept-edits" },
+    });
 
     const cliResult = await harness.runCli([
       "update",
@@ -1239,21 +1239,19 @@ describe("automations server plugin harness", () => {
       PROJECT_ID,
       "--permission-mode",
       "auto",
+      "--json",
     ]);
-    expect(cliResult.exitCode).toBe(1);
-    expect(cliResult.stderr).toContain(
-      "Permission mode auto is not supported by provider codex.",
-    );
+    expect(cliResult.exitCode).toBe(0);
 
-    const unchanged = automationDetailResponseSchema.parse(
+    const updated = automationDetailResponseSchema.parse(
       await harness.callRpc("automations_get", {
         projectId: PROJECT_ID,
         automationId: created.id,
       }),
     );
-    expect(unchanged.execution).toMatchObject({
+    expect(updated.execution).toMatchObject({
       mode: "agent",
-      permissionMode: "accept-edits",
+      permissionMode: "auto",
     });
 
     await harness.dispose();

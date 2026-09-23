@@ -130,7 +130,7 @@ async function loadCatalogDefaultForProvider(
       true,
     );
   }
-  return buildProviderThreadExecutionDefaults(deps.providerRegistry, {
+  return buildProviderThreadExecutionDefaults({
     providerId: args.providerId,
     model: defaultModel.model,
   });

@@ -28,7 +28,7 @@ import type {
 } from "./rpc-types.js";
 import {
   providerRoutingForEnvironment,
-  resolvePermissionMode,
+  resolveRequestedPermissionMode,
 } from "./provider-permissions.js";
 import {
   AUTOMATION_RUNS_LIMIT_DEFAULT,
@@ -140,7 +140,7 @@ const AGENT_OPTIONS = {
     type: "enum",
     values: permissionModeSchema.options,
     description:
-      "Permission mode; defaults to the provider's best of auto then full",
+      "Permission mode; defaults to auto, adapted to what the provider supports",
   },
   "target-thread": {
     type: "string",
@@ -647,7 +647,7 @@ async function buildExecution(
         ...(serviceTier === undefined || serviceTier === "none"
           ? {}
           : { serviceTier }),
-        permissionMode: await resolvePermissionMode(
+        permissionMode: await resolveRequestedPermissionMode(
           bb,
           provider,
           options["permission-mode"],
