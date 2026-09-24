@@ -3,6 +3,7 @@ export * from "./backend.js";
 export * from "./binding.js";
 export * from "./paths.js";
 export * from "./process.js";
+export * from "./ownership.js";
 export * from "./health.js";
 export * from "./client.js";
 export * from "./release.js";

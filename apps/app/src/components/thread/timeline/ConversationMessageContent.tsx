@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type {
   TimelineConversationAttachments,
   TimelineRowBase,
@@ -72,6 +72,10 @@ import {
 import type { ThreadTimelinePluginMessageAction } from "./types.js";
 import type { PromptDraftAttachment } from "@bb/client-core";
 import { buildMarkdownMessageLinkRouting } from "@/components/ui/markdown-message-link-routing";
+import { isDocumentVisible } from "@/lib/document-visibility";
+import { useMessageSpeech } from "./message-speech.js";
+import { useAutoSpeakReplies } from "./auto-speak-replies";
+import { useThreadVoiceAgent } from "./use-thread-voice-agent.js";
 
 interface ConversationMessageContentBaseProps {
   attachments: TimelineConversationAttachments | null;
@@ -126,6 +130,8 @@ const ASSISTANT_THREAD_MENTIONS: MarkdownThreadMentions = {
 const STREAMING_SETTLED_MARKDOWN_CLASS_NAME = "[&>p:last-child]:mb-2";
 const STREAMING_TAIL_MARKDOWN_CLASS_NAME =
   "[&>h1:first-child]:mt-4 [&>h2:first-child]:mt-4 [&>h3:first-child]:mt-3 [&>h4:first-child]:mt-3 [&>h5:first-child]:mt-2 [&>h6:first-child]:mt-2";
+
+const spokenMessageIds = new Set<string>();
 
 interface ConversationMessageContentAssistantProps
   extends ConversationMessageContentBaseProps, AssistantMessageRowIdentity {
@@ -489,6 +495,32 @@ function AssistantConversationMessage({
   turnId,
   workspaceRootPath,
 }: AssistantConversationMessageProps) {
+  const speech = useMessageSpeech();
+  const autoSpeakReplies = useAutoSpeakReplies();
+  const voiceAgent = useThreadVoiceAgent();
+  const prevStreamingRef = useRef(streaming);
+
+  useEffect(() => {
+    const wasStreaming = prevStreamingRef.current;
+    prevStreamingRef.current = streaming;
+    if (!wasStreaming || streaming) {
+      return;
+    }
+    const visibleText = text.trim();
+    if (visibleText.length === 0 || !autoSpeakReplies) {
+      return;
+    }
+    if (!isDocumentVisible() || spokenMessageIds.has(id)) {
+      return;
+    }
+    spokenMessageIds.add(id);
+    if (voiceAgent) {
+      speech.speak(id, visibleText, voiceAgent);
+    } else {
+      speech.speak(id, visibleText);
+    }
+  }, [autoSpeakReplies, id, speech, streaming, text, voiceAgent]);
+
   const streamingSplit = useMemo(
     () => (streaming ? splitStreamingMarkdown(text) : null),
     [streaming, text],
@@ -615,6 +647,8 @@ function AssistantConversationMessage({
           onSendToMain={onSendToMain}
           disabled={forkDisabled}
           pluginActions={pluginActions}
+          messageId={id}
+          speakText={streaming ? undefined : text}
         />
       ) : null}
     </div>

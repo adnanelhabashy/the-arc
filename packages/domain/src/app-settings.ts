@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { completedTurnDisplaySchema } from "./completed-turn-display.js";
 import { isValidGitBranchName } from "./git-checkout.js";
+import {
+  defaultVoiceSettings,
+  voiceSettingsSchema,
+} from "./voice-settings.js";
 
 export const MANAGED_BRANCH_PREFIX_MAX_LENGTH = 64;
 
@@ -42,6 +46,7 @@ export const appSettingsSchema = z
     machineGitCredentialsEnabled: z.boolean(),
     defaultMachineAccess: z.string().min(1).nullable(),
     onboardingCompleted: z.boolean(),
+    voice: voiceSettingsSchema,
   })
   .strict();
 export type AppSettings = z.infer<typeof appSettingsSchema>;
@@ -60,6 +65,7 @@ export const defaultAppSettings: AppSettings = {
   defaultMachineAccess: null,
   machineGitCredentialsEnabled: true,
   onboardingCompleted: false,
+  voice: defaultVoiceSettings,
 };
 
 export const appSettingsUpdateSchema = z.union([

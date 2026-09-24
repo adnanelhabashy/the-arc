@@ -9,9 +9,10 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { COMPACT_VIEWPORT_QUERY } from "@bb/shared-ui/hooks/use-compact-viewport";
 import { POINTER_COARSE_QUERY } from "@bb/shared-ui/hooks/use-pointer-coarse";
+import type { MessageSpeechPhase } from "./message-speech";
 import {
   computeMessageActionRowLayout,
   findMessageActionTooltipCollisionBoundary,
@@ -19,10 +20,108 @@ import {
   MessageColumnWidthContext,
 } from "./MessageActionBar";
 
+const speechMocks = vi.hoisted(() => {
+  const mocks: {
+    state: MessageSpeechPhase;
+    activeMessageId: string | null;
+    speak: Mock;
+    stop: Mock;
+  } = {
+    state: "idle",
+    activeMessageId: null,
+    speak: vi.fn(),
+    stop: vi.fn(),
+  };
+  return mocks;
+});
+
+vi.mock("./message-speech", () => ({
+  useMessageSpeech: () => speechMocks,
+}));
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+describe("MessageActionBar speak action", () => {
+  beforeEach(() => {
+    speechMocks.state = "idle";
+    speechMocks.activeMessageId = null;
+    speechMocks.speak.mockClear();
+    speechMocks.stop.mockClear();
+  });
+
+  it("renders the speak action and starts speech for the supplied message", () => {
+    render(
+      <MessageActionBar
+        messageText="Hello there."
+        alignment="start"
+        mobileActionDisplay="inline"
+        messageId="msg-1"
+        speakText="Hello there."
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Speak message" });
+    fireEvent.click(button);
+    expect(speechMocks.speak).toHaveBeenCalledWith("msg-1", "Hello there.");
+  });
+
+  it("toggles to stop speaking with a visible phase label while active", () => {
+    speechMocks.state = "speaking";
+    speechMocks.activeMessageId = "msg-1";
+    render(
+      <MessageActionBar
+        messageText="Hello there."
+        alignment="start"
+        mobileActionDisplay="inline"
+        messageId="msg-1"
+        speakText="Hello there."
+      />,
+    );
+
+    expect(screen.getByText("Speaking…")).toBeTruthy();
+    const button = screen.getByRole("button", { name: "Stop speaking" });
+    fireEvent.click(button);
+    expect(speechMocks.stop).toHaveBeenCalled();
+  });
+
+  it.each([
+    ["preparing", "Preparing voice…"],
+    ["generating", "Generating speech…"],
+    ["speaking", "Speaking…"],
+  ] as const)("shows the %s phase label while active", (state, label) => {
+    speechMocks.state = state;
+    speechMocks.activeMessageId = "msg-1";
+    render(
+      <MessageActionBar
+        messageText="Hello there."
+        alignment="start"
+        mobileActionDisplay="inline"
+        messageId="msg-1"
+        speakText="Hello there."
+      />,
+    );
+
+    expect(screen.getByText(label)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Stop speaking" })).toBeTruthy();
+  });
+
+  it("does not render the speak action without a message id or text", () => {
+    render(
+      <MessageActionBar
+        messageText="Hello there."
+        alignment="start"
+        mobileActionDisplay="inline"
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Speak message" }),
+    ).toBeNull();
+  });
 });
 
 function installControlledResizeObserver() {

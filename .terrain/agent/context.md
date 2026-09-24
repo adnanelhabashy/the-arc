@@ -7,91 +7,102 @@ source: .
 
 ## Project Overview
 
-BB ("the-arc") is a multi-platform agent runtime and product surface (web, desktop, mobile) with a shared server, host daemon, provider bridges, and a plugin system. Purpose: run agentic workflows across local/remote hosts with execution control, threads, environments, skills, and marketplace distribution. Constraints: TypeScript monorepo (pnpm + Turbo), SQLite (Drizzle), provider-bridge protocol (ACP/Claude/Codex/Pi), packaged desktop (Electron), mobile (Expo), plugin provenance rules, and strict build/test orchestration.
+**the-arc** is The Arc, Adnan's personal distribution of **bb** — an open-source (MIT) agentic IDE / agent control plane. Instead of a chat wrapper over one model, bb launches real coding-agent **provider processes** (Codex, Claude Code, Pi, ACP, OMP) on the machine where work happens, bridges their output into a single typed event stream, and persists everything to a local SQLite database. A **thread** is the unit of work: conversation + lifecycle state + environment (directory on disk) + provider. All surfaces (web, desktop, mobile, CLI) drive the same engine.
+
+This checkout layers Arc-specific productization on the upstream bb monorepo: the **Arc layer** (`plugins/arc-core`, `packages/arc-domains`, `packages/arc-voice-host`) adds managed agent runtimes, OMP account/usage/pooling, and a closed provider catalog; `adnan/` adds the Mission Control plugin, a cyberpunk theme, installers, and productization records. Engines: Node ≥22.19, pnpm + Turbo, TS.
 
 ## Architecture
 
-| Layer | Role | Key Components |
+Three-tier execution core, plus plugin and Arc layers.
+
+| Tier | Container | Responsibility |
 |---|---|---|
-| Client (App/Web) | UI surface and thread runtime state | `apps/app` (React/Vite), timeline, prompt/composer, secondary panel, split layout, theme system |
-| Desktop | Packaged client + native integration | `apps/desktop` (Electron), browser capture/CDP, auto-update, menu, window state |
-| Mobile | Mobile shell + native bridge | `apps/mobile` (Expo/React Native), webview/profile shell, push notifications, share intents |
-| Server | Product API, orchestration, state | `apps/server` (Node), routes, services (threads, environments, plugins, providers, skills), DB, WS hub |
-| Host Daemon | Host-local primitives and execution | `apps/host-daemon`, command handlers, runtime manager, terminals, file ops, plugin-host manager, workspace resolution |
-| Provider Bridges | Provider translation to BB runtime | `packages/provider-bridge-*` (ACP, Claude Code, Codex, Pi), protocol/grammar, recordings, conformance |
-| Agent Runtime | Thread execution + provider registry | `packages/agent-runtime`, bridge adapters, execution options, runtime state |
-| Plugins | Extensible surfaces/behaviors | `plugins/*`, plugin SDK/build, host artifacts, marketplace/catalog |
-| Data | Persistence and schema | `packages/db` (Drizzle/SQLite), migrations, schema, data services |
-| Shared Contracts | Cross-boundary types/protocols | `packages/*-contract`, `domain`, `client-core`, `sdk` |
+| Product policy | `apps/server` | Owns defaults, instructions, manager/tool behavior, thread & turn orchestration, timeline persistence, plugin hosting, REST routes + WebSocket hub |
+| Host-local | `apps/host-daemon` | Host primitives, provider process translation, terminal/runtime/session management, workspace execution, file ops, watch |
+| Runtime | provider processes | Codex / Claude Code / Pi / ACP / OMP agent CLIs spawned via per-provider bridges |
+
+Boundary rule: the **server owns product policy**; the **daemon returns raw host-local data** and ships it over a WebSocket wire protocol versioned by `HOST_DAEMON_PROTOCOL_VERSION` (currently 215). Every server/daemon wire change bumps it unless deliberate drop-in compatibility is tested.
+
+- **Apps layer**: `apps/desktop` (Electron shell + embedded browser broker/CDP + arc runtime provisioning), `apps/app` (React SPA), `apps/mobile` (Expo), `apps/cli` (thin `bb` CLI), Cloudflare Workers `apps/web`, `apps/connect`, `apps/demo-server`.
+- **Plugin layer**: `plugins/` (bundled + third-party feature plugins, provider bridges), `packages/plugin-build` + `plugin-sdk` + `@bb/bundled-plugins`; plugins ship as `prepare:bundled` output, run from `~/.bb/plugin-host-artifacts/<id>/<digest>/host.mjs`, with strict provenance rules.
+- **Arc layer**: `plugins/arc-core` (RPC contract for agents/accounts/usage), `packages/arc-domains` (shared domain logic), `packages/arc-voice-host`, `adnan/` (Mission Control UI plugin, theme, installers). Arc mode is declared by env (`BB_ARC_RUNTIME_ROOT`, `BB_ARC_APP_VERSION`, `BB_ARC_SEED_ROOT`); absent env ⇒ every RPC reports `arc-unavailable`.
+- Cross-cutting packages: `domain` (shared pure domain), `db`/`connect-db` (Drizzle + SQLite), `server-contract`/`host-daemon-contract`/`desktop-contract` (wire contracts), `client-core`/`thread-view` (timeline projection), `provider-bridge-protocol`/`provider-bridge-acp` (delta grammar + conformance), `shared-ui`/`core-ui`.
 
 ## Module Map
 
 | Module | Responsibility | Primary paths |
 |---|---|---|
-| Threads & Timeline | Thread lifecycle, dispatch, events, timeline projection | `apps/server/src/services/threads`, `packages/thread-view`, `apps/app/src/components/thread`, `apps/app/src/views/thread-detail` |
-| Environments & Workspaces | Provisioning, providers, workspace resolution, hooks | `apps/server/src/services/environments`, `apps/host-daemon/src/command-handlers/environment*`, `apps/app/src/hooks/queries/environment*`, `packages/environment-provider-host` |
-| Providers & Bridges | Provider registry, model catalogs, bridge translation | `apps/server/src/services/providers`, `packages/agent-runtime`, `packages/provider-bridge-*`, `plugins/provider-*` |
-| Plugins | Registration, runtime, host artifacts, catalog/marketplace | `apps/server/src/services/plugins`, `packages/plugin-*`, `plugins/*`, `apps/app/src/components/plugin`, `apps/app/src/hooks/plugin*` |
-| Host Daemon & Terminals | Host RPC, terminals, files, skills, runtime | `apps/host-daemon/src`, `apps/server/src/services/hosts`, `apps/server/src/services/terminals`, `apps/app/src/components/thread/terminal` |
-| Projects & Sections | Project sources, worktrees, sections, attachments | `apps/server/src/services/projects`, `apps/app/src/components/project`, `apps/app/src/components/sidebar`, `apps/app/src/views/project-detail*` |
-| Skills & Commands | Skill registry/catalog, injected/builtin, command discovery | `apps/server/src/services/skills`, `apps/host-daemon/src/command-discovery*`, `apps/app/src/components/tools/Skills*`, `apps/cli/src/commands/skill*` |
-| UI Shell & Layout | Sidebar, split layout, secondary panel, routing, toasts | `apps/app/src/components/layout`, `apps/app/src/components/sidebar`, `apps/app/src/components/secondary-panel`, `apps/app/src/lib/split-layout` |
-| Data Access | Schema/migrations, data services, queries | `packages/db/src`, `apps/app/src/hooks/queries`, `apps/server/src/routes`, `packages/db/drizzle` |
-| Platform Surfaces | Desktop/mobile integration and bridges | `apps/desktop/src`, `apps/mobile/src`, `apps/connect`, `apps/web` |
+| Server | Thread/turn dispatch, timeline, environments, providers, plugin hosting, REST + WS | `apps/server/src/{index,server,db}.ts`, `routes/`, `services/`, `ws/` |
+| Host daemon | Host primitives, provider processes, terminals, workspace exec, file ops, enrollment | `apps/host-daemon/src/{daemon,app,command-*,plugin-host-manager}.ts` |
+| Desktop | Electron shell, browser broker (CDP), connect session, server spawning, arc runtime seed | `apps/desktop/src/{main,preload,desktop-browser-*,bb-process,owned-runtime-supervisor}.ts` |
+| Web app | Thread timeline UI, promptbox, plugin slots, secondary panel, settings, machine mgmt | `apps/app/src/components/`, `views/`, `hooks/{queries,mutations,cache-owners}/` |
+| CLI | `bb` command surface over SDK (threads, envs, machines, plugins, skills, server-move) | `apps/cli/src/commands/`, `client.ts` |
+| Mobile | Expo client: connect profiles, webview shell, push | `apps/mobile/src/{screens,data,realtime,session,shell}/` |
+| Cloudflare | Connect tunnel (Durable Object), marketplace/site/auth | `apps/connect/src/`, `apps/web/src/routes/`, `apps/demo-server/src/` |
+| Arc layer | Managed runtimes, agents, accounts, usage, voice, Arc RPC | `packages/arc-domains/src/`, `plugins/arc-core/src/`, `packages/arc-voice-host/src/` |
+| Arc distro layer | Mission Control, cyberpunk theme, installers, productization records | `adnan/plugins/adnan-mission-control/`, `adnan/plugins/cyberpunk-terminal/`, `adnan/theme/`, `adnan/install.*` |
+| Persistence & contracts | Drizzle schema/migrations, domain types, wire contracts, DB data access | `packages/db/`, `packages/domain/`, `packages/server-contract/`, `packages/host-daemon-contract/`, `packages/db/drizzle/` |
+| Provider bridges | Translate provider-specific streams into the canonical event/delta grammar | `plugins/provider-codex/src/bridge/`, `provider-claude-code/src/bridge/`, `provider-pi/src/bridge/`, `provider-acp/src/`, `account-pool/src/`, `packages/provider-bridge-protocol/`, `provider-bridge-acp/` |
+| Plugin toolchain | SDK, build, registry, bundled set, marketplace | `packages/plugin-sdk/`, `plugin-build/`, `plugin-registry/`, `bundled-plugins/`, `plugins/bb-official.json` |
+| Feature plugins | tasks, workflows, automations, side-chat, secrets, memory, github, exchange-mail, push | `plugins/<name>/src/server.ts` + `app.tsx` |
 
 ## Core Flows
 
-1. **Thread creation & dispatch**: User creates thread (UI/CLI) → server validates/request → environment provisioned/selected → provider bridge launched → first turn dispatched → events streamed to clients via WS.
-2. **Execution via provider bridge**: Server/runtime sends turn to provider bridge → bridge translates protocol (ACP/Claude/Codex/Pi) → provider executes → deltas/events mapped to BB grammar → timeline/state updated → outputs persisted.
-3. **Host operations**: UI/agent actions require host-local ops → server routes to host daemon (RPC) → daemon executes (files/terminals/env/workspace) → results returned → state synchronized.
-4. **Plugin lifecycle**: Plugin installed/registered (catalog/marketplace/bundled) → build/host artifacts resolved with provenance → frontend/backend loaded in isolated scopes → contributions (commands/skills/slides/panels) exposed to surfaces.
+1. **Thread create → send → dispatch**
+   User composes on any surface → server runs `thread-create`/`thread-send` (`apps/server/src/services/threads/`) → validates permission modes and execution options → provisions an environment (workspace dir via daemon) → queues/turns dispatch to the provider → turn events land in the timeline (`thread-timeline.ts`, `timeline-*.ts`) → persisted to SQLite and streamed over WebSocket to all open surfaces; queued-message dispatch handles low-water conditions.
+
+2. **Provider orchestration & delta bridging**
+   Server asks the host daemon for a provider launch → daemon spawns the provider bridge process (or Arc's managed runtime) → bridge translates vendor-specific streams (Codex/Claude/Pi/ACP/OMP) into the canonical event grammar (`provider-bridge-protocol`) → daemon emits deltas; server assembles typed timeline rows. Permission/approval, user-question, and plan-mode interactions are routed through `pending-interactions`.
+
+3. **Arc-mode agent execution (pinned, fail-closed)**
+   In Arc mode the catalog is filtered to OMP/Codex/Claude; agents launch only the manifest-pinned managed runtime path (never PATH). `ArcAccountService` reads the OMP auth-broker snapshot (`/v1/snapshot`, bearer token, `127.0.0.1:8765`), the layer pins/rents a broker hold and writes an account-pool file per account, then `arc-core` contributes `OMP_AUTH_BROKER_URL/TOKEN/ACCOUNT_POOL_FILE` env to the provider process. Absent Arc env ⇒ `arc-unavailable`.
+
+4. **Enrollment, server-move & remote access**
+   A machine enrolls to the server via the host daemon (`apps/host-daemon/src/enroll.ts`, `machine-auth-proxy.ts`). Moving/retiring servers runs the `server-move` freeze/export/switch/reconcile pipeline on both sides. Remote access goes through the `apps/connect` Cloudflare worker: machine code + redeem + revoke (`api.connect.*`), with a Durable-Object tunnel (`tunnel-do.ts`) and connect-db persistence.
 
 ## Tech Stack
 
-- **Language/Runtime**: TypeScript, Node.js, React 19, React Native (Expo)
-- **Build/Orchestration**: pnpm workspaces, Turbo (build/typecheck/test orchestration)
-- **Frontend**: Vite, React Compiler, TipTap/ProseMirror, Tailwind/shadcn, shared UI (`packages/shared-ui`)
-- **Desktop**: Electron
-- **Mobile**: Expo, EAS, native modules
-- **Server/API**: Node server (`apps/server`), routes/services, WebSocket hub, typed routes (`packages/hono-typed-routes`)
-- **Database**: SQLite via Drizzle ORM, migrations in `packages/db/drizzle`
-- **Protocols/Bridges**: ACP, Claude Code, Codex, Pi provider bridges; provider-bridge-protocol grammar/recordings
-- **Plugins/SDK**: Plugin SDK/build (`packages/plugin-sdk`, `packages/plugin-build`), API map, registry
-- **Testing/Tooling**: Vitest (shared config), oxlint, tsconfig base, scripts
+- **Monorepo**: pnpm 9 + Turborepo; TS (typescript@6, `typescript-7` alias); Vitest; oxlint.
+- **Server**: Hono + `hono-typed-routes`, Zod 4 (pinned override), SQLite via **Drizzle** (`packages/db`, 128 migrations), WebSocket hub.
+- **Frontend**: React 19 + Vite SPA (apps/app); TanStack Router on `apps/web`; Tailwind/NativeWind; Tiptap prompt editor; pluggable component registry (`shared-ui`, `plugin-registry`).
+- **Desktop**: Electron 41 (+ electron-builder), CDP-based embedded browser broker; bundles the server/daemon via `packages/bb-app`.
+- **Mobile**: Expo/React Native 57, expo push, `mobile-bridge` webview bridge to the web app.
+- **Cloudflare Workers**: connect (Durable Objects), web site/marketplace/auth, demo-server.
+- **Provider bridges**: per-vendor adapters + recorded conformance corpus (`packages/provider-bridge-protocol/recordings/`).
+- **Arc**: managed runtimes under `Agent/arc-runtimes/runtimes/<runtime>/<version>/`, OMP auth broker, `arc-voice-host` runtime, `arc-domains` shared package.
 
 ## System Boundaries
 
-| Boundary | Type | Description |
-|---|---|---|
-| Browser ↔ Server | HTTP/WS | App API, realtime events, thread/timeline state, file previews |
-| Server ↔ Host Daemon | WebSocket/RPC | Host-local operations (files, terminals, workspaces, environments, skills), enrollment, lifecycle |
-| Server ↔ Provider Bridges | Process/IPC (bridge protocol) | Turn dispatch, deltas, approvals, tool calls, model/catalog, maintenance |
-| Desktop ↔ Host/Server | Electron IPC + native | Browser capture/CDP, auto-update, window/menu, packaged app lifecycle |
-| Mobile ↔ Server/Profile | HTTP + native bridge | Connect profiles, realtime, push notifications, share intents |
-| Plugins ↔ Host/Server/App | Isolated runtime + host artifacts | Frontend/backend contributions, RPC, slots, provenance-gated artifact resolution |
-| External Providers | Network APIs | Model providers via bridges (Claude/Codex/ACP/Pi) and marketplace/catalog sources |
-| Storage | Filesystem/DB | SQLite DB, thread storage, plugin artifacts, workspace paths, logs |
-| Marketplace/Catalog | HTTP | Curated/bundled marketplace, icons, stats, publish sources |
+| Boundary | Detail |
+|---|---|
+| Server ↔ host daemon | WebSocket; `HOST_DAEMON_PROTOCOL_VERSION` guard; raw host data up, policy down |
+| Server ↔ provider processes | Spawned via daemon/bridge; permission modes, env redaction, stdin-only secrets |
+| SQLite | `packages/db` (state/timeline/plugins/threads), `packages/connect-db`, OMP's own `agent.db` (never written by Arc) |
+| Plugin runtime | `@get-bb/plugin-sdk` API; built app bundles (`plugin-build`); provenance: `plugins.root_dir` must point inside the launched app and artifacts hash to that app's `dist/host.js`; builtin plugins never run from another app |
+| Marketplace | Curated/bundled marketplaces, `bb-official.json`, marketplace-v2 schema served by `apps/web` |
+| OMP broker | Bearer-guarded local HTTP API; credentials live in OMP `agent.db`; Arc only drives broker subcommands and the snapshot allowlist |
+| Electron ↔ OS | CDP browser automation, keyboard shortcuts, window state, auto-update version feeds |
+| Cloudflare ↔ clients | connect machine-code/redeem/revoke, tunnel sessions, mobile push, web auth |
+| External services | GitHub (`plugins/github`), Exchange EWS (`exchange-mail`), provider CLIs/clouds, model inference, voice transcription |
 
 ## Code Map Index
 
-| Concept | Location (paths only) | Notes |
+| Concept | Location | Notes |
 |---|---|---|
-| App UI root | `apps/app/src/App.tsx` | Client surface entry |
-| Server entry/routes | `apps/server/src` | API, services, WS hub |
-| Host daemon | `apps/host-daemon/src` | Host RPC and execution |
-| CLI | `apps/cli/src` | `bb` CLI commands |
-| Desktop app | `apps/desktop/src` | Electron main/preload/UI integration |
-| Mobile app | `apps/mobile/src` | Expo shell, screens, bridge |
-| Web | `apps/web/src` | Marketing/site |
-| DB schema/migrations | `packages/db` | Drizzle schema, drizzle/* migrations |
-| Agent runtime | `packages/agent-runtime/src` | Runtime/bridge adapters |
-| Provider bridges | `packages/provider-bridge-*` | ACP/Claude/Codex/Pi bridges + protocol |
-| Plugin SDK/build | `packages/plugin-sdk`, `packages/plugin-build` | SDK, build/toolchain, host artifacts |
-| Plugin API map/registry | `packages/plugin-api-map`, `packages/plugin-registry` | Surfaces, anatomy, registry |
-| Domain/types | `packages/domain/src` | Shared domain models |
-| Shared UI | `packages/shared-ui/src` | UI primitives/components |
-| Client core/sdk | `packages/client-core`, `packages/sdk` | Client types/API, realtime |
-| Bundled plugins | `packages/bundled-plugins` | Bundled assembly |
-| Plugins (builtins) | `plugins/*` | Core/official plugins |
-| Migrations SQL | `packages/db/drizzle` | Versioned SQL migrations |
+| Thread/turn orchestration | `apps/server/src/services/threads/` | create, send, dispatch, fork, archive |
+| Timeline projection | `packages/thread-view/src/` | event → rows, compaction, streaming |
+| Server routes | `apps/server/src/routes/` | Hono typed routes |
+| WS hub / protocols | `apps/server/src/ws/` | client/daemon/terminal protocols |
+| DB schema + migrations | `packages/db/` | `schema.ts`, `drizzle/`, `data/` |
+| Daemon command dispatch | `apps/host-daemon/src/` | `command-*.ts`, `plugin-host-manager.ts` |
+| Provider bridges | `plugins/provider-{codex,claude-code,pi,acp}/src/bridge/` | delta translation |
+| ACP/grammar | `packages/provider-bridge-protocol/src/` | grammar, conformance, recordings |
+| Arc domains | `packages/arc-domains/src/{arc-runtime,arc-agent,arc-account,arc-usage}/` | shared Arc logic |
+| Arc RPC plugin | `plugins/arc-core/src/` | `contract.ts`, `server.ts`, `voice-host.ts` |
+| Account pooling | `plugins/account-pool/src/` | pool, quota, usage, broker holds |
+| Mission Control | `adnan/plugins/adnan-mission-control/` | Arc admin UI plugin |
+| Productization record | `adnan/arc-productization/` | BASELINE, DECISIONS, IMPLEMENTATION_LOG |
+| SDK / CLI / App | `packages/sdk/src/`, `apps/cli/src/`, `packages/bb-app/`, `apps/desktop/src/` | end-user surfaces |
+| Plugin provenance | `docs/plugin-provenance.md`, `packages/bundled-plugins/build.ts` | assembly guarantees |
+
+Architecture context: upstream `docs/system-overview.md`, `docs/repository-overview.md`, `docs/lifecycle-diagrams.md`; Arc product decisions live in `adnan/arc-productization/DECISIONS.md` (ADRs 047, 071, and Phase 1–10 plans in `IMPLEMENTATION_LOG.md`).

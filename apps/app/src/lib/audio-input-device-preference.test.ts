@@ -15,8 +15,32 @@ describe("audio input device preference", () => {
   });
 
   it("builds default and exact-device getUserMedia constraints", () => {
-    expect(buildAudioInputConstraints(null)).toEqual({ audio: true });
+    expect(buildAudioInputConstraints(null)).toEqual({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
     expect(buildAudioInputConstraints("studio-mic")).toEqual({
+      audio: {
+        deviceId: { exact: "studio-mic" },
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
+  });
+
+  it("omits noise-reduction constraints when explicitly disabled", () => {
+    expect(
+      buildAudioInputConstraints(null, { reduceBackgroundNoise: false }),
+    ).toEqual({ audio: true });
+    expect(
+      buildAudioInputConstraints("studio-mic", {
+        reduceBackgroundNoise: false,
+      }),
+    ).toEqual({
       audio: { deviceId: { exact: "studio-mic" } },
     });
   });

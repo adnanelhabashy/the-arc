@@ -356,6 +356,7 @@ describe("the AI service host binding", () => {
         {
           serviceId: "acme-ai",
           model: "acme-ears",
+          language: null,
           audioBase64: "AAAA",
           mimeType: "audio/webm",
           filename: "prompt.webm",

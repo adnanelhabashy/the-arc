@@ -180,6 +180,17 @@ selected browser `MediaDevices` device id in localStorage as
 `bb.voiceInput.audioInputDeviceId`; it does not change `bb-app config` or the
 server-side transcription model.
 
+Arc-owned launches read the local speech engine and voice preset from the host
+worker environment. `ARC_VOICE_TTS_ENGINE` (default `kokoro`) selects the
+text-to-speech engine and `ARC_VOICE_TTS_VOICE` (default `af_heart`) selects the
+preset voice. The first `Speak` downloads the engine's model on demand — about
+327 MB for the default `kokoro` engine — so the first spoken reply is slower
+than later ones. `qwen_custom_voice` (voice `Ryan`) is an alternative engine that
+sounds like Qwen3-TTS but first downloads a much larger model; the base `qwen`
+engine has no preset voices and needs a cloned voice, which the voice gallery
+introduces later. Spoken replies are capped at 1200 characters of derived text
+and 24 MB of returned audio.
+
 The built-in Push notifications plugin uses `expoPushUrl` for its relay URL.
 The default is `https://exp.host/--/api/v2/push/send`. Change it with
 `bb plugin config push-notifications set expoPushUrl <url>`. The plugin reads
@@ -1285,6 +1296,56 @@ that on check results.
 Update confirmation matches install (full-trust code; `--yes` skips; non-TTY
 refuses without it). Plugins are full-trust code running inside the bb server
 process: they can read all local bb data, including other plugins' secrets.
+
+### Exchange Mail plugin
+
+The bundled Exchange Mail plugin connects one on-premises Microsoft Exchange
+mailbox over EWS (Exchange Web Services) and gives agents and automations mail
+tools. It is off until configured; enable it and fill in its settings from
+Settings → Installed plugins.
+
+| Setting | Meaning |
+| --- | --- |
+| Email | Mailbox address, also used to resolve the mailbox identity |
+| Username / Domain | Account used for authentication; domain is optional |
+| EWS URL | `https://` endpoint, for example `https://mail.company.local/EWS/Exchange.asmx` |
+| Authentication | `ntlm` (default) or `basic`, only if the server requires it |
+| Password | Secret setting, stored in `<dataDir>/plugins/exchange-mail/secrets/` (0600) and never in the database or the browser |
+| CA certificate file | Optional absolute path to a PEM bundle on the machine running the bb server, for an internal certificate authority. TLS verification stays enabled; this adds a trusted CA, it never disables checking |
+| Allow read | Listing, searching, reading, and downloading attachments |
+| Allow create drafts | Creating drafts in the Drafts folder |
+| Allow mark read/unread | Changing a message's read flag |
+| Allow move messages | Moving a message between well-known folders |
+| Allow send and reply | Sending new mail and replies |
+| Allow automated send and reply | Additionally required when a plugin or automation started the run |
+
+Reading is allowed once the connection is configured. Sending and replying are
+off by default, and a run that a plugin or automation started needs
+`Allow automated send and reply` as well, so an automation cannot gain send
+permission from read permission alone. Deleting mail is not implemented.
+
+Folders are limited to well-known names: `inbox`, `drafts`, `sentitems`,
+`deleteditems`, `junkemail`, `archive`, and `msgfolderroot`.
+
+The connection can be checked from Settings (Test Connection) or from an agent
+or terminal:
+
+```sh
+bb mail test [--json]
+bb mail unread [--folder inbox] [--limit 25] [--json]
+bb mail search "query" [--folder inbox] [--json]
+bb mail show <id> [--body-type html] [--json]
+bb mail attachments <id> [--json]
+bb mail download <attachmentId> --directory <dir> [--json]
+bb mail draft --to <address> --subject <text> --body <text>
+bb mail send --to <address> --subject <text> --body <text> --confirm
+bb mail reply <id> --body <text> --confirm
+bb mail mark-read <id> [--unread]
+bb mail move <id> --to archive
+```
+
+`--confirm` is required by `send` and `reply`. Message content is treated as
+untrusted: the agent tools say so, and the plugin never renders message HTML.
 
 ## Startup Flags
 

@@ -16,6 +16,7 @@ import { SkillTreeRegistry } from "./services/skills/injected-skills.js";
 import { PluginHostArtifactRegistry } from "./services/plugins/plugin-host-artifact-registry.js";
 import { createProviderNativeRootsCache } from "./services/providers/native-roots.js";
 import { createAiServiceRegistry } from "./services/ai/ai-service-registry.js";
+import { prepareVoiceSpeechRuntime } from "./services/ai/voice-speech.js";
 import { createAppVersionService } from "./services/system/app-version.js";
 import { createBbAppManagedConfigReloader } from "./services/system/bb-app-managed-config.js";
 import { startEventLoopStallMonitor } from "./services/system/event-loop-stall-monitor.js";
@@ -350,9 +351,25 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
         logger,
         pluginService,
         providerRegistry,
-      }).finally(() => {
-        void serverMove.handlePluginsStarted();
-      });
+      })
+        .finally(() => {
+          void serverMove.handlePluginsStarted();
+        })
+        .then(() => {
+          const voiceSettings = getAppSettings(db).voice;
+          if (voiceSettings.enabled && voiceSettings.behavior.keepWarm) {
+            return prepareVoiceSpeechRuntime({ ...sweepDeps }).catch(
+              (error: unknown) => {
+                logger.warn(
+                  { err: error },
+                  "Voice keep-warm prepare failed; the runtime will still start on first use",
+                );
+              },
+            );
+          }
+          return undefined;
+        })
+        .catch(() => undefined);
     }
     pluginCatalogService.startPeriodicRefresh();
     sweepInterval = setInterval(() => {

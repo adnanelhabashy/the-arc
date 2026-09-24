@@ -441,11 +441,17 @@ export interface HistoryConfig {
   resetKey?: string | number;
 }
 
-type PromptVoiceState = "idle" | "recording" | "transcribing" | "error";
+type PromptVoiceState =
+  | "idle"
+  | "recording"
+  | "transcribing"
+  | "preparing"
+  | "error";
 
 export interface PromptVoiceConfig {
   state: PromptVoiceState;
   isSupported: boolean;
+  isEnabled: boolean;
   unsupportedReason?: VoiceUnsupportedReason | null;
   stream: MediaStream | null;
   start: () => void | Promise<void>;
@@ -1363,16 +1369,20 @@ export function PromptBoxInternal({
     useState<PromptDraftState | null>(null);
   const hasActiveHistorySessionRef = useRef(false);
   const isVoiceRecording = voice?.state === "recording";
-  const isVoiceProcessing = voice?.state === "transcribing";
+  const isVoiceProcessing =
+    voice?.state === "transcribing" || voice?.state === "preparing";
   const showVoiceActionGroup = isVoiceRecording || isVoiceProcessing;
-  const voiceActionState = isVoiceRecording
-    ? "recording"
-    : isVoiceProcessing
-      ? "transcribing"
-      : null;
-  const lastVoiceActionStateRef = useRef<"recording" | "transcribing">(
-    voiceActionState ?? "recording",
-  );
+  const voiceActionState: "recording" | "transcribing" | "preparing" | null =
+    isVoiceRecording
+      ? "recording"
+      : voice?.state === "preparing"
+        ? "preparing"
+        : voice?.state === "transcribing"
+          ? "transcribing"
+          : null;
+  const lastVoiceActionStateRef = useRef<
+    "recording" | "transcribing" | "preparing"
+  >(voiceActionState ?? "recording");
   const renderedVoiceActionState =
     voiceActionState ?? lastVoiceActionStateRef.current;
   useLayoutEffect(() => {
@@ -2717,7 +2727,10 @@ export function PromptBoxInternal({
     isRunning && onStop && !canSubmit && !isAttaching && !showVoiceActionGroup,
   );
   const canStartVoiceInput =
-    voice !== undefined && voice.isSupported && !isSubmitting;
+    voice !== undefined &&
+    voice.isSupported &&
+    voice.isEnabled !== false &&
+    !isSubmitting;
   const showVoiceAsPrimaryAction =
     isPointerCoarse &&
     !isAttaching &&

@@ -293,6 +293,7 @@ describe("builtin plugin reconciliation", () => {
       ["arc-core", "Layers"],
       ["ask-user-question", "MessageQuestion"],
       ["automations", "Repeat"],
+      ["exchange-mail", "Mail"],
       ["concurrency-limit", "Limitation"],
       ["connect", "Smartphone"],
       ["custom-instructions", "EditFile"],

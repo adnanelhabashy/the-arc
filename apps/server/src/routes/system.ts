@@ -59,6 +59,22 @@ import {
   transcribeVoiceInput,
 } from "../services/ai/voice-transcription.js";
 import {
+  addVoiceSpeechProfileSample,
+  cancelVoiceSpeechModelDownload,
+  createVoiceSpeechProfile,
+  deleteVoiceSpeechProfile,
+  downloadVoiceSpeechModel,
+  listVoiceSpeechProfiles,
+  prepareVoiceSpeechRuntime,
+  readVoiceSpeechCapabilities,
+  readVoiceSpeechStatus,
+  releaseVoiceSpeechRuntimeAfterSettingsChange,
+  removeVoiceSpeechProfileSample,
+  repairVoiceSpeechRuntime,
+  speakVoiceText,
+  updateVoiceSpeechProfile,
+} from "../services/ai/voice-speech.js";
+import {
   listSystemProviderInfos,
   resolveSystemExecutionOptions,
 } from "../services/system/execution-options.js";
@@ -317,6 +333,13 @@ export function registerSystemRoutes(
     setAppSettings(deps.db, updatedSettings);
     deps.telemetry.setEnabled(updatedSettings.telemetryEnabled);
     deps.hub.notifySystem(["config-changed"]);
+    if (updatedSettings.voice.enabled !== current.voice.enabled) {
+      void releaseVoiceSpeechRuntimeAfterSettingsChange(
+        deps,
+        current.voice.enabled,
+        updatedSettings.voice.enabled,
+      );
+    }
     return context.json(compatibleGeneralSettings());
   });
 
@@ -633,6 +656,98 @@ export function registerSystemRoutes(
       }),
     });
   });
+
+  get(routes.voiceStatus, async (context) =>
+    context.json(await readVoiceSpeechStatus(deps)),
+  );
+
+  post(routes.voiceSpeak, async (context, body) => {
+    const { audio, contentType } = await speakVoiceText(deps, {
+      text: body.text,
+      signal: context.req.raw.signal,
+      ...(body.engine === undefined || body.engine === null
+        ? {}
+        : { engine: body.engine }),
+      ...(body.profile === undefined || body.profile === null
+        ? {}
+        : { profile: body.profile }),
+      ...(body.voiceId === undefined || body.voiceId === null
+        ? {}
+        : { voiceId: body.voiceId }),
+      ...(body.agentId === undefined || body.agentId === null
+        ? {}
+        : { agentId: body.agentId }),
+    });
+    return context.body(new Uint8Array(audio), 200, {
+      "content-type": contentType,
+    });
+  });
+
+  get(routes.voiceCapabilities, async (context) =>
+    context.json(await readVoiceSpeechCapabilities(deps)),
+  );
+
+  get(routes.voiceProfiles, async (context) =>
+    context.json(await listVoiceSpeechProfiles(deps)),
+  );
+
+  post(routes.voiceProfileCreate, async (context, body) =>
+    context.json(await createVoiceSpeechProfile(deps, body)),
+  );
+
+  put(routes.voiceProfileUpdate, async (context, body) =>
+    context.json(
+      await updateVoiceSpeechProfile(deps, context.req.param("id"), body),
+    ),
+  );
+
+  del(routes.voiceProfileDelete, async (context) => {
+    await deleteVoiceSpeechProfile(deps, context.req.param("id"));
+    return context.json({ ok: true as const });
+  });
+
+  post(routes.voiceProfileSampleAdd, async (context) => {
+    const formData = await context.req.formData();
+    const file = formData.get("file");
+    if (!(file instanceof File)) {
+      throw new ApiError(400, "invalid_request", "Sample audio file is required");
+    }
+    const referenceText =
+      typeof formData.get("referenceText") === "string"
+        ? String(formData.get("referenceText"))
+        : "";
+    const sampleId = await addVoiceSpeechProfileSample(
+      deps,
+      context.req.param("id"),
+      file,
+      referenceText,
+    );
+    return context.json({ sampleId });
+  });
+
+  del(routes.voiceProfileSampleRemove, async (context) => {
+    await removeVoiceSpeechProfileSample(deps, context.req.param("id"));
+    return context.json({ ok: true as const });
+  });
+
+  post(routes.voiceModelDownload, async (context, body) => {
+    await downloadVoiceSpeechModel(deps, body.model);
+    return context.json({ ok: true as const });
+  });
+
+  post(routes.voiceModelDownloadCancel, async (context, body) => {
+    await cancelVoiceSpeechModelDownload(deps, body.model);
+    return context.json({ ok: true as const });
+  });
+
+  post(routes.voiceRepair, async (context) => {
+    await repairVoiceSpeechRuntime(deps);
+    return context.json({ ok: true as const });
+  });
+
+  post(routes.voicePrepare, async (context) =>
+    context.json({ ok: true as const, ...(await prepareVoiceSpeechRuntime(deps)) }),
+  );
 
   get(routes.version, async (context, query) =>
     context.json(

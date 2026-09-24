@@ -4,6 +4,7 @@ export * from "./active-thinking.js";
 export * from "./acp-cli.js";
 export * from "./native-roots.js";
 export * from "./app-settings.js";
+export * from "./voice-settings.js";
 export * from "./ui-preferences.js";
 export * from "./app-keybindings.js";
 export * from "./app-theme.js";

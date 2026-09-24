@@ -1606,6 +1606,72 @@ export function createPluginRuntime(context: PluginRuntimeContext) {
             experimental_aiServicesHostContract[
               "ai.voice.transcribe"
             ].output.parse(await call("ai.voice.transcribe", input, options)),
+          speakVoice: async (input, options) =>
+            experimental_aiServicesHostContract[
+              "ai.voice.speak"
+            ].output.parse(await call("ai.voice.speak", input, options)),
+          readVoiceStatus: async (input, options) =>
+            experimental_aiServicesHostContract[
+              "ai.voice.status"
+            ].output.parse(await call("ai.voice.status", input, options)),
+          readVoiceCapabilities: async (input, options) =>
+            experimental_aiServicesHostContract[
+              "ai.voice.capabilities"
+            ].output.parse(await call("ai.voice.capabilities", input, options)),
+          listVoiceProfiles: async (input, options) =>
+            experimental_aiServicesHostContract[
+              "ai.voice.profiles"
+            ].output.parse(await call("ai.voice.profiles", input, options)),
+          createVoiceProfile: async (input, options) =>
+            experimental_aiServicesHostContract[
+              "ai.voice.profileCreate"
+            ].output.parse(await call("ai.voice.profileCreate", input, options)),
+          updateVoiceProfile: async (input, options) =>
+            experimental_aiServicesHostContract[
+              "ai.voice.profileUpdate"
+            ].output.parse(await call("ai.voice.profileUpdate", input, options)),
+          deleteVoiceProfile: async (input, options) =>
+            experimental_aiServicesHostContract[
+              "ai.voice.profileDelete"
+            ].output.parse(await call("ai.voice.profileDelete", input, options)),
+          addVoiceProfileSample: async (input, options) =>
+            experimental_aiServicesHostContract[
+              "ai.voice.profileSampleAdd"
+            ].output.parse(
+              await call("ai.voice.profileSampleAdd", input, options),
+            ),
+          removeVoiceProfileSample: async (input, options) =>
+            experimental_aiServicesHostContract[
+              "ai.voice.profileSampleRemove"
+            ].output.parse(
+              await call("ai.voice.profileSampleRemove", input, options),
+            ),
+          downloadVoiceModel: async (input, options) =>
+            experimental_aiServicesHostContract[
+              "ai.voice.modelDownload"
+            ].output.parse(await call("ai.voice.modelDownload", input, options)),
+          cancelVoiceModelDownload: async (input, options) =>
+            experimental_aiServicesHostContract[
+              "ai.voice.modelDownloadCancel"
+            ].output.parse(
+              await call("ai.voice.modelDownloadCancel", input, options),
+            ),
+          repairVoiceRuntime: async (input, options) =>
+            experimental_aiServicesHostContract[
+              "ai.voice.repair"
+            ].output.parse(await call("ai.voice.repair", input, options)),
+          prepareVoiceRuntime: async (input, options) =>
+            experimental_aiServicesHostContract[
+              "ai.voice.prepare"
+            ].output.parse(await call("ai.voice.prepare", input, options)),
+          releaseVoiceRuntime: async (input, options) =>
+            experimental_aiServicesHostContract[
+              "ai.voice.release"
+            ].output.parse(await call("ai.voice.release", input, options)),
+          unloadVoiceModels: async (input, options) =>
+            experimental_aiServicesHostContract[
+              "ai.voice.unloadModels"
+            ].output.parse(await call("ai.voice.unloadModels", input, options)),
         });
       },
       registerProvider: (declaration) => {

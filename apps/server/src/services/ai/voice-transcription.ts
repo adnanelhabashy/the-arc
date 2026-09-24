@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { getAppSettings } from "@bb/db";
 import { jsonValueSchema, type JsonObject, type JsonValue } from "@bb/domain";
 import {
   parseProviderModelConfig,
@@ -44,7 +45,14 @@ function voiceService(
   return service !== null && service.kinds.includes("voice") ? service : null;
 }
 
-function isPrimaryHostConnected(deps: LoggedWorkSessionDeps): boolean {
+export function resolveVoiceService(
+  deps: LoggedWorkSessionDeps,
+): AiServiceRegistration | null {
+  const modelInfo = parseTranscriptionModel(deps.config.transcriptionModel);
+  return voiceService(deps, modelInfo);
+}
+
+export function isPrimaryHostConnected(deps: LoggedWorkSessionDeps): boolean {
   try {
     requireConnectedPrimaryHostId(deps);
     return true;
@@ -155,10 +163,16 @@ async function transcribeWithAiService(
     ...INFERENCE_POLICY.voiceTranscription,
     complete: async (model, attemptPrompt, timeoutMs) => {
       const attemptModel = parseTranscriptionModel(model);
+      const voiceSettings = getAppSettings(deps.db).voice;
+      const isArcVoiceModel = attemptModel.modelId === "default";
       const result = await service.transcribeVoice(
         {
           serviceId: service.id,
-          model: attemptModel.modelId,
+          model: isArcVoiceModel ? voiceSettings.stt.model : attemptModel.modelId,
+          language:
+            isArcVoiceModel && voiceSettings.stt.language !== "auto"
+              ? voiceSettings.stt.language
+              : null,
           audioBase64,
           mimeType: args.file.type || "application/octet-stream",
           filename: args.file.name || "voice-input",
@@ -167,11 +181,14 @@ async function transcribeWithAiService(
         },
         {
           hostId,
-          timeoutMs: timeoutMs + INFERENCE_POLICY.hostRpcGraceMs,
+          timeoutMs: INFERENCE_POLICY.voiceTranscriptionHostDeadlineMs,
           ...(args.signal === undefined ? {} : { signal: args.signal }),
         },
       );
       if (!result.ok) {
+        if (result.code === "timeout") {
+          throw buildTranscriptionTimeoutError();
+        }
         throw new AiServiceCallError(service.id, result.code, result.message);
       }
       return { text: result.text };
@@ -232,7 +249,7 @@ async function transcribeWithOpenAi(
   const timer = setTimeout(() => {
     timedOut = true;
     abortController.abort();
-  }, INFERENCE_POLICY.voiceTranscription.timeoutMs);
+  }, INFERENCE_POLICY.openAiVoiceTranscriptionTimeoutMs);
   timer.unref();
   const requestSignal =
     args.signal === undefined
@@ -305,6 +322,14 @@ export async function transcribeVoiceInput(
         throw buildTranscriptionCancelledError();
       }
       return text;
+    }
+    if (!getAppSettings(deps.db).voice.enabled) {
+      throw new ApiError(
+        403,
+        "voice_disabled",
+        "Voice is disabled. Enable it in Settings → Voice.",
+        false,
+      );
     }
     const service = voiceService(deps, modelInfo);
     if (service === null) {

@@ -1,5 +1,13 @@
 import { extractErrorMessage, toRecord } from "@bb/core-ui";
-import type { SystemVoiceTranscriptionResponse } from "@bb/server-contract";
+import type {
+  SystemVoiceCapabilitiesResponse,
+  SystemVoiceProfile,
+  SystemVoiceProfileCreateRequest,
+  SystemVoiceProfileUpdateRequest,
+  SystemVoiceProfilesResponse,
+  SystemVoiceStatusResponse,
+  SystemVoiceTranscriptionResponse,
+} from "@bb/server-contract";
 import { apiClient, toRelativeUrl } from "./api-server";
 import { appSurfaceRequestInit } from "./app-surface";
 import {
@@ -184,6 +192,240 @@ export async function transcribeVoiceInput(
     file,
     signal,
     trimmedPrompt ? { prompt: trimmedPrompt } : undefined,
+  );
+}
+
+export async function readVoiceStatus(
+  signal?: AbortSignal,
+): Promise<SystemVoiceStatusResponse> {
+  return request<SystemVoiceStatusResponse>(
+    fetch(
+      toRelativeUrl(apiClient.system["voice-status"].$url()),
+      appSurfaceRequestInit({
+        method: "GET",
+        signal,
+      }),
+    ),
+  );
+}
+
+export async function speakVoiceText(
+  text: string,
+  options?: {
+    signal?: AbortSignal;
+    engine?: string;
+    profile?: string;
+    voiceId?: string;
+    language?: string;
+    agentId?: "codex" | "claude-code" | "omp";
+  },
+): Promise<Blob> {
+  const response = await requestResponse(
+    fetch(
+      toRelativeUrl(apiClient.system["voice-speak"].$url()),
+      appSurfaceRequestInit({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          engine: options?.engine ?? null,
+          profile: options?.profile ?? null,
+          voiceId: options?.voiceId ?? null,
+          language: options?.language ?? null,
+          agentId: options?.agentId ?? null,
+        }),
+        signal: options?.signal,
+      }),
+    ),
+  );
+  return response.blob();
+}
+
+export async function readVoiceCapabilities(
+  signal?: AbortSignal,
+): Promise<SystemVoiceCapabilitiesResponse> {
+  return request<SystemVoiceCapabilitiesResponse>(
+    fetch(
+      toRelativeUrl(apiClient.system["voice-capabilities"].$url()),
+      appSurfaceRequestInit({
+        method: "GET",
+        signal,
+      }),
+    ),
+  );
+}
+
+export async function readVoiceProfiles(
+  signal?: AbortSignal,
+): Promise<SystemVoiceProfilesResponse> {
+  return request<SystemVoiceProfilesResponse>(
+    fetch(
+      toRelativeUrl(apiClient.system["voice-profiles"].$url()),
+      appSurfaceRequestInit({
+        method: "GET",
+        signal,
+      }),
+    ),
+  );
+}
+
+export async function createVoiceProfile(
+  input: SystemVoiceProfileCreateRequest,
+  signal?: AbortSignal,
+): Promise<{ profile: SystemVoiceProfile }> {
+  return request(
+    fetch(
+      toRelativeUrl(apiClient.system["voice-profiles"].$url()),
+      appSurfaceRequestInit({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+        signal,
+      }),
+    ),
+  );
+}
+
+export async function updateVoiceProfile(
+  profileId: string,
+  input: SystemVoiceProfileUpdateRequest,
+  signal?: AbortSignal,
+): Promise<{ profile: SystemVoiceProfile }> {
+  return request(
+    fetch(
+      toRelativeUrl(
+        apiClient.system["voice-profiles"][":id"].$url({ param: { id: profileId } }),
+      ),
+      appSurfaceRequestInit({
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+        signal,
+      }),
+    ),
+  );
+}
+
+export async function deleteVoiceProfile(
+  profileId: string,
+  signal?: AbortSignal,
+): Promise<{ ok: true }> {
+  return request(
+    fetch(
+      toRelativeUrl(
+        apiClient.system["voice-profiles"][":id"].$url({ param: { id: profileId } }),
+      ),
+      appSurfaceRequestInit({
+        method: "DELETE",
+        signal,
+      }),
+    ),
+  );
+}
+
+export async function addVoiceProfileSample(
+  profileId: string,
+  file: File,
+  referenceText: string,
+  signal?: AbortSignal,
+): Promise<{ sampleId: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("referenceText", referenceText);
+  return request(
+    fetch(
+      toRelativeUrl(
+        apiClient.system["voice-profiles"][":id"].samples.$url({
+          param: { id: profileId },
+        }),
+      ),
+      appSurfaceRequestInit({
+        method: "POST",
+        body: formData,
+        signal,
+      }),
+    ),
+  );
+}
+
+export async function removeVoiceProfileSample(
+  sampleId: string,
+  signal?: AbortSignal,
+): Promise<{ ok: true }> {
+  return request(
+    fetch(
+      toRelativeUrl(
+        apiClient.system["voice-profile-samples"][":id"].$url({
+          param: { id: sampleId },
+        }),
+      ),
+      appSurfaceRequestInit({
+        method: "DELETE",
+        signal,
+      }),
+    ),
+  );
+}
+
+export async function downloadVoiceModel(
+  model: string,
+  signal?: AbortSignal,
+): Promise<{ ok: true }> {
+  return request(
+    fetch(
+      toRelativeUrl(apiClient.system["voice-models"].download.$url()),
+      appSurfaceRequestInit({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model }),
+        signal,
+      }),
+    ),
+  );
+}
+
+export async function cancelVoiceModelDownload(
+  model: string,
+  signal?: AbortSignal,
+): Promise<{ ok: true }> {
+  return request(
+    fetch(
+      toRelativeUrl(apiClient.system["voice-models"]["download-cancel"].$url()),
+      appSurfaceRequestInit({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model }),
+        signal,
+      }),
+    ),
+  );
+}
+
+export async function repairVoiceRuntime(
+  signal?: AbortSignal,
+): Promise<{ ok: true }> {
+  return request(
+    fetch(
+      toRelativeUrl(apiClient.system["voice-repair"].$url()),
+      appSurfaceRequestInit({
+        method: "POST",
+        signal,
+      }),
+    ),
+  );
+}
+
+export async function prepareVoiceRuntime(
+  signal?: AbortSignal,
+): Promise<{ ok: true; runtimeState: "ready" | "starting" | "stopped" }> {
+  return request(
+    fetch(
+      toRelativeUrl(apiClient.system["voice-prepare"].$url()),
+      appSurfaceRequestInit({
+        method: "POST",
+        signal,
+      }),
+    ),
   );
 }
 

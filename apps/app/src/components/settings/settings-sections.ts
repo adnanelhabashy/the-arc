@@ -21,6 +21,7 @@ export const SETTINGS_NAV_SECTIONS = [
   },
   { icon: "Bot", id: "providers", group: "general", label: "Providers" },
   { icon: "Palette", id: "appearance", group: "general", label: "Appearance" },
+  { icon: "Mic", id: "voice", group: "general", label: "Voice" },
   {
     icon: "SlidersHorizontal",
     id: "keyboard",

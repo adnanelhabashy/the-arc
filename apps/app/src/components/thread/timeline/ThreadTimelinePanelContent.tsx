@@ -97,37 +97,37 @@ export function ThreadTimelinePanelContent({
 
   return (
     <ThreadTimelineSurface
-      activeThinking={resolvedTimeline.activeThinking}
-      contextBoundarySeq={resolvedTimeline.contextBoundarySeq}
-      hasOlderTimelineRows={resolvedTimeline.hasOlderTimelineRows}
-      isLoadingOlderTimelineRows={resolvedTimeline.isLoadingOlderTimelineRows}
-      isThreadTimelinePending={
-        resolvedTimeline.timelineLoading &&
-        timelineRows.length === 0 &&
-        !showOngoingIndicator
-      }
-      timelineError={
-        Boolean(resolvedTimeline.timelineError) && timelineRows.length === 0
-      }
-      loadingContent={<ThreadTimelinePanelLoadingSkeleton />}
-      leadingContent={leadingContent}
-      onMessageAddToChat={onMessageAddToChat}
-      onSelectionAddToChat={onSelectionAddToChat}
-      consumerMessageActions={consumerMessageActions}
-      includePluginMessageActions={includePluginMessageActions}
-      onLoadOlderRows={resolvedTimeline.loadOlderTimelineRows}
-      onOpenLink={onOpenLink}
-      onOpenLocalFileLink={onOpenLocalFileLink}
-      projectId={projectId}
-      resolveMentionLink={resolveMentionLink}
-      showOngoingIndicator={showOngoingIndicator}
-      ongoingIndicatorLabel={ongoingIndicatorLabel}
-      timelineErrorClassName="mx-2 mt-4 text-destructive"
-      timelineRows={timelineRows}
-      threadId={threadId}
-      threadRuntimeDisplayStatus={displayStatus}
-      workspaceRootPath={workspaceRootPath}
-    />
+        activeThinking={resolvedTimeline.activeThinking}
+        contextBoundarySeq={resolvedTimeline.contextBoundarySeq}
+        hasOlderTimelineRows={resolvedTimeline.hasOlderTimelineRows}
+        isLoadingOlderTimelineRows={resolvedTimeline.isLoadingOlderTimelineRows}
+        isThreadTimelinePending={
+          resolvedTimeline.timelineLoading &&
+          timelineRows.length === 0 &&
+          !showOngoingIndicator
+        }
+        timelineError={
+          Boolean(resolvedTimeline.timelineError) && timelineRows.length === 0
+        }
+        loadingContent={<ThreadTimelinePanelLoadingSkeleton />}
+        leadingContent={leadingContent}
+        onMessageAddToChat={onMessageAddToChat}
+        onSelectionAddToChat={onSelectionAddToChat}
+        consumerMessageActions={consumerMessageActions}
+        includePluginMessageActions={includePluginMessageActions}
+        onLoadOlderRows={resolvedTimeline.loadOlderTimelineRows}
+        onOpenLink={onOpenLink}
+        onOpenLocalFileLink={onOpenLocalFileLink}
+        projectId={projectId}
+        resolveMentionLink={resolveMentionLink}
+        showOngoingIndicator={showOngoingIndicator}
+        ongoingIndicatorLabel={ongoingIndicatorLabel}
+        timelineErrorClassName="mx-2 mt-4 text-destructive"
+        timelineRows={timelineRows}
+        threadId={threadId}
+        threadRuntimeDisplayStatus={displayStatus}
+        workspaceRootPath={workspaceRootPath}
+      />
   );
 }
 

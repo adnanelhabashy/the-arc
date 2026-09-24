@@ -11,6 +11,16 @@ vi.mock("@/lib/api", () => ({
   transcribeVoiceInput: vi.fn(),
 }));
 
+vi.mock("@/hooks/queries/system-queries", () => ({
+  useSystemConfig: () => ({
+    data: {
+      generalSettings: {
+        voice: { enabled: true },
+      },
+    },
+  }),
+}));
+
 vi.mock("@/hooks/useVoiceInput", () => ({
   useVoiceInput: vi.fn(),
 }));
@@ -70,7 +80,7 @@ describe("usePromptVoice", () => {
     renderHook(() => usePromptVoice(promptBoxRef));
     const options = vi.mocked(useVoiceInput).mock.calls[0]?.[0];
     const transcription = options?.onTranscribe({
-      file: new File([], "recording.webm", { type: "audio/webm" }),
+      file: new File([], "recording.wav", { type: "audio/wav" }),
     });
 
     await act(async () => {
@@ -128,7 +138,7 @@ describe("usePromptVoice", () => {
 
     await expect(
       options?.onTranscribe({
-        file: new File([], "recording.webm", { type: "audio/webm" }),
+        file: new File([], "recording.wav", { type: "audio/wav" }),
         signal: controller.signal,
       }),
     ).rejects.toMatchObject({ name: "AbortError" });

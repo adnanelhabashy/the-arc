@@ -17,6 +17,7 @@
     "bb-plugin-custom-instructions": "workspace:*",
     "bb-plugin-drafts": "workspace:*",
     "bb-plugin-environment-git-worktree": "workspace:*",
+    "bb-plugin-exchange-mail": "workspace:*",
     "bb-plugin-environment-modal-sandbox": "workspace:*",
     "bb-plugin-environment-personal-workspace": "workspace:*",
     "bb-plugin-environment-project-checkout": "workspace:*",

@@ -6,6 +6,10 @@ import type {
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../src/errors.js";
 import {
+  INFERENCE_POLICY,
+  VOICE_TRANSCRIPTION_MEASURED_COLD_TRANSCRIPTION_MS,
+} from "../../src/services/ai/inference.js";
+import {
   resolveVoiceTranscriptionEnabled,
   transcribeVoiceInput,
 } from "../../src/services/ai/voice-transcription.js";
@@ -214,17 +218,45 @@ describe("voice transcription", () => {
       expect(harness.calls[0]?.input).toMatchObject({
         serviceId: "codex",
         model: "gpt-transcribe",
-        timeoutMs: 10_000,
+        timeoutMs: 120_000,
         mimeType: "audio/webm",
         filename: "prompt.webm",
       });
       expect(harness.calls[1]?.input).toMatchObject({
         model: "gpt-transcribe",
-        timeoutMs: 10_000,
+        timeoutMs: 120_000,
       });
     } finally {
       await harness.cleanup();
     }
+  });
+
+  it("budgets one cold transcription inside the host deadline that wraps it", async () => {
+    const harness = await createServiceTranscriptionHarness((input) => ({
+      ok: true,
+      model: input.model,
+      text: "hello world",
+    }));
+    try {
+      await expect(
+        transcribeVoiceInput(harness.deps, { file: voiceFile() }),
+      ).resolves.toBe("hello world");
+
+      expect(harness.calls[0]?.input.timeoutMs).toBe(
+        INFERENCE_POLICY.voiceTranscription.timeoutMs,
+      );
+      expect(harness.calls[0]?.options.timeoutMs).toBe(
+        INFERENCE_POLICY.voiceTranscriptionHostDeadlineMs,
+      );
+    } finally {
+      await harness.cleanup();
+    }
+    expect(INFERENCE_POLICY.voiceTranscription.timeoutMs).toBeGreaterThan(
+      VOICE_TRANSCRIPTION_MEASURED_COLD_TRANSCRIPTION_MS,
+    );
+    expect(INFERENCE_POLICY.voiceTranscriptionHostDeadlineMs).toBeGreaterThan(
+      INFERENCE_POLICY.voiceTranscription.timeoutMs,
+    );
   });
 
   it("returns retryable unavailable after exhausting rate limit retries", async () => {
@@ -252,7 +284,7 @@ describe("voice transcription", () => {
     }
   });
 
-  it("returns retryable timeout after exhausting timeout retries", async () => {
+  it("returns retryable timeout without retrying a runtime that ran out of budget", async () => {
     const harness = await createServiceTranscriptionHarness(() => ({
       ok: false,
       code: "timeout",
@@ -270,7 +302,7 @@ describe("voice transcription", () => {
         code: "transcription_timeout",
         status: 504,
       });
-      expect(harness.calls).toHaveLength(2);
+      expect(harness.calls).toHaveLength(1);
     } finally {
       await harness.cleanup();
     }

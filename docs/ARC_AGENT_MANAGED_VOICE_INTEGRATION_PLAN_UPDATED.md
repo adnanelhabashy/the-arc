@@ -80,6 +80,11 @@ Arc should mainly call Voicebox through its own backend instead of configuring V
 │   speak()                                   │
 │   stopSpeaking()                            │
 │   listProfiles()                            │
+│   createProfile()                           │
+│   addProfileSample()                        │
+│   updateProfile()                           │
+│   deleteProfile()                           │
+│   previewProfile()                          │
 │   getStatus()                               │
 │                                             │
 │ Arc Voice Runtime Manager                   │
@@ -121,6 +126,12 @@ voice.stopSpeaking()
 
 voice.listProfiles()
 voice.getProfile(...)
+voice.createProfile(...)
+voice.updateProfile(...)
+voice.deleteProfile(...)
+voice.addProfileSample(...)
+voice.removeProfileSample(...)
+voice.previewProfile(...)
 voice.setDefaultProfile(...)
 
 voice.listModels()
@@ -461,10 +472,18 @@ Microphone: ...
 [Test microphone]
 
 Text to Speech
-Engine: Kokoro
+Engine: Qwen3-TTS 0.6B
 Voice: ...
 Speed: 1.0x
 [Preview voice]
+
+Voice Gallery
+Selected Voice: ...
+[Browse Voices]
+
+My Voices
+[+ Create Custom Voice]
+[Manage My Voices]
 
 Behavior
 [x] Show microphone in composer
@@ -777,33 +796,161 @@ If the user creates a cloned voice from reference audio, Arc should clearly labe
 
 Do not market a cloned profile as an official celebrity voice.
 
-## My Voices — optional cloning workflow
+## My Voices — custom voice creation (V4 core)
 
-Add a friendly guided flow:
+Custom voices are a first-class V4 capability, not an optional future add-on.
+
+Arc should expose a guided workflow that creates a Voicebox cloned profile without exposing raw Voicebox API concepts to normal users:
 
 ```text
-+ Create My Voice
++ Create Custom Voice
       ↓
-Record or choose sample
+Record sample OR choose audio file
       ↓
 10–30 seconds of clear speech
       ↓
-Choose language
+Choose / confirm language
       ↓
-Create profile
+Arc transcribes the sample locally when useful
+      ↓
+User confirms/corrects the exact reference text
+      ↓
+Arc chooses a compatible cloning engine
+      ↓
+Create Voicebox profile
+      ↓
+Add reference sample
       ↓
 Preview
       ↓
-Save
+Name + Save
 ```
 
-The UI should explain:
+### Why reference text is part of the flow
+
+Voicebox cloned-profile samples store both the reference audio and the text spoken in that audio. Arc should use the existing local STT path to prefill the transcript when practical, but the user must be able to correct it before the sample is committed.
+
+Do not silently guess incorrect reference text.
+
+### Engine selection
+
+Normal users should not need to choose Qwen/Chatterbox/etc. Arc should select a cloning-capable engine using:
+
+```text
+requested language
+↓
+installed/available Voicebox engines
+↓
+platform capability
+↓
+quality/performance preference
+```
+
+Only show engines that Voicebox actually reports as compatible. Advanced settings may allow an explicit engine override.
+
+Do not hardcode Qwen3-TTS as the cloning engine for every language. For example, if a language such as Arabic is not supported by the selected Qwen cloning model, Arc should choose another installed Voicebox cloning engine that declares support instead of failing later.
+
+### Sample quality UX
+
+Show simple guidance before recording/upload:
+
+```text
+10–30 seconds
+clear speech
+minimal background noise
+no music / overlapping speakers
+natural speaking pace
+WAV preferred for uploaded samples
+```
+
+One clean sample is enough to create a profile. Allow the user to add more samples later; multiple good samples may improve cloning quality.
+
+### Consent and privacy
+
+Before creating a cloned profile, require an explicit confirmation:
+
+```text
+I own this voice or have permission to use this voice sample.
+```
+
+Treat reference audio and cloned voice profiles as sensitive local user data.
+
+Rules:
+
+- Do not upload reference audio to Arc cloud services.
+- Do not sync cloned profiles by default.
+- Do not create hidden copies of the source audio in Arc storage.
+- Voicebox remains the owner of profile samples/embeddings inside its Arc-controlled data directory.
+- Arc stores only the profile reference plus Arc-owned display metadata/mapping where needed.
+- Deleting a custom voice from Arc should delete the Voicebox profile/sample data after explicit confirmation, then remove Arc mappings.
+- If a deleted profile was the global/thread/agent voice, fall back safely to the next valid voice in the resolution chain.
+
+The UI should state:
 
 ```text
 Use your own voice or a voice you have permission to use.
+Your voice sample stays local on this device.
 ```
 
-Store the resulting Voicebox profile reference in Arc; do not unnecessarily duplicate voice embeddings or source audio.
+### My Voices management
+
+Each custom voice should support:
+
+```text
+Preview
+Rename
+Add sample
+Remove sample
+Set as default
+Assign to agent (V5)
+Delete
+```
+
+Clearly badge cloned voices as:
+
+```text
+Custom Voice
+```
+
+Do not present a custom clone as an official or licensed celebrity/public-figure voice.
+
+### Arc ↔ Voicebox ownership
+
+Use Voicebox's profile lifecycle instead of inventing a parallel Arc voice database:
+
+```text
+Arc UI
+  ↓
+Arc Voice Service
+  ↓
+Voicebox profile API
+  ├─ create profile
+  ├─ add/remove samples
+  ├─ update profile
+  ├─ preview through TTS
+  └─ delete profile
+```
+
+Arc may store lightweight references and assignment metadata, but it should not duplicate voice embeddings or reference audio unnecessarily.
+
+### V4 custom voice acceptance gate
+
+```text
+record sample works
+upload supported sample works
+reference transcript can be reviewed/corrected
+compatible cloning engine is selected safely
+profile creation works
+sample is attached to the profile
+preview works
+profile persists after restart
+rename/manage works
+profile deletion removes its Voicebox data after confirmation
+Arc does not duplicate source audio/embedding data unnecessarily
+consent is required
+no automatic cloud upload occurs
+deleted assigned voice falls back safely
+```
 
 ## Basic vs Advanced settings
 
@@ -1027,6 +1174,8 @@ Full
 
 Let each Arc coding agent have a distinct voice.
 
+V5 must reuse the preset and custom cloned profiles created/managed in V4. Do not create a second per-agent voice store.
+
 ```text
 Codex       → Voice A
 Claude Code → Voice B
@@ -1048,6 +1197,22 @@ global default voice
 ```
 
 This must not alter account routing, model selection, or runtime routing.
+
+Both preset voices and `My Voices` custom profiles are valid assignment targets.
+
+If an assigned custom profile is deleted or becomes unavailable:
+
+```text
+agent voice missing
+↓
+thread voice override if valid
+↓
+global default voice
+↓
+safe built-in fallback
+```
+
+Agent voice mappings store profile references only; Voicebox remains the owner of cloned samples/embeddings.
 
 ---
 
@@ -2199,6 +2364,10 @@ Settings → Voice
 Voice Gallery
 voice preview start/stop
 selected voice persistence
+custom voice record/upload
+custom voice transcript confirmation
+custom voice create/preview/rename/delete
+custom voice deletion fallback
 Voice Mode button
 Dictation vs Voice Mode separation
 formatted code while speaking
@@ -2241,6 +2410,7 @@ Ships:
 ◉ Voice button in every thread
 🔊 Speak responses
 friendly Voice Gallery with previews
+My Voices custom voice creation + management
 local models
 Settings → Voice
 managed runtime
@@ -2258,8 +2428,8 @@ V6
 Ships:
 
 ```text
-per-agent voices
-My Voices / approved custom cloned profiles
+per-agent voice assignment using preset or My Voices profiles
+safe fallback when an assigned voice disappears
 voice-enabled Automations
 ```
 
@@ -2310,6 +2480,10 @@ no orphan processes
 Arc remains responsive during model load
 voice selection is understandable without knowing model names
 preset voice preview works
+custom voice creation works from local record/upload
+custom voice consent is explicit
+custom voice data remains local by default
+custom voice deletion removes local profile data and mappings safely
 Dictation and Voice Mode controls are clearly distinct
 Voice Mode stays attached to the current thread
 formatted code/Markdown remains visible while speech is active
@@ -2346,6 +2520,14 @@ Arc Voice Service
 ├─ speak()
 ├─ stop()
 ├─ listProfiles()
+├─ getProfile()
+├─ createProfile()
+├─ updateProfile()
+├─ deleteProfile()
+├─ addProfileSample()
+├─ removeProfileSample()
+├─ previewProfile()
+├─ setDefaultProfile()
 ├─ runtimeStatus()
 └─ modelStatus()
 ```

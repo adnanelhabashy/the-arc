@@ -6,7 +6,15 @@ import {
   type ArcVoiceClient,
   type ArcVoiceHttpClient,
 } from "../src/client.js";
+import { createStubArcVoiceClient } from "./stub-client.js";
 import type { ArcVoiceHealthResult } from "../src/health.js";
+import type {
+  ArcVoiceAdoptedProcessFactory,
+  ArcVoiceAdoptedProcessRequest,
+  ArcVoiceOwnershipQuery,
+  ArcVoiceOwnershipVerdict,
+  ArcVoiceProcessFingerprint,
+} from "../src/ownership.js";
 import { createArcVoicePaths } from "../src/paths.js";
 import type {
   ArcVoiceProcess,
@@ -153,9 +161,8 @@ function createManager(
 }
 
 const unusedClient: ArcVoiceClient = {
+  ...createStubArcVoiceClient(),
   listProfiles: () => Promise.resolve({ kind: "ok", value: [] }),
-  transcribe: () => Promise.resolve({ kind: "error", message: "unused" }),
-  speak: () => Promise.resolve({ kind: "error", message: "unused" }),
 };
 
 function healthy(): Promise<ArcVoiceHealthResult> {
@@ -557,9 +564,13 @@ describe("ArcVoiceRuntimeManager", () => {
     const { spawner } = createFakeSpawner(fake.process);
     const listProfiles = vi.fn(unusedClient.listProfiles);
     const client: ArcVoiceClient = {
+      ...createStubArcVoiceClient(),
       listProfiles,
       transcribe: vi.fn(unusedClient.transcribe),
       speak: vi.fn(unusedClient.speak),
+      modelStatus: vi.fn(unusedClient.modelStatus),
+      loadVoiceModel: vi.fn(unusedClient.loadVoiceModel),
+      voiceModelProgress: vi.fn(unusedClient.voiceModelProgress),
     };
     const manager = createManager({
       spawner,
@@ -732,6 +743,7 @@ describe("ArcVoiceRuntimeManager", () => {
                     body: encoder.encode("WAVDATA"),
                   },
         ),
+      streamText: () => Promise.reject(new Error("not implemented")),
     };
     const client = createArcVoiceClient({
       http,
@@ -760,7 +772,11 @@ describe("ArcVoiceRuntimeManager", () => {
     );
     expect(await manager.speak({ text: "Arc is ready" })).toEqual({
       kind: "ok",
-      value: { audio: encoder.encode("WAVDATA"), contentType: "audio/wav" },
+      value: {
+        audio: encoder.encode("WAVDATA"),
+        contentType: "audio/wav",
+        durationMs: null,
+      },
     });
   });
 });
@@ -886,5 +902,470 @@ describe("arc voice runtime test isolation", () => {
 
     expect(process.listenerCount("exit")).toBe(exitListenersAtLoad);
     expect(signalSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("ArcVoiceRuntimeManager runtime ownership", () => {
+  function ownedFingerprint(
+    overrides: Partial<ArcVoiceProcessFingerprint> & { pid: number },
+  ): ArcVoiceProcessFingerprint {
+    const pid = overrides.pid;
+    return {
+      pid,
+      ppid: overrides.ppid ?? 1,
+      pgid: overrides.pgid ?? pid,
+      startedAt: overrides.startedAt ?? "Thu Sep 24 09:19:05 2026",
+      command:
+        overrides.command ??
+        `${paths.executablePath} --host 127.0.0.1 --port 8787 --data-dir ${paths.stateRoot}`,
+    };
+  }
+
+  function createOwnershipProbe(...verdicts: ArcVoiceOwnershipVerdict[]): {
+    probe: (query: ArcVoiceOwnershipQuery) => Promise<ArcVoiceOwnershipVerdict>;
+    queries: ArcVoiceOwnershipQuery[];
+  } {
+    const queries: ArcVoiceOwnershipQuery[] = [];
+    let index = 0;
+    return {
+      queries,
+      probe: (query) => {
+        queries.push(query);
+        const verdict =
+          verdicts[Math.min(index, verdicts.length - 1)] ?? {
+            kind: "unsupported" as const,
+            detail: "no verdict configured",
+          };
+        index += 1;
+        return Promise.resolve(verdict);
+      },
+    };
+  }
+
+  function createAdoptedFactory(...handles: ArcVoiceProcess[]): {
+    factory: ArcVoiceAdoptedProcessFactory;
+    requests: ArcVoiceAdoptedProcessRequest[];
+  } {
+    const requests: ArcVoiceAdoptedProcessRequest[] = [];
+    let index = 0;
+    return {
+      requests,
+      factory: (request) => {
+        requests.push(request);
+        const handle = handles[Math.min(index, handles.length - 1)];
+        index += 1;
+        if (handle === undefined) {
+          throw new Error("no adopted process handle configured");
+        }
+        return handle;
+      },
+    };
+  }
+
+  function ownedVerdict(
+    listener: ArcVoiceProcessFingerprint | undefined,
+    duplicates: readonly ArcVoiceProcessFingerprint[] = [],
+  ): ArcVoiceOwnershipVerdict {
+    return {
+      kind: "owned",
+      listener,
+      duplicates,
+      detail: "probe detail",
+    };
+  }
+
+  it("adopts the runtime Arc already owns instead of spawning a second one", async () => {
+    const adopted = createFakeProcess({ pid: 37591, closeOn: "SIGTERM" });
+    const spawnAttempt = createFakeProcess({ pid: 4242, closeOn: "SIGTERM" });
+    const { spawner, calls } = createFakeSpawner(spawnAttempt.process);
+    const listener = ownedFingerprint({
+      pid: 37591,
+      ppid: 37549,
+      pgid: 37549,
+      startedAt: "Thu Sep 24 09:19:08 2026",
+    });
+    const verifier = createOwnershipProbe(
+      ownedVerdict(listener),
+      ownedVerdict(listener),
+    );
+    const { factory, requests } = createAdoptedFactory(adopted.process);
+    const manager = createManager({
+      spawner,
+      client: unusedClient,
+      healthCheck: healthy,
+      sleep: () => Promise.resolve(),
+      ownershipProbe: verifier,
+      adoptedProcessFactory: factory,
+    });
+
+    const result = await manager.start(launchConfig, { timeoutMs: 100 });
+
+    expect(result).toEqual({ kind: "ready", detail: "ready", adopted: true });
+    expect(calls).toEqual([]);
+    expect(requests[0]?.fingerprint).toEqual(listener);
+    expect(requests[0]?.query).toEqual({
+      port: 8787,
+      executablePath: paths.executablePath,
+      dataDir: paths.stateRoot,
+    });
+    expect(verifier.queries[0]).toEqual({
+      port: 8787,
+      executablePath: paths.executablePath,
+      dataDir: paths.stateRoot,
+    });
+    expect(manager.status()).toEqual({ state: "ready", pid: 37591 });
+  });
+
+  it("refuses a port held by a process Arc does not own", async () => {
+    const { spawner, calls } = createFakeSpawner(
+      createFakeProcess({ pid: 4242 }).process,
+    );
+    const verifier = createOwnershipProbe({
+      kind: "foreign",
+      listener: ownedFingerprint({
+        pid: 812,
+        command: "/usr/bin/python3 -m http.server 47873",
+      }),
+      duplicates: [],
+      detail: "probe detail",
+    });
+    const manager = createManager({
+      spawner,
+      client: unusedClient,
+      healthCheck: healthy,
+      sleep: () => Promise.resolve(),
+      ownershipProbe: verifier,
+    });
+
+    const result = await manager.start(launchConfig, { timeoutMs: 100 });
+
+    expect(result).toEqual({
+      kind: "failed",
+      detail: expect.stringContaining("unowned process (pid 812)"),
+    });
+    expect(calls).toEqual([]);
+    expect(
+      signalSpy.mock.calls.filter(([target]) => target === 812),
+    ).toEqual([]);
+    expect(manager.status()).toEqual({
+      state: "failed",
+      lastError: expect.stringContaining("unowned process (pid 812)"),
+    });
+  });
+
+  it("cleans up a surviving Arc runtime that lost the port, then starts fresh", async () => {
+    const stale = createFakeProcess({
+      pid: 500,
+      closeOn: "SIGTERM",
+      residualTreeKill: true,
+    });
+    const fresh = createFakeProcess({ pid: 4242, closeOn: "SIGTERM" });
+    const { spawner, calls } = createFakeSpawner(fresh.process);
+    const staleFingerprint = ownedFingerprint({ pid: 500, pgid: 500 });
+    const verifier = createOwnershipProbe(
+      ownedVerdict(undefined, [staleFingerprint]),
+      { kind: "vacant", detail: "probe detail" },
+    );
+    const { factory, requests } = createAdoptedFactory(stale.process);
+    const manager = createManager({
+      spawner,
+      client: unusedClient,
+      healthCheck: healthy,
+      sleep: () => Promise.resolve(),
+      ownershipProbe: verifier,
+      adoptedProcessFactory: factory,
+    });
+
+    const result = await manager.start(launchConfig, { timeoutMs: 100 });
+
+    expect(result).toEqual({ kind: "ready", detail: "ready" });
+    expect(requests[0]?.fingerprint).toEqual(staleFingerprint);
+    expect(stale.kills).toEqual(["SIGTERM"]);
+    expect(stale.residualKills()).toBe(1);
+    expect(calls).toHaveLength(1);
+    expect(manager.status()).toEqual({ state: "ready", pid: 4242 });
+  });
+
+  it("refuses a healthy port another Arc runtime holds, and drops its own child", async () => {
+    const spawned = createFakeProcess({ pid: 100, closeOn: "SIGTERM" });
+    const { spawner, calls } = createFakeSpawner(spawned.process);
+    const other = ownedFingerprint({ pid: 900, pgid: 900 });
+    const verifier = createOwnershipProbe(
+      { kind: "vacant", detail: "probe detail" },
+      ownedVerdict(other),
+    );
+    const manager = createManager({
+      spawner,
+      client: unusedClient,
+      healthCheck: healthy,
+      sleep: () => Promise.resolve(),
+      ownershipProbe: verifier,
+    });
+
+    const result = await manager.start(launchConfig, { timeoutMs: 100 });
+
+    expect(result).toEqual({
+      kind: "failed",
+      detail: expect.stringContaining("another Arc voice runtime (pid 900)"),
+    });
+    expect(calls).toHaveLength(1);
+    expect(spawned.kills).toEqual(["SIGTERM"]);
+    expect(manager.status().state).toBe("failed");
+  });
+
+  it("stops the adopted runtime tree and releases its orphan guard", async () => {
+    const adopted = createFakeProcess({
+      pid: 37591,
+      closeOn: "SIGTERM",
+      residualTreeKill: true,
+    });
+    const { spawner, calls } = createFakeSpawner(
+      createFakeProcess({ pid: 4242, closeOn: "SIGTERM" }).process,
+    );
+    const listener = ownedFingerprint({ pid: 37591, pgid: 37549 });
+    const verifier = createOwnershipProbe(
+      ownedVerdict(listener),
+      ownedVerdict(listener),
+    );
+    const { factory } = createAdoptedFactory(adopted.process);
+    const exitListeners: (() => void)[] = [];
+    const guard = createArcVoiceOrphanGuard({
+      subscribeExit: (listener_) => {
+        exitListeners.push(listener_);
+        return () => {
+          exitListeners.splice(exitListeners.indexOf(listener_), 1);
+        };
+      },
+    });
+    const manager = createManager({
+      spawner,
+      client: unusedClient,
+      healthCheck: healthy,
+      guard,
+      sleep: () => Promise.resolve(),
+      ownershipProbe: verifier,
+      adoptedProcessFactory: factory,
+    });
+
+    await manager.start(launchConfig, { timeoutMs: 100 });
+    expect(guard.trackedPid()).toBe(37591);
+
+    const result = await manager.stop();
+
+    expect(result).toEqual({ kind: "stopped", detail: expect.any(String) });
+    expect(adopted.kills).toEqual(["SIGTERM"]);
+    expect(adopted.residualKills()).toBe(1);
+    expect(calls).toEqual([]);
+    expect(guard.trackedPid()).toBeUndefined();
+    expect(exitListeners).toHaveLength(0);
+    expect(manager.status()).toEqual({ state: "stopped" });
+  });
+
+  it("kills the adopted runtime when the host process exits", async () => {
+    const adopted = createFakeProcess({ pid: 37591 });
+    const { spawner, calls } = createFakeSpawner(
+      createFakeProcess({ pid: 4242 }).process,
+    );
+    const listener = ownedFingerprint({ pid: 37591, pgid: 37549 });
+    const verifier = createOwnershipProbe(
+      ownedVerdict(listener),
+      ownedVerdict(listener),
+    );
+    const { factory } = createAdoptedFactory(adopted.process);
+    const exitListeners: (() => void)[] = [];
+    const guard = createArcVoiceOrphanGuard({
+      subscribeExit: (listener_) => {
+        exitListeners.push(listener_);
+        return () => {};
+      },
+    });
+    const manager = createManager({
+      spawner,
+      client: unusedClient,
+      healthCheck: healthy,
+      guard,
+      sleep: () => Promise.resolve(),
+      ownershipProbe: verifier,
+      adoptedProcessFactory: factory,
+    });
+
+    await manager.start(launchConfig, { timeoutMs: 100 });
+    for (const listener_ of [...exitListeners]) {
+      listener_();
+    }
+
+    expect(adopted.kills).toEqual(["SIGKILL"]);
+    expect(calls).toEqual([]);
+  });
+
+  it("restarts after the adopted runtime dies without duplicating it", async () => {
+    const adopted = createFakeProcess({ pid: 37591 });
+    const fresh = createFakeProcess({ pid: 200 });
+    const { spawner, calls } = createFakeSpawner(fresh.process);
+    const listener = ownedFingerprint({ pid: 37591, pgid: 37549 });
+    const verifier = createOwnershipProbe(
+      ownedVerdict(listener),
+      ownedVerdict(listener),
+      { kind: "vacant", detail: "probe detail" },
+    );
+    const { factory, requests } = createAdoptedFactory(adopted.process);
+    const exits: ArcVoiceRuntimeExitEvent[] = [];
+    const gate = deferredSleep();
+    const manager = createManager({
+      spawner,
+      client: unusedClient,
+      healthCheck: healthy,
+      restartPolicy: { maxAttempts: 1, delayMs: 10, readyTimeoutMs: 100 },
+      onRuntimeExit: (event) => exits.push(event),
+      sleep: gate.sleep,
+      ownershipProbe: verifier,
+      adoptedProcessFactory: factory,
+    });
+
+    await manager.start(launchConfig, { timeoutMs: 100 });
+    adopted.close();
+
+    expect(exits).toEqual([
+      { pid: 37591, detail: expect.any(String), restarting: true },
+    ]);
+
+    gate.flush();
+    await vi.waitFor(() => {
+      expect(manager.status()).toEqual({ state: "ready", pid: 200 });
+    });
+    expect(calls).toHaveLength(1);
+    expect(requests).toHaveLength(1);
+  });
+
+  it("keeps the tracked runtime when ownership cannot be verified", async () => {
+    const spawned = createFakeProcess({ pid: 4242, closeOn: "SIGTERM" });
+    const { spawner, calls } = createFakeSpawner(spawned.process);
+    const verifier = createOwnershipProbe({
+      kind: "unsupported",
+      detail: "no ps available",
+    });
+    const manager = createManager({
+      spawner,
+      client: unusedClient,
+      healthCheck: healthy,
+      sleep: () => Promise.resolve(),
+      ownershipProbe: verifier,
+    });
+
+    const result = await manager.start(launchConfig, { timeoutMs: 100 });
+
+    expect(result).toEqual({ kind: "ready", detail: "ready" });
+    expect(calls).toHaveLength(1);
+    expect(manager.status()).toEqual({ state: "ready", pid: 4242 });
+  });
+
+  it("spawns once when two starts race through the ownership probe", async () => {
+    const spawned = createFakeProcess({ pid: 4242, closeOn: "SIGTERM" });
+    const { spawner, calls } = createFakeSpawner(spawned.process);
+    const gate = deferredSleep();
+    let gated = true;
+    const manager = createManager({
+      spawner,
+      client: unusedClient,
+      healthCheck: healthy,
+      sleep: () => Promise.resolve(),
+      ownershipProbe: {
+        probe: () => {
+          if (!gated) {
+            return Promise.resolve({
+              kind: "vacant" as const,
+              detail: "probe detail",
+            });
+          }
+          gated = false;
+          return gate
+            .sleep(0)
+            .then(() => ({ kind: "vacant" as const, detail: "probe detail" }));
+        },
+      },
+    });
+
+    const first = manager.start(launchConfig, { timeoutMs: 100 });
+    const second = manager.start(launchConfig, { timeoutMs: 100 });
+    gate.flush();
+    const results = await Promise.all([first, second]);
+
+    expect(results).toEqual([
+      { kind: "ready", detail: "ready" },
+      { kind: "ready", detail: "ready" },
+    ]);
+    expect(calls).toHaveLength(1);
+    expect(manager.status()).toEqual({ state: "ready", pid: 4242 });
+  });
+
+  it("does not spawn a runtime that a concurrent stop superseded", async () => {
+    const spawned = createFakeProcess({ pid: 4242, closeOn: "SIGTERM" });
+    const { spawner, calls } = createFakeSpawner(spawned.process);
+    const gate = deferredSleep();
+    const manager = createManager({
+      spawner,
+      client: unusedClient,
+      healthCheck: healthy,
+      sleep: () => Promise.resolve(),
+      ownershipProbe: {
+        probe: () =>
+          gate
+            .sleep(0)
+            .then(() => ({ kind: "vacant" as const, detail: "probe detail" })),
+      },
+    });
+
+    const starting = manager.start(launchConfig, { timeoutMs: 100 });
+    const stopped = await manager.stop();
+    gate.flush();
+    const result = await starting;
+
+    expect(stopped).toEqual({
+      kind: "not-running",
+      detail: "voice runtime is not running",
+    });
+    expect(result).toEqual({
+      kind: "failed",
+      detail: expect.stringContaining("superseded"),
+    });
+    expect(calls).toEqual([]);
+    expect(manager.status().state).toBe("stopped");
+  });
+
+  it("refuses to declare a restarted runtime ready while another Arc runtime answers", async () => {
+    const first = createFakeProcess({ pid: 100 });
+    const adopted = createFakeProcess({ pid: 500, closeOn: "SIGTERM" });
+    const { spawner, calls } = createFakeSpawner(first.process);
+    const other = ownedFingerprint({ pid: 900, pgid: 900 });
+    const verifier = createOwnershipProbe(
+      { kind: "vacant", detail: "probe detail" },
+      { kind: "vacant", detail: "probe detail" },
+      ownedVerdict(other),
+      ownedVerdict(other),
+    );
+    const { factory } = createAdoptedFactory(adopted.process);
+    const gate = deferredSleep();
+    const manager = createManager({
+      spawner,
+      client: unusedClient,
+      healthCheck: healthy,
+      restartPolicy: { maxAttempts: 1, delayMs: 10, readyTimeoutMs: 100 },
+      sleep: gate.sleep,
+      ownershipProbe: verifier,
+      adoptedProcessFactory: factory,
+    });
+
+    await manager.start(launchConfig, { timeoutMs: 100 });
+    first.close();
+    gate.flush();
+
+    await vi.waitFor(() => {
+      expect(manager.status().lastError).toContain(
+        "another Arc voice runtime (pid 900)",
+      );
+    });
+    expect(manager.status().state).toBe("failed");
+    expect(adopted.kills).toEqual(["SIGTERM"]);
+    expect(calls).toHaveLength(1);
   });
 });

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { publishedMigrationWhensByTag } from "../src/migration-history.js";
-import { defaultAppSettings } from "@bb/domain";
+import { defaultAppSettings, defaultVoiceSettings } from "@bb/domain";
 import {
   createQueuedThreadMessage,
   createThread,
@@ -2000,6 +2000,7 @@ describe("migrate", () => {
         telemetryEnabled: true,
         managedBranchPrefix: "bb/",
         onboardingCompleted: false,
+        voice: defaultVoiceSettings,
       });
       expect(
         db.$client

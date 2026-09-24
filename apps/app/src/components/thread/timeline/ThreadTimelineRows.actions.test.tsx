@@ -1648,14 +1648,14 @@ describe("ThreadTimelineRows shared message column width", () => {
       fireEvent.click(trigger);
     };
 
-    reportListWidth(131);
+    reportListWidth(167);
     clickTrigger();
     expect(document.body.querySelector('[data-side="top"]')).not.toBeNull();
     expect(
       earlierMessage.querySelector('[aria-label="Copy message"]'),
     ).toBeNull();
 
-    reportListWidth(132);
+    reportListWidth(168);
     clickTrigger();
     expect(document.body.querySelector('[data-side="top"]')).toBeNull();
     expect(

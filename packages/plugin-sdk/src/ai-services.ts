@@ -83,6 +83,7 @@ export const experimental_aiVoiceTranscribeInputSchema = z
   .object({
     serviceId: z.string().min(1),
     model: z.string().min(1),
+    language: z.string().nullable(),
     audioBase64: z.string().min(1),
     mimeType: z.string().min(1),
     filename: z.string().min(1),
@@ -104,6 +105,325 @@ export type ExperimentalAiVoiceTranscribeOutput = z.infer<
   typeof experimental_aiVoiceTranscribeOutputSchema
 >;
 
+export const experimental_aiVoiceStatusInputSchema = z
+  .object({
+    serviceId: z.string().min(1),
+  })
+  .strict();
+export type ExperimentalAiVoiceStatusInput = z.infer<
+  typeof experimental_aiVoiceStatusInputSchema
+>;
+
+/**
+ * Whether the host's speech runtime is usable right now, for the states a
+ * caller can show a user. `speechModelLoaded` answers "is a speech-to-text
+ * model resident?"; `voiceModel` describes the text-to-speech model the host
+ * would generate with, so a UI can distinguish "preparing the voice" from
+ * "generating speech" without inventing progress.
+ */
+export const experimental_aiVoiceStatusOutputSchema = z.union([
+  z
+    .object({
+      ok: z.literal(true),
+      runtimeState: z.enum(["stopped", "starting", "ready"]),
+      version: z.string().nullable(),
+      speechModelLoaded: z.boolean(),
+      voiceModel: z
+        .object({
+          engine: z.string().min(1),
+          size: z.string(),
+          downloaded: z.boolean(),
+          loaded: z.boolean(),
+          downloading: z.boolean(),
+          /** Real download progress when the runtime reports it, else null. */
+          downloadPercent: z.number().min(0).max(1).nullable(),
+        })
+        .strict()
+        .nullable(),
+    })
+    .strict(),
+  failureSchema,
+]);
+export type ExperimentalAiVoiceStatusOutput = z.infer<
+  typeof experimental_aiVoiceStatusOutputSchema
+>;
+
+export const experimental_aiVoiceSpeakInputSchema = z
+  .object({
+    serviceId: z.string().min(1),
+    text: z.string().min(1).max(1200),
+    language: z.string().min(1).nullable(),
+    profile: z.string().min(1).nullable(),
+    engine: z.string().min(1).nullable(),
+    voiceId: z.string().min(1).nullable(),
+    timeoutMs: z.number().int().positive(),
+  })
+  .strict();
+export type ExperimentalAiVoiceSpeakInput = z.infer<
+  typeof experimental_aiVoiceSpeakInputSchema
+>;
+
+export const experimental_aiVoiceSpeakOutputSchema = z.union([
+  z
+    .object({
+      ok: z.literal(true),
+      audioBase64: z.string().min(1),
+      contentType: z.string().min(1),
+      durationMs: z.number().nonnegative().nullable(),
+    })
+    .strict(),
+  failureSchema,
+]);
+export type ExperimentalAiVoiceSpeakOutput = z.infer<
+  typeof experimental_aiVoiceSpeakOutputSchema
+>;
+
+export const experimental_voiceModelStateSchema = z
+  .object({
+    name: z.string().min(1),
+    displayName: z.string().min(1),
+    downloaded: z.boolean(),
+    downloading: z.boolean(),
+    loaded: z.boolean(),
+    downloadPercent: z.number().min(0).max(1).nullable(),
+  })
+  .strict();
+export type ExperimentalVoiceModelState = z.infer<
+  typeof experimental_voiceModelStateSchema
+>;
+
+export const experimental_voiceEngineCapabilitiesSchema = z
+  .object({
+    engine: z.string().min(1),
+    requiresClonedProfile: z.boolean(),
+    presets: z
+      .array(
+        z
+          .object({
+            voiceId: z.string().min(1),
+            name: z.string().min(1),
+            gender: z.string(),
+            language: z.string().min(1),
+          })
+          .strict(),
+      )
+      .nullable(),
+    models: z.array(experimental_voiceModelStateSchema),
+  })
+  .strict();
+export type ExperimentalVoiceEngineCapabilities = z.infer<
+  typeof experimental_voiceEngineCapabilitiesSchema
+>;
+
+export const experimental_aiVoiceCapabilitiesInputSchema = z
+  .object({
+    serviceId: z.string().min(1),
+  })
+  .strict();
+export type ExperimentalAiVoiceCapabilitiesInput = z.infer<
+  typeof experimental_aiVoiceCapabilitiesInputSchema
+>;
+
+export const experimental_aiVoiceCapabilitiesOutputSchema = z.union([
+  z
+    .object({
+      ok: z.literal(true),
+      runtimeState: z.enum(["stopped", "starting", "ready"]),
+      version: z.string().nullable(),
+      engines: z.array(experimental_voiceEngineCapabilitiesSchema),
+      speechModels: z.array(experimental_voiceModelStateSchema),
+    })
+    .strict(),
+  failureSchema,
+]);
+export type ExperimentalAiVoiceCapabilitiesOutput = z.infer<
+  typeof experimental_aiVoiceCapabilitiesOutputSchema
+>;
+
+export const experimental_voiceProfileSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    description: z.string().nullable(),
+    language: z.string().min(1),
+    voiceType: z.string().min(1),
+    presetEngine: z.string().nullable(),
+    presetVoiceId: z.string().nullable(),
+    sampleCount: z.number().int().nonnegative(),
+  })
+  .strict();
+export type ExperimentalVoiceProfile = z.infer<
+  typeof experimental_voiceProfileSchema
+>;
+
+const voiceServiceIdInputSchema = z
+  .object({
+    serviceId: z.string().min(1),
+  })
+  .strict();
+
+export const experimental_aiVoiceProfilesInputSchema = voiceServiceIdInputSchema;
+export type ExperimentalAiVoiceProfilesInput = z.infer<
+  typeof experimental_aiVoiceProfilesInputSchema
+>;
+
+export const experimental_aiVoiceProfilesOutputSchema = z.union([
+  z
+    .object({
+      ok: z.literal(true),
+      profiles: z.array(experimental_voiceProfileSchema),
+    })
+    .strict(),
+  failureSchema,
+]);
+export type ExperimentalAiVoiceProfilesOutput = z.infer<
+  typeof experimental_aiVoiceProfilesOutputSchema
+>;
+
+export const experimental_aiVoiceProfileCreateInputSchema = z
+  .object({
+    serviceId: z.string().min(1),
+    name: z.string().min(1).max(100),
+    description: z.string().max(500).nullable(),
+    language: z.string().min(1),
+    voiceType: z.enum(["cloned", "preset", "designed"]),
+    presetEngine: z.string().max(50).nullable(),
+    presetVoiceId: z.string().nullable(),
+  })
+  .strict();
+export type ExperimentalAiVoiceProfileCreateInput = z.infer<
+  typeof experimental_aiVoiceProfileCreateInputSchema
+>;
+
+export const experimental_aiVoiceProfileUpdateInputSchema = z
+  .object({
+    serviceId: z.string().min(1),
+    profileId: z.string().min(1),
+    name: z.string().min(1).max(100).nullable(),
+    description: z.string().max(500).nullable(),
+  })
+  .strict();
+export type ExperimentalAiVoiceProfileUpdateInput = z.infer<
+  typeof experimental_aiVoiceProfileUpdateInputSchema
+>;
+
+export const experimental_aiVoiceProfileDeleteInputSchema = z
+  .object({
+    serviceId: z.string().min(1),
+    profileId: z.string().min(1),
+  })
+  .strict();
+export type ExperimentalAiVoiceProfileDeleteInput = z.infer<
+  typeof experimental_aiVoiceProfileDeleteInputSchema
+>;
+
+export const experimental_aiVoiceProfileMutationOutputSchema = z.union([
+  z
+    .object({
+      ok: z.literal(true),
+      profile: experimental_voiceProfileSchema,
+    })
+    .strict(),
+  failureSchema,
+]);
+export type ExperimentalAiVoiceProfileMutationOutput = z.infer<
+  typeof experimental_aiVoiceProfileMutationOutputSchema
+>;
+
+export const experimental_aiVoiceProfileSampleAddInputSchema = z
+  .object({
+    serviceId: z.string().min(1),
+    profileId: z.string().min(1),
+    audioBase64: z.string().min(1),
+    mimeType: z.string().min(1),
+    filename: z.string().min(1),
+    referenceText: z.string().min(1).max(5000),
+  })
+  .strict();
+export type ExperimentalAiVoiceProfileSampleAddInput = z.infer<
+  typeof experimental_aiVoiceProfileSampleAddInputSchema
+>;
+
+export const experimental_aiVoiceProfileSampleRemoveInputSchema = z
+  .object({
+    serviceId: z.string().min(1),
+    sampleId: z.string().min(1),
+  })
+  .strict();
+export type ExperimentalAiVoiceProfileSampleRemoveInput = z.infer<
+  typeof experimental_aiVoiceProfileSampleRemoveInputSchema
+>;
+
+export const experimental_aiVoiceProfileSampleOutputSchema = z.union([
+  z
+    .object({
+      ok: z.literal(true),
+      sampleId: z.string().min(1),
+    })
+    .strict(),
+  failureSchema,
+]);
+export type ExperimentalAiVoiceProfileSampleOutput = z.infer<
+  typeof experimental_aiVoiceProfileSampleOutputSchema
+>;
+
+export const experimental_aiVoiceModelDownloadInputSchema = z
+  .object({
+    serviceId: z.string().min(1),
+    model: z.string().min(1),
+  })
+  .strict();
+export type ExperimentalAiVoiceModelDownloadInput = z.infer<
+  typeof experimental_aiVoiceModelDownloadInputSchema
+>;
+
+export const experimental_aiVoiceModelMutationOutputSchema = z.union([
+  z.object({ ok: z.literal(true) }).strict(),
+  failureSchema,
+]);
+export type ExperimentalAiVoiceModelMutationOutput = z.infer<
+  typeof experimental_aiVoiceModelMutationOutputSchema
+>;
+
+export const experimental_aiVoiceRepairInputSchema = voiceServiceIdInputSchema;
+export type ExperimentalAiVoiceRepairInput = z.infer<
+  typeof experimental_aiVoiceRepairInputSchema
+>;
+
+export const experimental_aiVoicePrepareOutputSchema = z.union([
+  z
+    .object({
+      ok: z.literal(true),
+      runtimeState: z.enum(["stopped", "starting", "ready"]),
+    })
+    .strict(),
+  failureSchema,
+]);
+export type ExperimentalAiVoicePrepareOutput = z.infer<
+  typeof experimental_aiVoicePrepareOutputSchema
+>;
+
+export const experimental_aiVoiceReleaseOutputSchema = z.union([
+  z
+    .object({
+      ok: z.literal(true),
+      runtimeState: z.enum(["stopped", "not-running"]),
+    })
+    .strict(),
+  failureSchema,
+]);
+export type ExperimentalAiVoiceReleaseOutput = z.infer<
+  typeof experimental_aiVoiceReleaseOutputSchema
+>;
+
+export const experimental_aiVoiceRepairOutputSchema = z.union([
+  z.object({ ok: z.literal(true) }).strict(),
+  failureSchema,
+]);
+export type ExperimentalAiVoiceRepairOutput = z.infer<
+  typeof experimental_aiVoiceRepairOutputSchema
+>;
+
 /**
  * The host RPC methods an AI-service plugin implements. A plugin that
  * registers only `inference` still builds against the full contract; the
@@ -117,6 +437,66 @@ export const experimental_aiServicesHostContract = defineRpcContract({
   "ai.voice.transcribe": {
     input: experimental_aiVoiceTranscribeInputSchema,
     output: experimental_aiVoiceTranscribeOutputSchema,
+  },
+  "ai.voice.status": {
+    input: experimental_aiVoiceStatusInputSchema,
+    output: experimental_aiVoiceStatusOutputSchema,
+  },
+  "ai.voice.speak": {
+    input: experimental_aiVoiceSpeakInputSchema,
+    output: experimental_aiVoiceSpeakOutputSchema,
+  },
+  "ai.voice.capabilities": {
+    input: experimental_aiVoiceCapabilitiesInputSchema,
+    output: experimental_aiVoiceCapabilitiesOutputSchema,
+  },
+  "ai.voice.profiles": {
+    input: experimental_aiVoiceProfilesInputSchema,
+    output: experimental_aiVoiceProfilesOutputSchema,
+  },
+  "ai.voice.profileCreate": {
+    input: experimental_aiVoiceProfileCreateInputSchema,
+    output: experimental_aiVoiceProfileMutationOutputSchema,
+  },
+  "ai.voice.profileUpdate": {
+    input: experimental_aiVoiceProfileUpdateInputSchema,
+    output: experimental_aiVoiceProfileMutationOutputSchema,
+  },
+  "ai.voice.profileDelete": {
+    input: experimental_aiVoiceProfileDeleteInputSchema,
+    output: experimental_aiVoiceProfileMutationOutputSchema,
+  },
+  "ai.voice.profileSampleAdd": {
+    input: experimental_aiVoiceProfileSampleAddInputSchema,
+    output: experimental_aiVoiceProfileSampleOutputSchema,
+  },
+  "ai.voice.profileSampleRemove": {
+    input: experimental_aiVoiceProfileSampleRemoveInputSchema,
+    output: experimental_aiVoiceProfileSampleOutputSchema,
+  },
+  "ai.voice.modelDownload": {
+    input: experimental_aiVoiceModelDownloadInputSchema,
+    output: experimental_aiVoiceModelMutationOutputSchema,
+  },
+  "ai.voice.modelDownloadCancel": {
+    input: experimental_aiVoiceModelDownloadInputSchema,
+    output: experimental_aiVoiceModelMutationOutputSchema,
+  },
+  "ai.voice.repair": {
+    input: experimental_aiVoiceRepairInputSchema,
+    output: experimental_aiVoiceRepairOutputSchema,
+  },
+  "ai.voice.prepare": {
+    input: experimental_aiVoiceRepairInputSchema,
+    output: experimental_aiVoicePrepareOutputSchema,
+  },
+  "ai.voice.release": {
+    input: experimental_aiVoiceRepairInputSchema,
+    output: experimental_aiVoiceReleaseOutputSchema,
+  },
+  "ai.voice.unloadModels": {
+    input: experimental_aiVoiceRepairInputSchema,
+    output: experimental_aiVoiceModelMutationOutputSchema,
   },
 });
 export type ExperimentalAiServicesHostContract =

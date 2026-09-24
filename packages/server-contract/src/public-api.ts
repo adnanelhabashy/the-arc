@@ -203,6 +203,15 @@ import type {
   SystemUsageLimitsQuery,
   SystemVersionQuery,
   SystemVersionResponse,
+  SystemVoiceProfile,
+  SystemVoiceProfileCreateRequest,
+  SystemVoiceProfileSampleAddForm,
+  SystemVoiceProfileUpdateRequest,
+  SystemVoiceProfilesResponse,
+  SystemVoiceCapabilitiesResponse,
+  SystemVoiceModelRequest,
+  SystemVoiceSpeakRequest,
+  SystemVoiceStatusResponse,
   SystemVoiceTranscriptionForm,
   SystemVoiceTranscriptionResponse,
   TerminalListResponse,
@@ -350,6 +359,10 @@ import {
   systemProvidersQuerySchema,
   systemUsageLimitsQuerySchema,
   systemVersionQuerySchema,
+  systemVoiceProfileCreateRequestSchema,
+  systemVoiceProfileUpdateRequestSchema,
+  systemVoiceModelRequestSchema,
+  systemVoiceSpeakRequestSchema,
   threadEventWaitQuerySchema,
   threadEventsQuerySchema,
   threadFilesRawQuerySchema,
@@ -1900,6 +1913,97 @@ export const publicApiRoutes = {
       method: "post",
       request: formRequest<EmptyInput, SystemVoiceTranscriptionForm>(),
       response: jsonResponse<SystemVoiceTranscriptionResponse>(),
+    }),
+    voiceStatus: defineRoute({
+      path: "/system/voice-status",
+      method: "get",
+      request: noRequest<EmptyInput>(),
+      response: jsonResponse<SystemVoiceStatusResponse>(),
+    }),
+    voiceSpeak: defineRoute({
+      path: "/system/voice-speak",
+      method: "post",
+      request: jsonRequest<EmptyInput, SystemVoiceSpeakRequest>(
+        systemVoiceSpeakRequestSchema,
+      ),
+      response: binaryResponse<Uint8Array>(),
+    }),
+    voiceCapabilities: defineRoute({
+      path: "/system/voice-capabilities",
+      method: "get",
+      request: noRequest<EmptyInput>(),
+      response: jsonResponse<SystemVoiceCapabilitiesResponse>(),
+    }),
+    voiceProfiles: defineRoute({
+      path: "/system/voice-profiles",
+      method: "get",
+      request: noRequest<EmptyInput>(),
+      response: jsonResponse<SystemVoiceProfilesResponse>(),
+    }),
+    voiceProfileCreate: defineRoute({
+      path: "/system/voice-profiles",
+      method: "post",
+      request: jsonRequest<EmptyInput, SystemVoiceProfileCreateRequest>(
+        systemVoiceProfileCreateRequestSchema,
+      ),
+      response: jsonResponse<{ profile: SystemVoiceProfile }>(),
+    }),
+    voiceProfileUpdate: defineRoute({
+      path: "/system/voice-profiles/:id",
+      method: "put",
+      request: jsonRequest<PathId, SystemVoiceProfileUpdateRequest>(
+        systemVoiceProfileUpdateRequestSchema,
+      ),
+      response: jsonResponse<{ profile: SystemVoiceProfile }>(),
+    }),
+    voiceProfileDelete: defineRoute({
+      path: "/system/voice-profiles/:id",
+      method: "delete",
+      request: noRequest<PathId>(),
+      response: jsonResponse<{ ok: true }>(),
+    }),
+    voiceProfileSampleAdd: defineRoute({
+      path: "/system/voice-profiles/:id/samples",
+      method: "post",
+      request: formRequest<PathId, SystemVoiceProfileSampleAddForm>(),
+      response: jsonResponse<{ sampleId: string }>(),
+    }),
+    voiceProfileSampleRemove: defineRoute({
+      path: "/system/voice-profile-samples/:id",
+      method: "delete",
+      request: noRequest<PathId>(),
+      response: jsonResponse<{ ok: true }>(),
+    }),
+    voiceModelDownload: defineRoute({
+      path: "/system/voice-models/download",
+      method: "post",
+      request: jsonRequest<EmptyInput, SystemVoiceModelRequest>(
+        systemVoiceModelRequestSchema,
+      ),
+      response: jsonResponse<{ ok: true }>(),
+    }),
+    voiceModelDownloadCancel: defineRoute({
+      path: "/system/voice-models/download-cancel",
+      method: "post",
+      request: jsonRequest<EmptyInput, SystemVoiceModelRequest>(
+        systemVoiceModelRequestSchema,
+      ),
+      response: jsonResponse<{ ok: true }>(),
+    }),
+    voiceRepair: defineRoute({
+      path: "/system/voice-repair",
+      method: "post",
+      request: noRequest<EmptyInput>(),
+      response: jsonResponse<{ ok: true }>(),
+    }),
+    voicePrepare: defineRoute({
+      path: "/system/voice-prepare",
+      method: "post",
+      request: noRequest<EmptyInput>(),
+      response: jsonResponse<{
+        ok: true;
+        runtimeState: "ready" | "starting" | "stopped";
+      }>(),
     }),
     version: defineRoute({
       path: "/system/version",

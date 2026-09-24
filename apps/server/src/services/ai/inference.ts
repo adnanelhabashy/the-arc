@@ -53,12 +53,26 @@ function getInferenceModel(
 
 const RESULT_TOOL_NAME = "result";
 const DEFAULT_INFERENCE_TIMEOUT_MS = 30_000;
+export const VOICE_TRANSCRIPTION_MEASURED_COLD_TRANSCRIPTION_MS = 53_000;
+
+const VOICE_TRANSCRIPTION_OPERATION_BUDGET_MS = 120_000;
+const VOICE_TRANSCRIPTION_HOST_DEADLINE_MARGIN_MS = 15_000;
+const VOICE_TRANSCRIPTION_HOST_DEADLINE_MS =
+  VOICE_TRANSCRIPTION_OPERATION_BUDGET_MS +
+  VOICE_TRANSCRIPTION_HOST_DEADLINE_MARGIN_MS;
+const OPENAI_VOICE_TRANSCRIPTION_TIMEOUT_MS = 10_000;
 
 export const INFERENCE_POLICY = {
   hostRpcGraceMs: 1_000,
   commitMessage: { maxAttempts: 2, retryDelayMs: 0, timeoutMs: 5_000 },
   threadMetadata: { maxAttempts: 2, retryDelayMs: 250, timeoutMs: 5_000 },
-  voiceTranscription: { maxAttempts: 2, retryDelayMs: 250, timeoutMs: 10_000 },
+  voiceTranscription: {
+    maxAttempts: 2,
+    retryDelayMs: 250,
+    timeoutMs: VOICE_TRANSCRIPTION_OPERATION_BUDGET_MS,
+  },
+  voiceTranscriptionHostDeadlineMs: VOICE_TRANSCRIPTION_HOST_DEADLINE_MS,
+  openAiVoiceTranscriptionTimeoutMs: OPENAI_VOICE_TRANSCRIPTION_TIMEOUT_MS,
 } as const;
 
 interface InferenceCompleteArgs<T extends TSchema> {

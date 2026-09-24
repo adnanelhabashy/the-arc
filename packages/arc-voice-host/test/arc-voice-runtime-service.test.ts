@@ -15,9 +15,12 @@ import type { ArcVoiceboxStageResult } from "../src/acquire.js";
 import type {
   ArcVoiceCallResult,
   ArcVoiceClient,
+  ArcVoiceSpeakArgs,
+  ArcVoiceSpeakOutput,
   ArcVoiceTranscribeArgs,
   ArcVoiceTranscribeOutput,
 } from "../src/client.js";
+import { createStubArcVoiceClient } from "./stub-client.js";
 import type { ArcVoiceHealthResult } from "../src/health.js";
 import {
   mutateVoiceRuntimeManifest,
@@ -64,9 +67,8 @@ const scheduler: ArcVoiceTimeoutScheduler = (_timeoutMs, onTimeout) => {
 };
 
 const unusedClient: ArcVoiceClient = {
+  ...createStubArcVoiceClient(),
   listProfiles: () => Promise.resolve({ kind: "ok", value: [] }),
-  transcribe: () => Promise.resolve({ kind: "error", message: "unused" }),
-  speak: () => Promise.resolve({ kind: "error", message: "unused" }),
 };
 
 const COMPONENT_BYTES = "voicebox-server-fixture";
@@ -535,12 +537,20 @@ describe("ArcVoiceRuntimeService.transcribe", () => {
     return {
       calls,
       client: {
+        ...createStubArcVoiceClient(),
         listProfiles: () => Promise.resolve({ kind: "ok", value: [] }),
         transcribe: (args) => {
           calls.push(args);
           return Promise.resolve(result);
         },
-        speak: () => Promise.resolve({ kind: "error", message: "unused" }),
+        speak: () =>
+          Promise.resolve({ kind: "error", code: "unavailable", message: "unused" }),
+        modelStatus: () =>
+          Promise.resolve({ kind: "error", code: "unavailable", message: "unused" }),
+        loadVoiceModel: () =>
+          Promise.resolve({ kind: "error", code: "unavailable", message: "unused" }),
+        voiceModelProgress: () =>
+          Promise.resolve({ kind: "error", code: "unavailable", message: "unused" }),
       },
     };
   }
@@ -587,6 +597,7 @@ describe("ArcVoiceRuntimeService.transcribe", () => {
   it("preserves a client failure without disturbing the running runtime", async () => {
     const { client } = recordingClient({
       kind: "error",
+      code: "http",
       message: "voice transcription failed with HTTP 500",
       status: 500,
     });
@@ -595,10 +606,73 @@ describe("ArcVoiceRuntimeService.transcribe", () => {
 
     expect(await service.transcribe({ audio: new Uint8Array([1]) })).toEqual({
       kind: "error",
+      code: "http",
       message: "voice transcription failed with HTTP 500",
       status: 500,
     });
     expect((await service.status()).state).toBe("ready");
+  });
+
+  it("reports a timeout instead of waiting out a slow runtime start", async () => {
+    const { client, calls } = recordingClient({
+      kind: "ok",
+      value: { text: "too late" },
+    });
+    const { service } = await createService({
+      client,
+      stageOverride: async ({ stagingDir }) => {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        return {
+          kind: "ok",
+          executablePath: join(stagingDir, "voicebox-server"),
+          digest: await componentDigest(),
+          version: ARC_VOICEBOX_RELEASE.version,
+        };
+      },
+    });
+
+    const started = Date.now();
+    const result = await service.transcribe({
+      audio: new Uint8Array([1]),
+      timeoutMs: 60,
+    });
+
+    expect(result).toMatchObject({ kind: "error", code: "timeout" });
+    expect(Date.now() - started).toBeLessThan(320);
+    expect(calls).toEqual([]);
+  });
+
+  it("reports an aborted transcription that is still starting the runtime", async () => {
+    const { client, calls } = recordingClient({
+      kind: "ok",
+      value: { text: "too late" },
+    });
+    const { service } = await createService({
+      client,
+      stageOverride: async ({ stagingDir }) => {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        return {
+          kind: "ok",
+          executablePath: join(stagingDir, "voicebox-server"),
+          digest: await componentDigest(),
+          version: ARC_VOICEBOX_RELEASE.version,
+        };
+      },
+    });
+    const controller = new AbortController();
+
+    const started = Date.now();
+    const pending = service.transcribe({
+      audio: new Uint8Array([1]),
+      signal: controller.signal,
+      timeoutMs: 30_000,
+    });
+    controller.abort();
+    const result = await pending;
+
+    expect(result).toMatchObject({ kind: "error", code: "aborted" });
+    expect(Date.now() - started).toBeLessThan(320);
+    expect(calls).toEqual([]);
   });
 
   it("reports an unavailable runtime without calling the voice client", async () => {
@@ -637,6 +711,7 @@ describe("ArcVoiceRuntimeService.transcribe", () => {
       }),
     ).toEqual({
       kind: "error",
+      code: "aborted",
       message: "voice transcription was cancelled",
     });
     expect(calls).toEqual([]);
@@ -661,6 +736,7 @@ describe("ArcVoiceRuntimeService.transcribe", () => {
       }),
     ).toEqual({
       kind: "error",
+      code: "aborted",
       message: "voice transcription was cancelled",
     });
     expect(calls).toEqual([]);
@@ -732,5 +808,287 @@ describe("arc voice service isolation", () => {
 
     expect(signalSpy).not.toHaveBeenCalled();
     signalSpy.mockRestore();
+  });
+});
+
+describe("ArcVoiceRuntimeService.speechStatus", () => {
+  it("reports stopped without starting the runtime", async () => {
+    const { service, launches } = await createService();
+
+    expect(await service.speechStatus()).toEqual({
+      kind: "ok",
+      value: {
+        runtimeState: "stopped",
+        version: null,
+        speechModelLoaded: false,
+        voiceModel: null,
+      },
+    });
+    expect(launches).toEqual([]);
+  });
+
+  it("maps a ready runtime's model status without throwing", async () => {
+    const client: ArcVoiceClient = {
+      ...createStubArcVoiceClient(),
+      listProfiles: () => Promise.resolve({ kind: "ok", value: [] }),
+      transcribe: () =>
+        Promise.resolve({ kind: "error", code: "unavailable", message: "unused" }),
+      speak: () =>
+        Promise.resolve({ kind: "error", code: "unavailable", message: "unused" }),
+      loadVoiceModel: () =>
+        Promise.resolve({ kind: "error", code: "unavailable", message: "unused" }),
+      voiceModelProgress: () => Promise.resolve({ kind: "ok", value: 0.4 }),
+      modelStatus: () =>
+        Promise.resolve({
+          kind: "ok",
+          value: {
+            speech: { modelName: "whisper-base", loaded: true },
+            voice: {
+              modelName: "kokoro",
+              engine: "kokoro",
+              size: "",
+              downloaded: false,
+              loaded: false,
+              downloading: true,
+            },
+          },
+        }),
+    };
+    const { service } = await createService({ client });
+    await service.start();
+
+    expect(await service.speechStatus()).toEqual({
+      kind: "ok",
+      value: {
+        runtimeState: "ready",
+        version: ARC_VOICEBOX_RELEASE.version,
+        speechModelLoaded: true,
+        voiceModel: {
+          engine: "kokoro",
+          size: "",
+          downloaded: false,
+          loaded: false,
+          downloading: true,
+          downloadPercent: 0.4,
+        },
+      },
+    });
+  });
+});
+
+describe("ArcVoiceRuntimeService.speak", () => {
+  function speakClient(result: ArcVoiceCallResult<ArcVoiceSpeakOutput>): {
+    client: ArcVoiceClient;
+    calls: ArcVoiceSpeakArgs[];
+  } {
+    const calls: ArcVoiceSpeakArgs[] = [];
+    return {
+      calls,
+      client: {
+        ...createStubArcVoiceClient(),
+        listProfiles: () => Promise.resolve({ kind: "ok", value: [] }),
+        transcribe: () =>
+          Promise.resolve({ kind: "error", code: "unavailable", message: "unused" }),
+        speak: (args) => {
+          calls.push(args);
+          return Promise.resolve(result);
+        },
+        modelStatus: () =>
+          Promise.resolve({ kind: "error", code: "unavailable", message: "unused" }),
+        loadVoiceModel: () =>
+          Promise.resolve({ kind: "error", code: "unavailable", message: "unused" }),
+        voiceModelProgress: () =>
+          Promise.resolve({ kind: "error", code: "unavailable", message: "unused" }),
+      },
+    };
+  }
+
+  it("starts the runtime for the first speak", async () => {
+    const { client, calls } = speakClient({
+      kind: "ok",
+      value: { audio: new Uint8Array([1]), contentType: "audio/wav", durationMs: 1500 },
+    });
+    const { service, launches } = await createService({ client });
+
+    expect(await service.speak({ text: "Hello" })).toEqual({
+      kind: "ok",
+      value: { audio: new Uint8Array([1]), contentType: "audio/wav", durationMs: 1500 },
+    });
+    expect(launches).toHaveLength(1);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.text).toBe("Hello");
+  });
+
+  it("reports a timeout instead of waiting out a slow runtime start", async () => {
+    const { client, calls } = speakClient({
+      kind: "ok",
+      value: { audio: new Uint8Array([1]), contentType: "audio/wav", durationMs: null },
+    });
+    const { service } = await createService({
+      client,
+      stageOverride: async ({ stagingDir }) => {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        return {
+          kind: "ok",
+          executablePath: join(stagingDir, "voicebox-server"),
+          digest: await componentDigest(),
+          version: ARC_VOICEBOX_RELEASE.version,
+        };
+      },
+    });
+
+    const started = Date.now();
+    const result = await service.speak({ text: "Hello", timeoutMs: 60 });
+
+    expect(result).toMatchObject({ kind: "error", code: "timeout" });
+    expect(Date.now() - started).toBeLessThan(320);
+    expect(calls).toEqual([]);
+  });
+
+  it("refuses an already-aborted speak without starting the runtime", async () => {
+    const { client, calls } = speakClient({
+      kind: "ok",
+      value: { audio: new Uint8Array([1]), contentType: "audio/wav", durationMs: null },
+    });
+    const { service, launches } = await createService({ client });
+    const controller = new AbortController();
+    controller.abort();
+
+    expect(
+      await service.speak({ text: "Hello", signal: controller.signal }),
+    ).toEqual({
+      kind: "error",
+      code: "aborted",
+      message: "voice synthesis was cancelled",
+    });
+    expect(calls).toEqual([]);
+    expect(launches).toEqual([]);
+  });
+});
+
+describe("ArcVoiceRuntimeService.release", () => {
+  it("unloads models, then stops the runtime", async () => {
+    const calls: string[] = [];
+    const { service, kills } = await createService({
+      client: {
+        ...createStubArcVoiceClient(),
+        unloadModels: () => {
+          calls.push("unload");
+          return Promise.resolve({ kind: "ok", value: undefined });
+        },
+      },
+    });
+    await service.start();
+
+    const released = await service.release();
+
+    expect(released).toEqual({
+      kind: "ok",
+      value: { runtimeState: "stopped" },
+    });
+    expect(calls).toEqual(["unload"]);
+    expect(kills).toEqual(["SIGTERM"]);
+    expect((await service.status()).state).toBe("stopped");
+  });
+
+  it("still stops the runtime when the model unload fails", async () => {
+    const { service, kills } = await createService({
+      client: {
+        ...createStubArcVoiceClient(),
+        unloadModels: () =>
+          Promise.resolve({
+            kind: "error",
+            code: "transport",
+            message: "unload failed",
+          }),
+      },
+    });
+    await service.start();
+
+    const released = await service.release();
+
+    expect(released).toEqual({
+      kind: "ok",
+      value: { runtimeState: "stopped" },
+    });
+    expect(kills).toEqual(["SIGTERM"]);
+  });
+
+  it("reports not-running when the runtime is already stopped", async () => {
+    const { service } = await createService();
+
+    expect(await service.release()).toEqual({
+      kind: "ok",
+      value: { runtimeState: "not-running" },
+    });
+  });
+});
+
+describe("ArcVoiceRuntimeService.unloadModels during speak", () => {
+  it("skips the unload while a speak is in flight", async () => {
+    const speakControl: {
+      resolve: ((value: ArcVoiceCallResult<ArcVoiceSpeakOutput>) => void) | null;
+    } = { resolve: null };
+    const unloadCalls: string[] = [];
+    const { service } = await createService({
+      client: {
+        ...createStubArcVoiceClient(),
+        speak: () =>
+          new Promise<ArcVoiceCallResult<ArcVoiceSpeakOutput>>((resolve) => {
+            speakControl.resolve = resolve;
+          }),
+        unloadModels: () => {
+          unloadCalls.push("unload");
+          return Promise.resolve({ kind: "ok", value: undefined });
+        },
+      },
+    });
+    await service.start();
+
+    const speakResult = service.speak({
+      text: "Hello",
+      profile: "Morgan",
+      engine: "qwen",
+    });
+    const unloaded = await service.unloadModels();
+
+    expect(unloaded.kind).toBe("ok");
+    expect(unloadCalls).toEqual([]);
+
+    if (typeof speakControl.resolve === "function") {
+      speakControl.resolve({
+        kind: "ok",
+        value: { audio: new Uint8Array([1]), contentType: "audio/wav", durationMs: 1 },
+      });
+    }
+    await speakResult;
+  });
+
+  it("unloads once the in-flight speak settles", async () => {
+    const unloadCalls: string[] = [];
+    const { service } = await createService({
+      client: {
+        ...createStubArcVoiceClient(),
+        speak: () =>
+          Promise.resolve<ArcVoiceCallResult<ArcVoiceSpeakOutput>>({
+            kind: "ok",
+            value: {
+              audio: new Uint8Array([1]),
+              contentType: "audio/wav",
+              durationMs: 1,
+            },
+          }),
+        unloadModels: () => {
+          unloadCalls.push("unload");
+          return Promise.resolve({ kind: "ok", value: undefined });
+        },
+      },
+    });
+    await service.start();
+    await service.speak({ text: "Hello", profile: "Morgan", engine: "qwen" });
+
+    await service.unloadModels();
+
+    expect(unloadCalls).toEqual(["unload"]);
   });
 });

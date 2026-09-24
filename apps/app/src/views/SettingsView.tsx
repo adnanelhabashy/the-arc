@@ -63,6 +63,7 @@ import { SETTINGS_PLUGIN_ROUTE_PATH } from "@/lib/route-paths";
 import { PluginSettingsPage } from "@/components/plugin/PluginSettings";
 import { FileOpenersSettingsSection } from "@/components/settings/FileOpenersSettingsSection";
 import { VoiceInputSettingsSection } from "@/components/settings/VoiceInputSettingsSection";
+import { VoiceSettingsSection } from "@/components/settings/voice/VoiceSettingsSection";
 import { CommunitySettingsSection } from "@/components/settings/CommunitySettingsSection";
 import { DiagnosticsSettingsSection } from "@/components/settings/DiagnosticsSettingsSection";
 import { UpdatesSettingsSection } from "@/components/settings/UpdatesSettingsSection";
@@ -1213,6 +1214,19 @@ export function SettingsView() {
     );
   } else if (activeSection === "keyboard") {
     content = <KeyboardSettingsSection />;
+  } else if (activeSection === "voice") {
+    content = (
+      <VoiceSettingsSection
+        voice={generalSettings.voice}
+        disabled={
+          systemConfigQuery.data === undefined ||
+          updateGeneralSettingsMutation.isPending
+        }
+        onVoiceChange={(voice) =>
+          updateGeneralSettingsMutation.mutate({ ...generalSettings, voice })
+        }
+      />
+    );
   } else if (activeSection === "browser") {
     content = <BrowserSettingsSection />;
   } else if (activeSection === "files") {

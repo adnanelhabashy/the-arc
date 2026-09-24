@@ -28,10 +28,23 @@ import {
   TooltipTrigger,
 } from "@bb/shared-ui/tooltip";
 import { cn } from "@bb/shared-ui/lib/utils";
+import {
+  useMessageSpeech,
+  type MessageSpeechPhase,
+} from "./message-speech.js";
+import { useThreadVoiceAgent } from "./use-thread-voice-agent.js";
+import { useVoiceEnabled } from "./voice-enabled";
 import type { PromptDraftAttachment } from "@bb/client-core";
 import { usePortalScopeProps } from "@/lib/portal-scope";
 import { PluginIcon, pluginIconName } from "@/components/plugin/PluginIcon";
 import type { ThreadTimelinePluginMessageAction } from "./types.js";
+
+const SPEAK_PHASE_LABELS: Record<MessageSpeechPhase, string | undefined> = {
+  idle: undefined,
+  preparing: "Preparing voice…",
+  generating: "Generating speech…",
+  speaking: "Speaking…",
+};
 
 function PluginActionIcon({
   pluginId,
@@ -68,10 +81,19 @@ interface MessageActionBarProps {
   onSendToMain?: () => void;
   disabled?: boolean;
   pluginActions?: readonly ThreadTimelinePluginMessageAction[];
+  messageId?: string;
+  speakText?: string;
 }
 
 interface MessageOverflowAction {
-  icon: "Copy" | "Edit" | "MessageSquarePlus" | "Fork" | "ArrowTurnBackward";
+  icon:
+    | "Copy"
+    | "Edit"
+    | "MessageSquarePlus"
+    | "Fork"
+    | "ArrowTurnBackward"
+    | "Play"
+    | "Square";
   plugin?: { pluginId: string | null; icon: string | null };
   key?: string;
   label: string;
@@ -79,7 +101,8 @@ interface MessageOverflowAction {
   disabled?: boolean;
   copyText?: string;
   copyImageUrl?: string;
-  kind?: "copy";
+  kind?: "copy" | "speak";
+  speakPhaseLabel?: string;
 }
 
 function MessageActionIcon({
@@ -99,6 +122,35 @@ function MessageActionIcon({
     />
   ) : (
     <Icon name={action.icon} className={className} aria-hidden={ariaHidden} />
+  );
+}
+
+function SpeakActionButton({
+  action,
+  className,
+}: {
+  action: MessageOverflowAction;
+  className: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        ACTION_BUTTON_CLASS,
+        action.speakPhaseLabel ? "w-auto gap-1" : undefined,
+        className,
+      )}
+      onClick={action.onSelect}
+      disabled={action.disabled}
+      aria-label={action.label}
+    >
+      <MessageActionIcon action={action} className="size-3" />
+      {action.speakPhaseLabel ? (
+        <span className="whitespace-nowrap text-2xs text-muted-foreground">
+          {action.speakPhaseLabel}
+        </span>
+      ) : null}
+    </button>
   );
 }
 
@@ -343,6 +395,8 @@ function DesktopMessageAction({
             label={action.label}
             className={className}
           />
+        ) : action.kind === "speak" ? (
+          <SpeakActionButton action={action} className={className} />
         ) : (
           <button
             type="button"
@@ -395,6 +449,8 @@ export function MessageActionBar({
   onSendToMain,
   disabled,
   pluginActions = [],
+  messageId,
+  speakText,
 }: MessageActionBarProps) {
   const isCompactViewport = useIsCompactViewport();
   const isPointerCoarse = usePointerCoarse();
@@ -468,6 +524,18 @@ export function MessageActionBar({
     }
     onAddToChat(messageText);
   }, [addToChatAttachments, messageText, onAddToChat]);
+  const speech = useMessageSpeech();
+  const voiceAgent = useThreadVoiceAgent();
+  const voiceEnabled = useVoiceEnabled();
+  const speakTextValue = speakText?.trim() ?? "";
+  const speakMessageId =
+    messageId !== undefined && speakTextValue.length > 0 ? messageId : null;
+  const canSpeak = voiceEnabled && speakMessageId !== null;
+  const speechActive =
+    canSpeak &&
+    speech.state !== "idle" &&
+    speech.activeMessageId === messageId;
+  const speakIcon: "Play" | "Square" = speechActive ? "Square" : "Play";
   const actions: MessageOverflowAction[] = [
     ...(hasCopy
       ? [
@@ -530,6 +598,23 @@ export function MessageActionBar({
       label: action.label,
       onSelect: action.onSelect,
     })),
+    ...(canSpeak
+      ? [
+          {
+            icon: speakIcon,
+            label: speechActive ? "Stop speaking" : "Speak message",
+            onSelect: speechActive
+              ? speech.stop
+              : voiceAgent
+                ? () => speech.speak(speakMessageId, speakTextValue, voiceAgent)
+                : () => speech.speak(speakMessageId, speakTextValue),
+            kind: "speak" as const,
+            speakPhaseLabel: speechActive
+              ? SPEAK_PHASE_LABELS[speech.state]
+              : undefined,
+          },
+        ]
+      : []),
   ];
 
   if (actions.length === 0) {
@@ -743,6 +828,12 @@ function MobileInlineActions({
           className={cn(HOVER_REVEAL_CLASS, MOBILE_INLINE_ACTION_CLASS)}
         />
       )
+    ) : action.kind === "speak" ? (
+      <SpeakActionButton
+        key={action.key ?? action.label}
+        action={action}
+        className={cn(HOVER_REVEAL_CLASS, MOBILE_INLINE_ACTION_CLASS)}
+      />
     ) : (
       <button
         key={action.key ?? action.label}

@@ -40,18 +40,38 @@ const audioInputDevicePreferenceAtom =
     { getOnInit: true },
   );
 
+export interface BuildAudioInputConstraintsOptions {
+  reduceBackgroundNoise?: boolean;
+}
+
 export function buildAudioInputConstraints(
   preferredDeviceId: PreferredAudioInputDeviceId,
+  options: BuildAudioInputConstraintsOptions = {},
 ): MediaStreamConstraints {
+  const reduceBackgroundNoise = options.reduceBackgroundNoise ?? true;
+
   if (preferredDeviceId === null) {
-    return { audio: true };
+    if (!reduceBackgroundNoise) {
+      return { audio: true };
+    }
+    return {
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    };
   }
 
-  return {
-    audio: {
-      deviceId: { exact: preferredDeviceId },
-    },
+  const audio: MediaTrackConstraints = {
+    deviceId: { exact: preferredDeviceId },
   };
+  if (reduceBackgroundNoise) {
+    audio.echoCancellation = true;
+    audio.noiseSuppression = true;
+    audio.autoGainControl = true;
+  }
+  return { audio };
 }
 
 export function useAudioInputDevicePreference() {

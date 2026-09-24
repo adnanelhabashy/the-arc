@@ -122,6 +122,138 @@ export type SystemVoiceTranscriptionResponse = z.infer<
   typeof systemVoiceTranscriptionResponseSchema
 >;
 
+/**
+ * What the Arc Voice runtime can do right now. The renderer polls this while a
+ * dictation or a spoken reply is in flight so it can name the phase it is
+ * actually in ("preparing the speech model" vs "transcribing locally",
+ * "preparing the voice" vs "generating speech") instead of inventing progress.
+ */
+export const systemVoiceStatusResponseSchema = z.object({
+  transcriptionEnabled: z.boolean(),
+  voiceEnabled: z.boolean().default(true),
+  speech: z.object({
+    runtimeState: z.enum(["stopped", "starting", "ready", "unavailable"]),
+    version: z.string().nullable(),
+    speechModelLoaded: z.boolean(),
+    voiceModel: z
+      .object({
+        engine: z.string(),
+        size: z.string(),
+        downloaded: z.boolean(),
+        loaded: z.boolean(),
+        downloading: z.boolean(),
+        downloadPercent: z.number().nullable(),
+      })
+      .nullable(),
+  }),
+});
+export type SystemVoiceStatusResponse = z.infer<
+  typeof systemVoiceStatusResponseSchema
+>;
+
+export const systemVoiceSpeakRequestSchema = z.object({
+  text: z.string().min(1).max(1200),
+  engine: z.string().min(1).nullable().optional(),
+  profile: z.string().min(1).nullable().optional(),
+  voiceId: z.string().min(1).nullable().optional(),
+  language: z.string().min(1).nullable().optional(),
+  agentId: z.enum(["codex", "claude-code", "omp"]).nullable().optional(),
+});
+export type SystemVoiceSpeakRequest = z.infer<
+  typeof systemVoiceSpeakRequestSchema
+>;
+
+export const systemVoiceModelStateSchema = z.object({
+  name: z.string().min(1),
+  displayName: z.string().min(1),
+  downloaded: z.boolean(),
+  downloading: z.boolean(),
+  loaded: z.boolean(),
+  downloadPercent: z.number().nullable(),
+});
+export type SystemVoiceModelState = z.infer<typeof systemVoiceModelStateSchema>;
+
+export const systemVoiceEngineCapabilitiesSchema = z.object({
+  engine: z.string().min(1),
+  requiresClonedProfile: z.boolean(),
+  presets: z
+    .array(
+      z.object({
+        voiceId: z.string().min(1),
+        name: z.string().min(1),
+        gender: z.string(),
+        language: z.string().min(1),
+      }),
+    )
+    .nullable(),
+  models: z.array(systemVoiceModelStateSchema),
+});
+export type SystemVoiceEngineCapabilities = z.infer<
+  typeof systemVoiceEngineCapabilitiesSchema
+>;
+
+export const systemVoiceCapabilitiesResponseSchema = z.object({
+  voiceEnabled: z.boolean().default(true),
+  runtimeState: z.enum(["stopped", "starting", "ready", "unavailable"]),
+  version: z.string().nullable(),
+  engines: z.array(systemVoiceEngineCapabilitiesSchema),
+  speechModels: z.array(systemVoiceModelStateSchema),
+});
+export type SystemVoiceCapabilitiesResponse = z.infer<
+  typeof systemVoiceCapabilitiesResponseSchema
+>;
+
+export const systemVoiceProfileSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().nullable(),
+  language: z.string().min(1),
+  voiceType: z.string().min(1),
+  presetEngine: z.string().nullable(),
+  presetVoiceId: z.string().nullable(),
+  sampleCount: z.number().int().nonnegative(),
+});
+export type SystemVoiceProfile = z.infer<typeof systemVoiceProfileSchema>;
+
+export const systemVoiceProfilesResponseSchema = z.object({
+  voiceEnabled: z.boolean().default(true),
+  profiles: z.array(systemVoiceProfileSchema),
+});
+export type SystemVoiceProfilesResponse = z.infer<
+  typeof systemVoiceProfilesResponseSchema
+>;
+
+export const systemVoiceProfileCreateRequestSchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).nullable(),
+  language: z.string().min(1),
+  voiceType: z.enum(["cloned", "preset", "designed"]),
+  presetEngine: z.string().max(50).nullable(),
+  presetVoiceId: z.string().nullable(),
+});
+export type SystemVoiceProfileCreateRequest = z.infer<
+  typeof systemVoiceProfileCreateRequestSchema
+>;
+
+export const systemVoiceProfileUpdateRequestSchema = z.object({
+  name: z.string().min(1).max(100).nullable(),
+  description: z.string().max(500).nullable(),
+});
+export type SystemVoiceProfileUpdateRequest = z.infer<
+  typeof systemVoiceProfileUpdateRequestSchema
+>;
+
+export interface SystemVoiceProfileSampleAddForm {
+  [key: string]: string | Blob;
+}
+
+export const systemVoiceModelRequestSchema = z.object({
+  model: z.string().min(1),
+});
+export type SystemVoiceModelRequest = z.infer<
+  typeof systemVoiceModelRequestSchema
+>;
+
 export const systemProviderStateSchema = providerHealthSchema.extend({
   providerId: z.string().min(1),
   displayName: z.string().min(1),

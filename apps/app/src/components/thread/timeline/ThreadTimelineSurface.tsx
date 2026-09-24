@@ -14,6 +14,9 @@ import { Skeleton } from "@bb/shared-ui/skeleton";
 import { useSystemConfig } from "@/hooks/queries/system-queries";
 import { toUserAttachmentImageSrc } from "@/lib/user-attachment-images";
 import { TimelineImageMetadata } from "./TimelineImageMetadata";
+import { MessageSpeechProvider } from "./message-speech.js";
+import { AutoSpeakRepliesContext } from "./auto-speak-replies";
+import { VoiceEnabledContext } from "./voice-enabled";
 import { ThreadTimelineRows } from "./ThreadTimelineRows.js";
 import { useAutoLoadOlderRows } from "./useAutoLoadOlderRows.js";
 import { TimelineStatusIndicator } from "./TimelineStatusIndicator.js";
@@ -183,6 +186,12 @@ export function ThreadTimelineSurface({
   const systemConfigQuery = useSystemConfig();
   const timelineWindowingEnabled =
     systemConfigQuery.data?.experiments.timelineWindowing ?? false;
+  const voiceEnabled =
+    systemConfigQuery.data?.generalSettings?.voice?.enabled ?? true;
+  const autoSpeakReplies =
+    voiceEnabled &&
+    (systemConfigQuery.data?.generalSettings?.voice?.behavior?.autoSpeakReplies ??
+      false);
   const showActiveThinking =
     activeThinking !== null && ongoingIndicatorLabel === undefined;
   const activeThinkingText = activeThinking?.text.trim() ?? "";
@@ -207,8 +216,11 @@ export function ThreadTimelineSurface({
     !timelineError;
 
   return (
-    <TimelineReasoningExpansionProvider key={threadId}>
-      <ConversationTimeline className="flex-1">
+    <VoiceEnabledContext.Provider value={voiceEnabled}>
+    <MessageSpeechProvider key={threadId}>
+      <AutoSpeakRepliesContext.Provider value={autoSpeakReplies}>
+        <TimelineReasoningExpansionProvider key={threadId}>
+        <ConversationTimeline className="flex-1">
         {leadingContent}
         {showLoadOlderRows ? (
           <LoadOlderMessages
@@ -279,7 +291,10 @@ export function ThreadTimelineSurface({
           />
         </HeightTransition>
       </ConversationTimeline>
-    </TimelineReasoningExpansionProvider>
+      </TimelineReasoningExpansionProvider>
+      </AutoSpeakRepliesContext.Provider>
+    </MessageSpeechProvider>
+    </VoiceEnabledContext.Provider>
   );
 }
 

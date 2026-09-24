@@ -1,4 +1,5 @@
 import { useCallback, useMemo, type RefObject } from "react";
+import { useSystemConfig } from "@/hooks/queries/system-queries";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { transcribeVoiceInput } from "@/lib/api";
 import type { PromptBoxHandle, PromptVoiceConfig } from "./PromptBoxInternal";
@@ -55,10 +56,14 @@ export function usePromptVoice(
     scopeKey,
   });
 
+  const voiceEnabled =
+    useSystemConfig().data?.generalSettings?.voice?.enabled ?? true;
+
   return useMemo<PromptVoiceConfig>(
     () => ({
       state: voiceInput.state,
       isSupported: voiceInput.isSupported,
+      isEnabled: voiceEnabled,
       stream: voiceInput.stream,
       start: voiceInput.start,
       stop: voiceInput.stop,
@@ -67,6 +72,7 @@ export function usePromptVoice(
     [
       voiceInput.state,
       voiceInput.isSupported,
+      voiceEnabled,
       voiceInput.stream,
       voiceInput.start,
       voiceInput.stop,

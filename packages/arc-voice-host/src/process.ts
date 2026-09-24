@@ -16,6 +16,7 @@ export interface ArcVoiceProcess {
   onClose(
     listener: (code: number | null, signal: NodeJS.Signals | null) => void,
   ): void;
+  dispose?(): void;
 }
 
 export interface ArcVoiceProcessSpawner {

@@ -60,6 +60,7 @@ source: .
     - plugin-api-docs/
     - keep-awake/
     - automations/
+    - exchange-mail/
     - environment-modal-sandbox/
     - arc-core/
     - browser-automation/
@@ -79,13 +80,16 @@ source: .
   - .oxlintrc.json
   - turbo.json
   - .bb/
+    - workflows/
     - skills/
   - tests/
     - integration/
     - qa/
     - scripted-echo-provider/
+  - .agents/
+    - skills/
   - .claude/
-    - scheduled_tasks.lock
+    - skills/
     - launch.json
     - .cc-writes/
   - qa/
@@ -94,9 +98,5 @@ source: .
     - manual-runbook.md
   - vitest.shared.ts
   - docs/
-    - plugin-marketplace-plan.md
-    - environment-provisioning.md
-    - multiple-devices.md
-    - filing-issues.md
-    - official-plugin-release-process.md
+    - ARC_AGENT_MANAGED_VOICE_INTEGRATION_PLAN_UPDATED.md
   - …

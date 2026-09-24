@@ -63,6 +63,8 @@ const UI_PREFERENCES_QUERY_KEY = "uiPreferences";
 const SYSTEM_THEME_QUERY_KEY = "systemTheme";
 export const SYSTEM_EXECUTION_OPTIONS_QUERY_KEY = "systemExecutionOptions";
 const SYSTEM_CLI_SKILLS_QUERY_KEY = "systemCliSkills";
+const VOICE_CAPABILITIES_QUERY_KEY = "voiceCapabilities";
+const VOICE_PROFILES_QUERY_KEY = "voiceProfiles";
 const SYSTEM_VERSION_QUERY_KEY = "systemVersion";
 const SERVER_MOVE_STATUS_QUERY_KEY = "serverMoveStatus";
 const HOST_PROVIDER_CLI_STATUS_QUERY_KEY = "hostProviderCliStatus";
@@ -469,6 +471,8 @@ type UiPreferencesQueryKey = readonly [typeof UI_PREFERENCES_QUERY_KEY];
 type SystemThemeQueryKey = readonly [typeof SYSTEM_THEME_QUERY_KEY, string];
 type AllSystemThemesQueryKeyPrefix = readonly [typeof SYSTEM_THEME_QUERY_KEY];
 type SystemCliSkillsQueryKey = readonly [typeof SYSTEM_CLI_SKILLS_QUERY_KEY];
+type VoiceCapabilitiesQueryKey = readonly [typeof VOICE_CAPABILITIES_QUERY_KEY];
+type VoiceProfilesQueryKey = readonly [typeof VOICE_PROFILES_QUERY_KEY];
 type SystemVersionQueryKey = readonly [typeof SYSTEM_VERSION_QUERY_KEY];
 type ServerMoveStatusQueryKey = readonly [typeof SERVER_MOVE_STATUS_QUERY_KEY];
 type HostProviderCliStatusQueryKey = readonly [
@@ -1114,6 +1118,14 @@ export function allMachineEnvironmentQueryKeyPrefix(): AllMachineEnvironmentQuer
 
 export function systemCliSkillsQueryKey(): SystemCliSkillsQueryKey {
   return [SYSTEM_CLI_SKILLS_QUERY_KEY];
+}
+
+export function voiceCapabilitiesQueryKey(): VoiceCapabilitiesQueryKey {
+  return [VOICE_CAPABILITIES_QUERY_KEY];
+}
+
+export function voiceProfilesQueryKey(): VoiceProfilesQueryKey {
+  return [VOICE_PROFILES_QUERY_KEY];
 }
 
 export function systemConfigQueryKey(): SystemConfigQueryKey {

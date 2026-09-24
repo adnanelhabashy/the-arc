@@ -1,14 +1,18 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { Command } from "commander";
 import { action } from "../action.js";
-import { createCliBbSdk } from "../client.js";
+import { cliFetch, createCliBbSdk } from "../client.js";
 import { outputJson } from "./helpers.js";
 
 interface VoiceTranscribeOptions {
   json?: boolean;
   prompt?: string;
   type?: string;
+}
+
+interface VoiceSpeakOptions {
+  out?: string;
 }
 
 export function registerVoiceCommands(
@@ -34,6 +38,39 @@ export function registerVoiceCommands(
         });
         if (outputJson(opts, result)) return;
         console.log(result.text);
+      }),
+    );
+
+  voice
+    .command("speak <text>")
+    .description("Synthesize speech with BB's configured voice service")
+    .option("--out <file>", "Write the returned audio to a file")
+    .action(
+      action(async (text: string, opts: VoiceSpeakOptions) => {
+        const baseUrl = getUrl().replace(/\/$/u, "");
+        const response = await cliFetch(`${baseUrl}/api/v1/system/voice-speak`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        if (!response.ok) {
+          let message = `voice speak failed: HTTP ${response.status}`;
+          try {
+            const body = (await response.json()) as { message?: string };
+            if (typeof body.message === "string" && body.message.length > 0) {
+              message = body.message;
+            }
+          } catch {
+            message = `voice speak failed: HTTP ${response.status}`;
+          }
+          throw new Error(message);
+        }
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        if (opts.out !== undefined) {
+          await writeFile(opts.out, bytes);
+          return;
+        }
+        process.stdout.write(bytes);
       }),
     );
 }

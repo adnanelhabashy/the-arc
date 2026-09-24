@@ -1092,6 +1092,7 @@ describe("PromptBoxInternal controlled value sync", () => {
             voice: {
               state: "idle",
               isSupported: true,
+        isEnabled: true,
               stream: null,
               start,
               stop: vi.fn(),
@@ -2058,6 +2059,7 @@ describe("PromptBoxInternal plugin composer actions", () => {
           voice: {
             state: "idle",
             isSupported: true,
+        isEnabled: true,
             stream: null,
             start: vi.fn(),
             stop: vi.fn(),
@@ -2404,6 +2406,7 @@ describe("PromptBoxInternal compact layout", () => {
             voice: {
               state: "idle",
               isSupported: true,
+        isEnabled: true,
               stream: null,
               start: vi.fn(),
               stop: vi.fn(),
@@ -2538,6 +2541,7 @@ describe("PromptBoxInternal compact layout", () => {
     const voice: PromptVoiceConfig = {
       state: "idle",
       isSupported: true,
+        isEnabled: true,
       stream: null,
       start: vi.fn(),
       stop: vi.fn(),
@@ -2599,6 +2603,7 @@ describe("PromptBoxInternal compact layout", () => {
             voice: {
               state: "idle",
               isSupported: true,
+        isEnabled: true,
               stream: null,
               start,
               stop: vi.fn(),
@@ -2648,6 +2653,7 @@ describe("PromptBoxInternal compact layout", () => {
               voice: {
                 state: "idle",
                 isSupported: true,
+        isEnabled: true,
                 stream: null,
                 start,
                 stop: vi.fn(),
@@ -2699,6 +2705,7 @@ describe("PromptBoxInternal compact layout", () => {
               voice: {
                 state: "idle",
                 isSupported: true,
+        isEnabled: true,
                 stream: null,
                 start,
                 stop: vi.fn(),
@@ -2737,6 +2744,7 @@ describe("PromptBoxInternal compact layout", () => {
       const voice = {
         state: "idle" as const,
         isSupported: true,
+        isEnabled: true,
         stream: null,
         start,
         stop: vi.fn(),
@@ -2880,6 +2888,7 @@ describe("PromptBoxInternal compact layout", () => {
             voice: {
               state: "idle",
               isSupported: true,
+        isEnabled: true,
               stream: null,
               start,
               stop: vi.fn(),
@@ -2919,6 +2928,7 @@ describe("PromptBoxInternal compact layout", () => {
             voice: {
               state: "idle",
               isSupported: true,
+        isEnabled: true,
               stream: null,
               start,
               stop: vi.fn(),
@@ -3221,6 +3231,7 @@ describe("PromptBoxInternal compact layout", () => {
           voice: {
             state: "idle",
             isSupported: true,
+        isEnabled: true,
             stream: null,
             start: vi.fn(),
             stop: vi.fn(),
@@ -3243,6 +3254,7 @@ describe("PromptBoxInternal compact layout", () => {
     const voice = {
       state: "idle" as const,
       isSupported: true,
+        isEnabled: true,
       stream: null,
       start: vi.fn(),
       stop: vi.fn(),
@@ -3281,7 +3293,7 @@ describe("PromptBoxInternal compact layout", () => {
     ).toBe(true);
   });
 
-  it.each(["recording", "transcribing"] as const)(
+  it.each(["recording", "transcribing", "preparing"] as const)(
     "keeps the visible draft keyboard-read-only and standard controls inert while %s",
     async (state) => {
       const onChange = vi.fn();
@@ -3293,6 +3305,7 @@ describe("PromptBoxInternal compact layout", () => {
             voice: {
               state,
               isSupported: true,
+        isEnabled: true,
               stream: null,
               start: vi.fn(),
               stop: vi.fn(),
@@ -3343,6 +3356,7 @@ describe("PromptBoxInternal compact layout", () => {
           voice: {
             state: "recording",
             isSupported: true,
+        isEnabled: true,
             stream: null,
             start: vi.fn(),
             stop,
@@ -3404,6 +3418,7 @@ describe("PromptBoxInternal compact layout", () => {
       const idleVoice: PromptVoiceConfig = {
         state: "idle",
         isSupported: true,
+        isEnabled: true,
         stream: null,
         start: vi.fn(),
         stop: vi.fn(),
@@ -3453,6 +3468,7 @@ describe("PromptBoxInternal compact layout", () => {
             voice: {
               state: "transcribing",
               isSupported: true,
+        isEnabled: true,
               stream: null,
               start: vi.fn(),
               stop: vi.fn(),
@@ -3511,6 +3527,7 @@ describe("PromptBoxInternal compact layout", () => {
       const recordingVoice: PromptVoiceConfig = {
         state: "recording",
         isSupported: true,
+        isEnabled: true,
         stream: null,
         start: vi.fn(),
         stop: vi.fn(),
@@ -3581,6 +3598,7 @@ describe("PromptBoxInternal compact layout", () => {
             voice: {
               state: "transcribing",
               isSupported: true,
+        isEnabled: true,
               stream: null,
               start: vi.fn(),
               stop: vi.fn(),
@@ -3627,6 +3645,7 @@ describe("PromptBoxInternal compact layout", () => {
             voice: {
               state: "transcribing",
               isSupported: true,
+        isEnabled: true,
               stream: null,
               start: vi.fn(),
               stop: vi.fn(),
@@ -5178,6 +5197,7 @@ describe("voice recording escape", () => {
     return {
       state: "recording",
       isSupported: true,
+        isEnabled: true,
       stream: null,
       start: vi.fn(),
       stop: vi.fn(),

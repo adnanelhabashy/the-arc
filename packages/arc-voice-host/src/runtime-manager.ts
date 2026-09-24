@@ -6,7 +6,14 @@ import {
 import type {
   ArcVoiceCallResult,
   ArcVoiceClient,
+  ArcVoiceModelEntry,
+  ArcVoiceModelStatus,
+  ArcVoicePresetVoice,
   ArcVoiceProfile,
+  ArcVoiceProfileCreateArgs,
+  ArcVoiceProfileDetail,
+  ArcVoiceProfileSampleAddArgs,
+  ArcVoiceProfileUpdateArgs,
   ArcVoiceSpeakArgs,
   ArcVoiceSpeakOutput,
   ArcVoiceTranscribeArgs,
@@ -19,6 +26,14 @@ import {
   type ArcVoiceReadinessResult,
 } from "./health.js";
 import type { ArcVoiceProcess, ArcVoiceProcessSpawner } from "./process.js";
+import {
+  createAdoptedArcVoiceProcess,
+  type ArcVoiceAdoptedProcessFactory,
+  type ArcVoiceOwnershipProbe,
+  type ArcVoiceOwnershipQuery,
+  type ArcVoiceOwnershipVerdict,
+  type ArcVoiceProcessFingerprint,
+} from "./ownership.js";
 import type { ArcVoiceBackend, ArcVoiceRuntimeStatus } from "./types.js";
 
 export const VOICEBOX_MODELS_DIR_ENV = "VOICEBOX_MODELS_DIR";
@@ -57,10 +72,11 @@ export interface ArcVoiceLaunchConfig {
 
 export type ArcVoiceLaunchResult =
   | { kind: "launched"; detail: string; pid?: number }
+  | { kind: "adopted"; detail: string; pid?: number }
   | { kind: "failed"; detail: string };
 
 export type ArcVoiceStartResult =
-  | { kind: "ready"; detail: string }
+  | { kind: "ready"; detail: string; adopted?: boolean }
   | { kind: "timeout"; detail: string }
   | { kind: "failed"; detail: string };
 
@@ -217,6 +233,8 @@ export interface ArcVoiceRuntimeManagerArgs {
   client: ArcVoiceClient;
   healthCheck: () => Promise<ArcVoiceHealthResult>;
   guard?: ArcVoiceOrphanGuard;
+  ownershipProbe?: ArcVoiceOwnershipProbe;
+  adoptedProcessFactory?: ArcVoiceAdoptedProcessFactory;
   restartPolicy?: ArcVoiceRestartPolicy;
   onRuntimeExit?: (event: ArcVoiceRuntimeExitEvent) => void;
   sleep?: (ms: number) => Promise<void>;
@@ -225,11 +243,26 @@ export interface ArcVoiceRuntimeManagerArgs {
   forceStopTimeoutMs?: number;
 }
 
+export function buildArcVoiceOwnershipQuery(
+  config: ArcVoiceLaunchConfig,
+): ArcVoiceOwnershipQuery | null {
+  if (config.dataDir === undefined || config.dataDir.length === 0) {
+    return null;
+  }
+  return {
+    port: assertArcVoicePort(config.port),
+    executablePath: config.command,
+    dataDir: config.dataDir,
+  };
+}
+
 export class ArcVoiceRuntimeManager {
   readonly #spawner: ArcVoiceProcessSpawner;
   readonly #client: ArcVoiceClient;
   readonly #healthCheck: () => Promise<ArcVoiceHealthResult>;
   readonly #guard: ArcVoiceOrphanGuard;
+  readonly #ownershipProbe: ArcVoiceOwnershipProbe | undefined;
+  readonly #adoptedProcessFactory: ArcVoiceAdoptedProcessFactory;
   readonly #restartPolicy: ArcVoiceRestartPolicy | undefined;
   readonly #onRuntimeExit:
     | ((event: ArcVoiceRuntimeExitEvent) => void)
@@ -241,6 +274,7 @@ export class ArcVoiceRuntimeManager {
 
   #process: ArcVoiceProcess | undefined;
   #guardToken: number | undefined;
+  #acquisition: Promise<ArcVoiceLaunchResult> | null = null;
   #state: ArcVoiceRuntimeStatus["state"] = "stopped";
   #lastError: string | undefined;
   #lastLaunchConfig: ArcVoiceLaunchConfig | undefined;
@@ -252,6 +286,10 @@ export class ArcVoiceRuntimeManager {
     this.#client = args.client;
     this.#healthCheck = args.healthCheck;
     this.#guard = args.guard ?? createArcVoiceOrphanGuard();
+    this.#ownershipProbe = args.ownershipProbe;
+    this.#adoptedProcessFactory = args.adoptedProcessFactory ?? ((
+      adoptedArgs,
+    ) => createAdoptedArcVoiceProcess(adoptedArgs));
     this.#restartPolicy = args.restartPolicy;
     this.#onRuntimeExit = args.onRuntimeExit;
     this.#sleep = args.sleep ?? defaultArcVoiceSleep;
@@ -276,11 +314,158 @@ export class ArcVoiceRuntimeManager {
     if (this.#process !== undefined) {
       return { kind: "failed", detail: "voice runtime is already running" };
     }
+    const inFlight = this.#acquisition;
+    if (inFlight !== null) {
+      return inFlight;
+    }
 
     this.#generation += 1;
+    const generation = this.#generation;
     this.#lastLaunchConfig = config;
     this.#lastError = undefined;
+    const acquisition = this.#acquireRuntime(config, generation);
+    this.#acquisition = acquisition;
+    try {
+      return await acquisition;
+    } finally {
+      if (this.#acquisition === acquisition) {
+        this.#acquisition = null;
+      }
+    }
+  }
+
+  async #acquireRuntime(
+    config: ArcVoiceLaunchConfig,
+    generation: number,
+  ): Promise<ArcVoiceLaunchResult> {
+    const decision = await this.#resolveOwnership(config, generation);
+    if (generation !== this.#generation) {
+      return {
+        kind: "failed",
+        detail: "voice runtime acquisition was superseded by a stop",
+      };
+    }
+    if (decision.kind === "refused") {
+      this.#state = "failed";
+      this.#lastError = decision.detail;
+      return { kind: "failed", detail: decision.detail };
+    }
+    if (decision.kind === "adopted") {
+      return this.#adoptProcess(decision.fingerprint, config);
+    }
     return this.#spawnProcess(config);
+  }
+
+  async #resolveOwnership(
+    config: ArcVoiceLaunchConfig,
+    generation: number,
+  ): Promise<
+    | { kind: "proceed" }
+    | { kind: "adopted"; fingerprint: ArcVoiceProcessFingerprint }
+    | { kind: "refused"; detail: string }
+  > {
+    const probe = this.#ownershipProbe;
+    const query =
+      probe === undefined ? null : buildArcVoiceOwnershipQuery(config);
+    if (probe === undefined || query === null) {
+      return { kind: "proceed" };
+    }
+
+    let verdict: ArcVoiceOwnershipVerdict;
+    try {
+      verdict = await probe.probe(query);
+    } catch {
+      return { kind: "proceed" };
+    }
+    if (generation !== this.#generation) {
+      return { kind: "proceed" };
+    }
+    if (verdict.kind === "unsupported" || verdict.kind === "vacant") {
+      return { kind: "proceed" };
+    }
+
+    for (const duplicate of verdict.duplicates) {
+      if (generation !== this.#generation) {
+        return { kind: "proceed" };
+      }
+      await this.#terminateOwnedFingerprint(duplicate, query);
+    }
+
+    if (verdict.kind === "foreign") {
+      return {
+        kind: "refused",
+        detail: `voice port ${query.port} is held by an unowned process (pid ${verdict.listener.pid}); refusing to start the Arc voice runtime`,
+      };
+    }
+    if (verdict.listener !== undefined) {
+      return { kind: "adopted", fingerprint: verdict.listener };
+    }
+    return { kind: "proceed" };
+  }
+
+  async #terminateOwnedFingerprint(
+    fingerprint: ArcVoiceProcessFingerprint,
+    query: ArcVoiceOwnershipQuery,
+  ): Promise<void> {
+    const process_ = this.#adoptedProcessFactory({ fingerprint, query });
+    try {
+      await this.#terminate(process_);
+    } finally {
+      process_.dispose?.();
+    }
+  }
+
+  #adoptProcess(
+    fingerprint: ArcVoiceProcessFingerprint,
+    config: ArcVoiceLaunchConfig,
+  ): ArcVoiceLaunchResult {
+    const process_ = this.#adoptedProcessFactory({
+      fingerprint,
+      query:
+        buildArcVoiceOwnershipQuery(config) ??
+        {
+          port: assertArcVoicePort(config.port),
+          executablePath: config.command,
+          dataDir: config.dataDir ?? "",
+        },
+    });
+    this.#state = "starting";
+    this.#trackProcess(process_);
+    return {
+      kind: "adopted",
+      detail: `voice runtime adopted from the previous Arc session (pid ${fingerprint.pid}, process group ${fingerprint.pgid})`,
+      pid: fingerprint.pid,
+    };
+  }
+
+  async #confirmOwnedListener(
+    config: ArcVoiceLaunchConfig,
+  ): Promise<string | null> {
+    const probe = this.#ownershipProbe;
+    const process_ = this.#process;
+    const query = buildArcVoiceOwnershipQuery(config);
+    const pid = process_?.pid;
+    if (probe === undefined || pid === undefined || query === null) {
+      return null;
+    }
+
+    let verdict: ArcVoiceOwnershipVerdict;
+    try {
+      verdict = await probe.probe(query);
+    } catch {
+      return null;
+    }
+    if (verdict.kind === "foreign") {
+      return `voice port ${query.port} is held by an unowned process (pid ${verdict.listener.pid}); refusing to use it as the Arc voice runtime`;
+    }
+    if (verdict.kind !== "owned" || verdict.listener === undefined) {
+      return null;
+    }
+    const listener = verdict.listener;
+    if (listener.pid === pid || listener.pgid === pid) {
+      return null;
+    }
+    return `voice port ${query.port} is held by another Arc voice runtime (pid ${listener.pid}); refusing to share it`;
   }
 
   waitForReady(args: {
@@ -306,8 +491,22 @@ export class ArcVoiceRuntimeManager {
 
     const ready = await this.waitForReady(options);
     if (ready.kind === "ready") {
+      const unowned = await this.#confirmOwnedListener(config);
+      if (unowned !== null) {
+        const process_ = this.#process;
+        if (process_ !== undefined) {
+          await this.#terminate(process_);
+        }
+        this.#state = "failed";
+        this.#lastError = unowned;
+        return { kind: "failed", detail: unowned };
+      }
       this.#state = "ready";
-      return { kind: "ready", detail: ready.detail };
+      return {
+        kind: "ready",
+        detail: ready.detail,
+        ...(launched.kind === "adopted" ? { adopted: true } : {}),
+      };
     }
 
     this.#lastError = ready.detail;
@@ -335,6 +534,7 @@ export class ArcVoiceRuntimeManager {
     process_.kill("SIGTERM");
     if (await graceful) {
       const residual = process_.killResidualTree();
+      process_.dispose?.();
       this.#disposeGuard();
       return {
         kind: "stopped",
@@ -348,6 +548,7 @@ export class ArcVoiceRuntimeManager {
     process_.kill("SIGKILL");
     const exited = await forced;
     process_.killResidualTree();
+    process_.dispose?.();
     this.#disposeGuard();
     return {
       kind: "killed",
@@ -414,9 +615,120 @@ export class ArcVoiceRuntimeManager {
     return this.#client.speak(args);
   }
 
+  modelStatus(): Promise<ArcVoiceCallResult<ArcVoiceModelStatus>> {
+    if (this.#process === undefined || this.#state !== "ready") {
+      return Promise.resolve(this.#notReady());
+    }
+    return this.#client.modelStatus();
+  }
+
+  voiceModelProgress(
+    modelName: string,
+    options?: { signal?: AbortSignal; timeoutMs?: number },
+  ): Promise<ArcVoiceCallResult<number | null>> {
+    if (this.#process === undefined || this.#state !== "ready") {
+      return Promise.resolve(this.#notReady());
+    }
+    return this.#client.voiceModelProgress(modelName, options);
+  }
+
+  unloadModels(options?: {
+    signal?: AbortSignal;
+  }): Promise<ArcVoiceCallResult<void>> {
+    if (this.#process === undefined || this.#state !== "ready") {
+      return Promise.resolve(this.#notReady());
+    }
+    return this.#client.unloadModels(options);
+  }
+
+  listProfileDetails(
+    options?: { signal?: AbortSignal },
+  ): Promise<ArcVoiceCallResult<readonly ArcVoiceProfileDetail[]>> {
+    if (this.#process === undefined || this.#state !== "ready") {
+      return Promise.resolve(this.#notReady());
+    }
+    return this.#client.listProfileDetails(options);
+  }
+
+  createProfile(
+    args: ArcVoiceProfileCreateArgs,
+  ): Promise<ArcVoiceCallResult<ArcVoiceProfileDetail>> {
+    if (this.#process === undefined || this.#state !== "ready") {
+      return Promise.resolve(this.#notReady());
+    }
+    return this.#client.createProfile(args);
+  }
+
+  updateProfile(
+    profileId: string,
+    args: ArcVoiceProfileUpdateArgs,
+  ): Promise<ArcVoiceCallResult<ArcVoiceProfileDetail>> {
+    if (this.#process === undefined || this.#state !== "ready") {
+      return Promise.resolve(this.#notReady());
+    }
+    return this.#client.updateProfile(profileId, args);
+  }
+
+  deleteProfile(profileId: string): Promise<ArcVoiceCallResult<void>> {
+    if (this.#process === undefined || this.#state !== "ready") {
+      return Promise.resolve(this.#notReady());
+    }
+    return this.#client.deleteProfile(profileId);
+  }
+
+  addProfileSample(
+    args: ArcVoiceProfileSampleAddArgs,
+  ): Promise<ArcVoiceCallResult<string>> {
+    if (this.#process === undefined || this.#state !== "ready") {
+      return Promise.resolve(this.#notReady());
+    }
+    return this.#client.addProfileSample(args);
+  }
+
+  removeProfileSample(sampleId: string): Promise<ArcVoiceCallResult<void>> {
+    if (this.#process === undefined || this.#state !== "ready") {
+      return Promise.resolve(this.#notReady());
+    }
+    return this.#client.removeProfileSample(sampleId);
+  }
+
+  listPresets(
+    engine: string,
+  ): Promise<ArcVoiceCallResult<readonly ArcVoicePresetVoice[]>> {
+    if (this.#process === undefined || this.#state !== "ready") {
+      return Promise.resolve(this.#notReady());
+    }
+    return this.#client.listPresets(engine);
+  }
+
+  listModels(): Promise<ArcVoiceCallResult<readonly ArcVoiceModelEntry[]>> {
+    if (this.#process === undefined || this.#state !== "ready") {
+      return Promise.resolve(this.#notReady());
+    }
+    return this.#client.listModels();
+  }
+
+  downloadModel(
+    modelName: string,
+    signal?: AbortSignal,
+  ): Promise<ArcVoiceCallResult<void>> {
+    if (this.#process === undefined || this.#state !== "ready") {
+      return Promise.resolve(this.#notReady());
+    }
+    return this.#client.downloadModel(modelName, signal);
+  }
+
+  cancelModelDownload(modelName: string): Promise<ArcVoiceCallResult<void>> {
+    if (this.#process === undefined || this.#state !== "ready") {
+      return Promise.resolve(this.#notReady());
+    }
+    return this.#client.cancelModelDownload(modelName);
+  }
+
   #notReady<T>(): ArcVoiceCallResult<T> {
     return {
       kind: "error",
+      code: "unavailable",
       message: `voice runtime is ${this.#state}: refusing to call the voice API`,
     };
   }
@@ -456,6 +768,16 @@ export class ArcVoiceRuntimeManager {
       return { kind: "failed", detail: this.#lastError };
     }
 
+    this.#trackProcess(process_);
+
+    return {
+      kind: "launched",
+      detail: `voice runtime launched with ${args.join(" ")}`,
+      ...(process_.pid === undefined ? {} : { pid: process_.pid }),
+    };
+  }
+
+  #trackProcess(process_: ArcVoiceProcess): void {
     this.#process = process_;
     if (process_.pid !== undefined) {
       this.#guardToken = this.#guard.track({
@@ -476,12 +798,6 @@ export class ArcVoiceRuntimeManager {
         `voice runtime exited unexpectedly (code ${code === null ? "null" : code}, signal ${signal === null ? "null" : signal})`,
       );
     });
-
-    return {
-      kind: "launched",
-      detail: `voice runtime launched with ${args.join(" ")}`,
-      ...(process_.pid === undefined ? {} : { pid: process_.pid }),
-    };
   }
 
   #handleExit(process_: ArcVoiceProcess, detail: string): void {
@@ -513,7 +829,7 @@ export class ArcVoiceRuntimeManager {
           return;
         }
 
-        const launched = this.#spawnProcess(config);
+        const launched = await this.#acquireRuntime(config, this.#generation);
         if (launched.kind === "failed") {
           this.#lastError = launched.detail;
           continue;
@@ -528,6 +844,16 @@ export class ArcVoiceRuntimeManager {
           return;
         }
         if (ready.kind === "ready") {
+          const unowned = await this.#confirmOwnedListener(config);
+          if (unowned !== null) {
+            const restarted = this.#process;
+            if (restarted !== undefined) {
+              await this.#terminate(restarted);
+            }
+            this.#state = "failed";
+            this.#lastError = unowned;
+            continue;
+          }
           this.#state = "ready";
           this.#lastError = undefined;
           return;
@@ -567,6 +893,7 @@ export class ArcVoiceRuntimeManager {
     process_.kill("SIGKILL");
     await forced;
     process_.killResidualTree();
+    process_.dispose?.();
   }
 
   #awaitClose(process_: ArcVoiceProcess, timeoutMs: number): Promise<boolean> {
