@@ -12,6 +12,11 @@ import { extractErrorMessage } from "@bb/core-ui";
 import { appToast } from "@/components/ui/app-toast";
 import { HttpError, readVoiceStatus, speakVoiceText } from "@/lib/api";
 import { chunkSpeechText } from "@/lib/speech-chunks";
+import {
+  registerSpeechPlaybackOwner,
+  releaseSpeechPlayback,
+  requestSpeechPlayback,
+} from "@/lib/speech-playback-coordinator";
 import { useVoiceEnabled } from "./voice-enabled";
 
 export type MessageSpeechPhase =
@@ -104,6 +109,7 @@ export function MessageSpeechProvider({ children }: { children: ReactNode }) {
       audio.removeAttribute("src");
       audio.load();
     }
+    releaseSpeechPlayback("message-speech");
   }, []);
 
   const stop = useCallback(() => {
@@ -260,6 +266,7 @@ export function MessageSpeechProvider({ children }: { children: ReactNode }) {
         setActiveMessageId(null);
         return;
       }
+      requestSpeechPlayback("message-speech");
 
       const session: SpeechSession = {
         cancelled: false,
@@ -280,6 +287,8 @@ export function MessageSpeechProvider({ children }: { children: ReactNode }) {
       clearSession();
     };
   }, [clearSession]);
+
+  useEffect(() => registerSpeechPlaybackOwner("message-speech", stop), [stop]);
 
   const voiceEnabled = useVoiceEnabled();
 

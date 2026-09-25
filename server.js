@@ -10,7 +10,13 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __commonJS = (cb, mod) => function __require() {
+var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
+}) : x)(function(x) {
+  if (typeof require !== "undefined") return require.apply(this, arguments);
+  throw Error('Dynamic require of "' + x + '" is not supported');
+});
+var __commonJS = (cb, mod) => function __require2() {
   try {
     return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
   } catch (e) {
@@ -38,2002 +44,9182 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/internal/constants.js
-var require_constants = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/internal/constants.js"(exports, module) {
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/types.js
+var require_types = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/types.js"(exports) {
     "use strict";
-    var SEMVER_SPEC_VERSION = "2.0.0";
-    var MAX_LENGTH = 256;
-    var MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER || /* istanbul ignore next */
-    9007199254740991;
-    var MAX_SAFE_COMPONENT_LENGTH = 16;
-    var MAX_SAFE_BUILD_LENGTH = MAX_LENGTH - 6;
-    var RELEASE_TYPES = [
-      "major",
-      "premajor",
-      "minor",
-      "preminor",
-      "patch",
-      "prepatch",
-      "prerelease"
-    ];
-    module.exports = {
-      MAX_LENGTH,
-      MAX_SAFE_COMPONENT_LENGTH,
-      MAX_SAFE_BUILD_LENGTH,
-      MAX_SAFE_INTEGER,
-      RELEASE_TYPES,
-      SEMVER_SPEC_VERSION,
-      FLAG_INCLUDE_PRERELEASE: 1,
-      FLAG_LOOSE: 2
-    };
+    Object.defineProperty(exports, "__esModule", { value: true });
   }
 });
 
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/internal/debug.js
-var require_debug = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/internal/debug.js"(exports, module) {
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/CronField.js
+var require_CronField = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/CronField.js"(exports) {
     "use strict";
-    var debug = typeof process === "object" && process.env && process.env.NODE_DEBUG && /\bsemver\b/i.test(process.env.NODE_DEBUG) ? (...args) => console.error("SEMVER", ...args) : () => {
-    };
-    module.exports = debug;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/internal/re.js
-var require_re = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/internal/re.js"(exports, module) {
-    "use strict";
-    var {
-      MAX_SAFE_COMPONENT_LENGTH,
-      MAX_SAFE_BUILD_LENGTH,
-      MAX_LENGTH
-    } = require_constants();
-    var debug = require_debug();
-    exports = module.exports = {};
-    var re = exports.re = [];
-    var safeRe = exports.safeRe = [];
-    var src = exports.src = [];
-    var safeSrc = exports.safeSrc = [];
-    var t = exports.t = {};
-    var R = 0;
-    var LETTERDASHNUMBER = "[a-zA-Z0-9-]";
-    var safeRegexReplacements = [
-      ["\\s", 1],
-      ["\\d", MAX_LENGTH],
-      [LETTERDASHNUMBER, MAX_SAFE_BUILD_LENGTH]
-    ];
-    var makeSafeRegex = (value) => {
-      for (const [token, max] of safeRegexReplacements) {
-        value = value.split(`${token}*`).join(`${token}{0,${max}}`).split(`${token}+`).join(`${token}{1,${max}}`);
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CronField = void 0;
+    var CronField = class _CronField {
+      #hasLastChar = false;
+      #hasQuestionMarkChar = false;
+      #wildcard = false;
+      #values = [];
+      options = { rawValue: "" };
+      /**
+       * Returns the minimum value allowed for this field.
+       */
+      /* istanbul ignore next */
+      static get min() {
+        throw new Error("min must be overridden");
       }
-      return value;
-    };
-    var createToken = (name, value, isGlobal) => {
-      const safe = makeSafeRegex(value);
-      const index = R++;
-      debug(name, index, value);
-      t[name] = index;
-      src[index] = value;
-      safeSrc[index] = safe;
-      re[index] = new RegExp(value, isGlobal ? "g" : void 0);
-      safeRe[index] = new RegExp(safe, isGlobal ? "g" : void 0);
-    };
-    createToken("NUMERICIDENTIFIER", "0|[1-9]\\d*");
-    createToken("NUMERICIDENTIFIERLOOSE", "\\d+");
-    createToken("NONNUMERICIDENTIFIER", `\\d*[a-zA-Z-]${LETTERDASHNUMBER}*`);
-    createToken("MAINVERSION", `(${src[t.NUMERICIDENTIFIER]})\\.(${src[t.NUMERICIDENTIFIER]})\\.(${src[t.NUMERICIDENTIFIER]})`);
-    createToken("MAINVERSIONLOOSE", `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.(${src[t.NUMERICIDENTIFIERLOOSE]})\\.(${src[t.NUMERICIDENTIFIERLOOSE]})`);
-    createToken("PRERELEASEIDENTIFIER", `(?:${src[t.NONNUMERICIDENTIFIER]}|${src[t.NUMERICIDENTIFIER]})`);
-    createToken("PRERELEASEIDENTIFIERLOOSE", `(?:${src[t.NONNUMERICIDENTIFIER]}|${src[t.NUMERICIDENTIFIERLOOSE]})`);
-    createToken("PRERELEASE", `(?:-(${src[t.PRERELEASEIDENTIFIER]}(?:\\.${src[t.PRERELEASEIDENTIFIER]})*))`);
-    createToken("PRERELEASELOOSE", `(?:-?(${src[t.PRERELEASEIDENTIFIERLOOSE]}(?:\\.${src[t.PRERELEASEIDENTIFIERLOOSE]})*))`);
-    createToken("BUILDIDENTIFIER", `${LETTERDASHNUMBER}+`);
-    createToken("BUILD", `(?:\\+(${src[t.BUILDIDENTIFIER]}(?:\\.${src[t.BUILDIDENTIFIER]})*))`);
-    createToken("FULLPLAIN", `v?${src[t.MAINVERSION]}${src[t.PRERELEASE]}?${src[t.BUILD]}?`);
-    createToken("FULL", `^${src[t.FULLPLAIN]}$`);
-    createToken("LOOSEPLAIN", `[v=\\s]*${src[t.MAINVERSIONLOOSE]}${src[t.PRERELEASELOOSE]}?${src[t.BUILD]}?`);
-    createToken("LOOSE", `^${src[t.LOOSEPLAIN]}$`);
-    createToken("GTLT", "((?:<|>)?=?)");
-    createToken("XRANGEIDENTIFIERLOOSE", `${src[t.NUMERICIDENTIFIERLOOSE]}|x|X|\\*`);
-    createToken("XRANGEIDENTIFIER", `${src[t.NUMERICIDENTIFIER]}|x|X|\\*`);
-    createToken("XRANGEPLAIN", `[v=\\s]*(${src[t.XRANGEIDENTIFIER]})(?:\\.(${src[t.XRANGEIDENTIFIER]})(?:\\.(${src[t.XRANGEIDENTIFIER]})(?:${src[t.PRERELEASE]})?${src[t.BUILD]}?)?)?`);
-    createToken("XRANGEPLAINLOOSE", `[v=\\s]*(${src[t.XRANGEIDENTIFIERLOOSE]})(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})(?:${src[t.PRERELEASELOOSE]})?${src[t.BUILD]}?)?)?`);
-    createToken("XRANGE", `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAIN]}$`);
-    createToken("XRANGELOOSE", `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAINLOOSE]}$`);
-    createToken("COERCEPLAIN", `${"(^|[^\\d])(\\d{1,"}${MAX_SAFE_COMPONENT_LENGTH}})(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?`);
-    createToken("COERCE", `${src[t.COERCEPLAIN]}(?:$|[^\\d])`);
-    createToken("COERCEFULL", src[t.COERCEPLAIN] + `(?:${src[t.PRERELEASE]})?(?:${src[t.BUILD]})?(?:$|[^\\d])`);
-    createToken("COERCERTL", src[t.COERCE], true);
-    createToken("COERCERTLFULL", src[t.COERCEFULL], true);
-    createToken("LONETILDE", "(?:~>?)");
-    createToken("TILDETRIM", `(\\s*)${src[t.LONETILDE]}\\s+`, true);
-    exports.tildeTrimReplace = "$1~";
-    createToken("TILDE", `^${src[t.LONETILDE]}${src[t.XRANGEPLAIN]}$`);
-    createToken("TILDELOOSE", `^${src[t.LONETILDE]}${src[t.XRANGEPLAINLOOSE]}$`);
-    createToken("LONECARET", "(?:\\^)");
-    createToken("CARETTRIM", `(\\s*)${src[t.LONECARET]}\\s+`, true);
-    exports.caretTrimReplace = "$1^";
-    createToken("CARET", `^${src[t.LONECARET]}${src[t.XRANGEPLAIN]}$`);
-    createToken("CARETLOOSE", `^${src[t.LONECARET]}${src[t.XRANGEPLAINLOOSE]}$`);
-    createToken("COMPARATORLOOSE", `^${src[t.GTLT]}\\s*(${src[t.LOOSEPLAIN]})$|^$`);
-    createToken("COMPARATOR", `^${src[t.GTLT]}\\s*(${src[t.FULLPLAIN]})$|^$`);
-    createToken("COMPARATORTRIM", `(\\s*)${src[t.GTLT]}\\s*(${src[t.LOOSEPLAIN]}|${src[t.XRANGEPLAIN]})`, true);
-    exports.comparatorTrimReplace = "$1$2$3";
-    createToken("HYPHENRANGE", `^\\s*(${src[t.XRANGEPLAIN]})\\s+-\\s+(${src[t.XRANGEPLAIN]})\\s*$`);
-    createToken("HYPHENRANGELOOSE", `^\\s*(${src[t.XRANGEPLAINLOOSE]})\\s+-\\s+(${src[t.XRANGEPLAINLOOSE]})\\s*$`);
-    createToken("STAR", "(<|>)?=?\\s*\\*");
-    createToken("GTE0", "^\\s*>=\\s*0\\.0\\.0\\s*$");
-    createToken("GTE0PRE", "^\\s*>=\\s*0\\.0\\.0-0\\s*$");
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/internal/parse-options.js
-var require_parse_options = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/internal/parse-options.js"(exports, module) {
-    "use strict";
-    var looseOption = Object.freeze({ loose: true });
-    var emptyOpts = Object.freeze({});
-    var parseOptions = (options) => {
-      if (!options) {
-        return emptyOpts;
+      /**
+       * Returns the maximum value allowed for this field.
+       */
+      /* istanbul ignore next */
+      static get max() {
+        throw new Error("max must be overridden");
       }
-      if (typeof options !== "object") {
-        return looseOption;
+      /**
+       * Returns the allowed characters for this field.
+       */
+      /* istanbul ignore next */
+      static get chars() {
+        return Object.freeze([]);
       }
-      return options;
-    };
-    module.exports = parseOptions;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/internal/identifiers.js
-var require_identifiers = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/internal/identifiers.js"(exports, module) {
-    "use strict";
-    var numeric = /^[0-9]+$/;
-    var compareIdentifiers = (a, b) => {
-      if (typeof a === "number" && typeof b === "number") {
-        return a === b ? 0 : a < b ? -1 : 1;
+      /**
+       * Returns the regular expression used to validate this field.
+       */
+      static get validChars() {
+        return /^[?,*\dH/-]+$|^.*H\(\d+-\d+\)\/\d+.*$|^.*H\(\d+-\d+\).*$|^.*H\/\d+.*$/;
       }
-      const anum = numeric.test(a);
-      const bnum = numeric.test(b);
-      if (anum && bnum) {
-        a = +a;
-        b = +b;
+      /**
+       * Returns the constraints for this field.
+       */
+      static get constraints() {
+        return { min: this.min, max: this.max, chars: this.chars, validChars: this.validChars };
       }
-      return a === b ? 0 : anum && !bnum ? -1 : bnum && !anum ? 1 : a < b ? -1 : 1;
-    };
-    var rcompareIdentifiers = (a, b) => compareIdentifiers(b, a);
-    module.exports = {
-      compareIdentifiers,
-      rcompareIdentifiers
-    };
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/classes/semver.js
-var require_semver = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/classes/semver.js"(exports, module) {
-    "use strict";
-    var debug = require_debug();
-    var { MAX_LENGTH, MAX_SAFE_INTEGER } = require_constants();
-    var { safeRe: re, t } = require_re();
-    var parseOptions = require_parse_options();
-    var { compareIdentifiers } = require_identifiers();
-    var isPrereleaseIdentifier = (prerelease, identifier) => {
-      const identifiers = identifier.split(".");
-      if (identifiers.length > prerelease.length) {
-        return false;
-      }
-      for (let i = 0; i < identifiers.length; i++) {
-        if (compareIdentifiers(prerelease[i], identifiers[i]) !== 0) {
-          return false;
+      /**
+       * CronField constructor. Initializes the field with the provided values.
+       * @param {number[] | string[]} values - Values for this field
+       * @param {CronFieldOptions} [options] - Options provided by the parser
+       * @throws {TypeError} if the constructor is called directly
+       * @throws {Error} if validation fails
+       */
+      constructor(values, options = { rawValue: "" }) {
+        if (!Array.isArray(values)) {
+          throw new Error(`${this.constructor.name} Validation error, values is not an array`);
         }
+        if (!(values.length > 0)) {
+          throw new Error(`${this.constructor.name} Validation error, values contains no values`);
+        }
+        this.options = {
+          ...options,
+          rawValue: options.rawValue ?? ""
+        };
+        this.#values = values.sort(_CronField.sorter);
+        this.#wildcard = this.options.wildcard !== void 0 ? this.options.wildcard : this.#isWildcardValue();
+        this.#hasLastChar = this.options.rawValue.includes("L") || values.includes("L");
+        this.#hasQuestionMarkChar = this.options.rawValue.includes("?") || values.includes("?");
       }
-      return true;
-    };
-    var SemVer = class _SemVer {
-      constructor(version2, options) {
-        options = parseOptions(options);
-        if (version2 instanceof _SemVer) {
-          if (version2.loose === !!options.loose && version2.includePrerelease === !!options.includePrerelease) {
-            return version2;
-          } else {
-            version2 = version2.version;
+      /**
+       * Returns the minimum value allowed for this field.
+       * @returns {number}
+       */
+      get min() {
+        return this.constructor.min;
+      }
+      /**
+       * Returns the maximum value allowed for this field.
+       * @returns {number}
+       */
+      get max() {
+        return this.constructor.max;
+      }
+      /**
+       * Returns an array of allowed special characters for this field.
+       * @returns {string[]}
+       */
+      get chars() {
+        return this.constructor.chars;
+      }
+      /**
+       * Indicates whether this field has a "last" character.
+       * @returns {boolean}
+       */
+      get hasLastChar() {
+        return this.#hasLastChar;
+      }
+      /**
+       * Indicates whether this field has a "question mark" character.
+       * @returns {boolean}
+       */
+      get hasQuestionMarkChar() {
+        return this.#hasQuestionMarkChar;
+      }
+      /**
+       * Indicates whether this field is a wildcard.
+       * @returns {boolean}
+       */
+      get isWildcard() {
+        return this.#wildcard;
+      }
+      /**
+       * Returns an array of allowed values for this field.
+       * @returns {CronFieldType}
+       */
+      get values() {
+        return this.#values;
+      }
+      /**
+       * Helper function to sort values in ascending order.
+       * @param {number | string} a - First value to compare
+       * @param {number | string} b - Second value to compare
+       * @returns {number} - A negative, zero, or positive value, depending on the sort order
+       */
+      static sorter(a, b) {
+        const aIsNumber = typeof a === "number";
+        const bIsNumber = typeof b === "number";
+        if (aIsNumber && bIsNumber)
+          return a - b;
+        if (!aIsNumber && !bIsNumber)
+          return a.localeCompare(b);
+        return aIsNumber ? (
+          /* istanbul ignore next - A will always be a number until L-2 is supported */
+          -1
+        ) : 1;
+      }
+      /**
+       * Find the next (or previous when `reverse` is true) numeric value in a sorted list.
+       * Returns null if there's no value strictly after/before the current one.
+       *
+       * @param values - Sorted numeric values
+       * @param currentValue - Current value to compare against
+       * @param reverse - When true, search in reverse for previous smaller value
+       */
+      static findNearestValueInList(values, currentValue, reverse = false) {
+        if (reverse) {
+          for (let i = values.length - 1; i >= 0; i--) {
+            if (values[i] < currentValue)
+              return values[i];
           }
-        } else if (typeof version2 !== "string") {
-          throw new TypeError(`Invalid version. Must be a string. Got type "${typeof version2}".`);
-        }
-        if (version2.length > MAX_LENGTH) {
-          throw new TypeError(
-            `version is longer than ${MAX_LENGTH} characters`
-          );
-        }
-        debug("SemVer", version2, options);
-        this.options = options;
-        this.loose = !!options.loose;
-        this.includePrerelease = !!options.includePrerelease;
-        const m = version2.trim().match(options.loose ? re[t.LOOSE] : re[t.FULL]);
-        if (!m) {
-          throw new TypeError(`Invalid Version: ${version2}`);
-        }
-        this.raw = version2;
-        this.major = +m[1];
-        this.minor = +m[2];
-        this.patch = +m[3];
-        if (this.major > MAX_SAFE_INTEGER || this.major < 0) {
-          throw new TypeError("Invalid major version");
-        }
-        if (this.minor > MAX_SAFE_INTEGER || this.minor < 0) {
-          throw new TypeError("Invalid minor version");
-        }
-        if (this.patch > MAX_SAFE_INTEGER || this.patch < 0) {
-          throw new TypeError("Invalid patch version");
-        }
-        if (!m[4]) {
-          this.prerelease = [];
-        } else {
-          this.prerelease = m[4].split(".").map((id) => {
-            if (/^[0-9]+$/.test(id)) {
-              const num = +id;
-              if (num >= 0 && num < MAX_SAFE_INTEGER) {
-                return num;
-              }
-            }
-            return id;
-          });
-        }
-        this.build = m[5] ? m[5].split(".") : [];
-        this.format();
-      }
-      format() {
-        this.version = `${this.major}.${this.minor}.${this.patch}`;
-        if (this.prerelease.length) {
-          this.version += `-${this.prerelease.join(".")}`;
-        }
-        return this.version;
-      }
-      toString() {
-        return this.version;
-      }
-      compare(other) {
-        debug("SemVer.compare", this.version, this.options, other);
-        if (!(other instanceof _SemVer)) {
-          if (typeof other === "string" && other === this.version) {
-            return 0;
-          }
-          other = new _SemVer(other, this.options);
-        }
-        if (other.version === this.version) {
-          return 0;
-        }
-        return this.compareMain(other) || this.comparePre(other);
-      }
-      compareMain(other) {
-        if (!(other instanceof _SemVer)) {
-          other = new _SemVer(other, this.options);
-        }
-        if (this.major < other.major) {
-          return -1;
-        }
-        if (this.major > other.major) {
-          return 1;
-        }
-        if (this.minor < other.minor) {
-          return -1;
-        }
-        if (this.minor > other.minor) {
-          return 1;
-        }
-        if (this.patch < other.patch) {
-          return -1;
-        }
-        if (this.patch > other.patch) {
-          return 1;
-        }
-        return 0;
-      }
-      comparePre(other) {
-        if (!(other instanceof _SemVer)) {
-          other = new _SemVer(other, this.options);
-        }
-        if (this.prerelease.length && !other.prerelease.length) {
-          return -1;
-        } else if (!this.prerelease.length && other.prerelease.length) {
-          return 1;
-        } else if (!this.prerelease.length && !other.prerelease.length) {
-          return 0;
-        }
-        let i = 0;
-        do {
-          const a = this.prerelease[i];
-          const b = other.prerelease[i];
-          debug("prerelease compare", i, a, b);
-          if (a === void 0 && b === void 0) {
-            return 0;
-          } else if (b === void 0) {
-            return 1;
-          } else if (a === void 0) {
-            return -1;
-          } else if (a === b) {
-            continue;
-          } else {
-            return compareIdentifiers(a, b);
-          }
-        } while (++i);
-      }
-      compareBuild(other) {
-        if (!(other instanceof _SemVer)) {
-          other = new _SemVer(other, this.options);
-        }
-        let i = 0;
-        do {
-          const a = this.build[i];
-          const b = other.build[i];
-          debug("build compare", i, a, b);
-          if (a === void 0 && b === void 0) {
-            return 0;
-          } else if (b === void 0) {
-            return 1;
-          } else if (a === void 0) {
-            return -1;
-          } else if (a === b) {
-            continue;
-          } else {
-            return compareIdentifiers(a, b);
-          }
-        } while (++i);
-      }
-      // preminor will bump the version up to the next minor release, and immediately
-      // down to pre-release. premajor and prepatch work the same way.
-      inc(release, identifier, identifierBase) {
-        if (release.startsWith("pre")) {
-          if (!identifier && identifierBase === false) {
-            throw new Error("invalid increment argument: identifier is empty");
-          }
-          if (identifier) {
-            const match = `-${identifier}`.match(this.options.loose ? re[t.PRERELEASELOOSE] : re[t.PRERELEASE]);
-            if (!match || match[1] !== identifier) {
-              throw new Error(`invalid identifier: ${identifier}`);
-            }
-          }
-        }
-        switch (release) {
-          case "premajor":
-            this.prerelease.length = 0;
-            this.patch = 0;
-            this.minor = 0;
-            this.major++;
-            this.inc("pre", identifier, identifierBase);
-            break;
-          case "preminor":
-            this.prerelease.length = 0;
-            this.patch = 0;
-            this.minor++;
-            this.inc("pre", identifier, identifierBase);
-            break;
-          case "prepatch":
-            this.prerelease.length = 0;
-            this.inc("patch", identifier, identifierBase);
-            this.inc("pre", identifier, identifierBase);
-            break;
-          // If the input is a non-prerelease version, this acts the same as
-          // prepatch.
-          case "prerelease":
-            if (this.prerelease.length === 0) {
-              this.inc("patch", identifier, identifierBase);
-            }
-            this.inc("pre", identifier, identifierBase);
-            break;
-          case "release":
-            if (this.prerelease.length === 0) {
-              throw new Error(`version ${this.raw} is not a prerelease`);
-            }
-            this.prerelease.length = 0;
-            break;
-          case "major":
-            if (this.minor !== 0 || this.patch !== 0 || this.prerelease.length === 0) {
-              this.major++;
-            }
-            this.minor = 0;
-            this.patch = 0;
-            this.prerelease = [];
-            break;
-          case "minor":
-            if (this.patch !== 0 || this.prerelease.length === 0) {
-              this.minor++;
-            }
-            this.patch = 0;
-            this.prerelease = [];
-            break;
-          case "patch":
-            if (this.prerelease.length === 0) {
-              this.patch++;
-            }
-            this.prerelease = [];
-            break;
-          // This probably shouldn't be used publicly.
-          // 1.0.0 'pre' would become 1.0.0-0 which is the wrong direction.
-          case "pre": {
-            const base = Number(identifierBase) ? 1 : 0;
-            if (this.prerelease.length === 0) {
-              this.prerelease = [base];
-            } else {
-              let i = this.prerelease.length;
-              while (--i >= 0) {
-                if (typeof this.prerelease[i] === "number") {
-                  this.prerelease[i]++;
-                  i = -2;
-                }
-              }
-              if (i === -1) {
-                if (identifier === this.prerelease.join(".") && identifierBase === false) {
-                  throw new Error("invalid increment argument: identifier already exists");
-                }
-                this.prerelease.push(base);
-              }
-            }
-            if (identifier) {
-              let prerelease = [identifier, base];
-              if (identifierBase === false) {
-                prerelease = [identifier];
-              }
-              if (isPrereleaseIdentifier(this.prerelease, identifier)) {
-                const prereleaseBase = this.prerelease[identifier.split(".").length];
-                if (isNaN(prereleaseBase)) {
-                  this.prerelease = prerelease;
-                }
-              } else {
-                this.prerelease = prerelease;
-              }
-            }
-            break;
-          }
-          default:
-            throw new Error(`invalid increment argument: ${release}`);
-        }
-        this.raw = this.format();
-        if (this.build.length) {
-          this.raw += `+${this.build.join(".")}`;
-        }
-        return this;
-      }
-    };
-    module.exports = SemVer;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/parse.js
-var require_parse = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/parse.js"(exports, module) {
-    "use strict";
-    var SemVer = require_semver();
-    var parse4 = (version2, options, throwErrors = false) => {
-      if (version2 instanceof SemVer) {
-        return version2;
-      }
-      try {
-        return new SemVer(version2, options);
-      } catch (er) {
-        if (!throwErrors) {
           return null;
         }
-        throw er;
-      }
-    };
-    module.exports = parse4;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/valid.js
-var require_valid = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/valid.js"(exports, module) {
-    "use strict";
-    var parse4 = require_parse();
-    var valid4 = (version2, options) => {
-      const v = parse4(version2, options);
-      return v ? v.version : null;
-    };
-    module.exports = valid4;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/clean.js
-var require_clean = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/clean.js"(exports, module) {
-    "use strict";
-    var parse4 = require_parse();
-    var clean = (version2, options) => {
-      const s = parse4(version2.trim().replace(/^[=v]+/, ""), options);
-      return s ? s.version : null;
-    };
-    module.exports = clean;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/inc.js
-var require_inc = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/inc.js"(exports, module) {
-    "use strict";
-    var SemVer = require_semver();
-    var inc = (version2, release, options, identifier, identifierBase) => {
-      if (typeof options === "string") {
-        identifierBase = identifier;
-        identifier = options;
-        options = void 0;
-      }
-      try {
-        return new SemVer(
-          version2 instanceof SemVer ? version2.version : version2,
-          options
-        ).inc(release, identifier, identifierBase).version;
-      } catch (er) {
-        return null;
-      }
-    };
-    module.exports = inc;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/diff.js
-var require_diff = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/diff.js"(exports, module) {
-    "use strict";
-    var parse4 = require_parse();
-    var diff = (version1, version2) => {
-      const v1 = parse4(version1, null, true);
-      const v2 = parse4(version2, null, true);
-      const comparison = v1.compare(v2);
-      if (comparison === 0) {
-        return null;
-      }
-      const v1Higher = comparison > 0;
-      const highVersion = v1Higher ? v1 : v2;
-      const lowVersion = v1Higher ? v2 : v1;
-      const highHasPre = !!highVersion.prerelease.length;
-      const lowHasPre = !!lowVersion.prerelease.length;
-      if (lowHasPre && !highHasPre) {
-        if (!lowVersion.patch && !lowVersion.minor) {
-          return "major";
+        for (let i = 0; i < values.length; i++) {
+          if (values[i] > currentValue)
+            return values[i];
         }
-        if (lowVersion.compareMain(highVersion) === 0) {
-          if (lowVersion.minor && !lowVersion.patch) {
-            return "minor";
-          }
-          return "patch";
+        return null;
+      }
+      /**
+       * Instance helper that operates on this field's numeric `values`.
+       *
+       * @param currentValue - Current value to compare against
+       * @param reverse - When true, search in reverse for previous smaller value
+       */
+      findNearestValue(currentValue, reverse = false) {
+        return this.constructor.findNearestValueInList(this.values, currentValue, reverse);
+      }
+      /**
+       * Serializes the field to an object.
+       * @returns {SerializedCronField}
+       */
+      serialize() {
+        return {
+          wildcard: this.#wildcard,
+          values: this.#values
+        };
+      }
+      /**
+       * Validates the field values against the allowed range and special characters.
+       * @throws {Error} if validation fails
+       */
+      validate() {
+        let badValue;
+        const charsString = this.chars.length > 0 ? ` or chars ${this.chars.join("")}` : "";
+        const charTest = (value) => (char) => new RegExp(`^\\d{0,2}${char}$`).test(value);
+        const rangeTest = (value) => {
+          badValue = value;
+          return typeof value === "number" ? value >= this.min && value <= this.max : this.chars.some(charTest(value));
+        };
+        const isValidRange = this.#values.every(rangeTest);
+        if (!isValidRange) {
+          throw new Error(`${this.constructor.name} Validation error, got value ${badValue} expected range ${this.min}-${this.max}${charsString}`);
+        }
+        const duplicate = this.#values.find((value, index) => this.#values.indexOf(value) !== index);
+        if (duplicate) {
+          throw new Error(`${this.constructor.name} Validation error, duplicate values found: ${duplicate}`);
         }
       }
-      const prefix = highHasPre ? "pre" : "";
-      if (v1.major !== v2.major) {
-        return prefix + "major";
-      }
-      if (v1.minor !== v2.minor) {
-        return prefix + "minor";
-      }
-      if (v1.patch !== v2.patch) {
-        return prefix + "patch";
-      }
-      return "prerelease";
-    };
-    module.exports = diff;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/major.js
-var require_major = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/major.js"(exports, module) {
-    "use strict";
-    var SemVer = require_semver();
-    var major = (a, loose) => new SemVer(a, loose).major;
-    module.exports = major;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/minor.js
-var require_minor = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/minor.js"(exports, module) {
-    "use strict";
-    var SemVer = require_semver();
-    var minor = (a, loose) => new SemVer(a, loose).minor;
-    module.exports = minor;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/patch.js
-var require_patch = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/patch.js"(exports, module) {
-    "use strict";
-    var SemVer = require_semver();
-    var patch = (a, loose) => new SemVer(a, loose).patch;
-    module.exports = patch;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/prerelease.js
-var require_prerelease = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/prerelease.js"(exports, module) {
-    "use strict";
-    var parse4 = require_parse();
-    var prerelease = (version2, options) => {
-      const parsed = parse4(version2, options);
-      return parsed && parsed.prerelease.length ? parsed.prerelease : null;
-    };
-    module.exports = prerelease;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/compare.js
-var require_compare = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/compare.js"(exports, module) {
-    "use strict";
-    var SemVer = require_semver();
-    var compare2 = (a, b, loose) => new SemVer(a, loose).compare(new SemVer(b, loose));
-    module.exports = compare2;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/rcompare.js
-var require_rcompare = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/rcompare.js"(exports, module) {
-    "use strict";
-    var compare2 = require_compare();
-    var rcompare = (a, b, loose) => compare2(b, a, loose);
-    module.exports = rcompare;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/compare-loose.js
-var require_compare_loose = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/compare-loose.js"(exports, module) {
-    "use strict";
-    var compare2 = require_compare();
-    var compareLoose = (a, b) => compare2(a, b, true);
-    module.exports = compareLoose;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/compare-build.js
-var require_compare_build = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/compare-build.js"(exports, module) {
-    "use strict";
-    var SemVer = require_semver();
-    var compareBuild = (a, b, loose) => {
-      const versionA = new SemVer(a, loose);
-      const versionB = new SemVer(b, loose);
-      return versionA.compare(versionB) || versionA.compareBuild(versionB);
-    };
-    module.exports = compareBuild;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/sort.js
-var require_sort = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/sort.js"(exports, module) {
-    "use strict";
-    var compareBuild = require_compare_build();
-    var sort = (list, loose) => list.sort((a, b) => compareBuild(a, b, loose));
-    module.exports = sort;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/rsort.js
-var require_rsort = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/rsort.js"(exports, module) {
-    "use strict";
-    var compareBuild = require_compare_build();
-    var rsort = (list, loose) => list.sort((a, b) => compareBuild(b, a, loose));
-    module.exports = rsort;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/gt.js
-var require_gt = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/gt.js"(exports, module) {
-    "use strict";
-    var compare2 = require_compare();
-    var gt = (a, b, loose) => compare2(a, b, loose) > 0;
-    module.exports = gt;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/lt.js
-var require_lt = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/lt.js"(exports, module) {
-    "use strict";
-    var compare2 = require_compare();
-    var lt = (a, b, loose) => compare2(a, b, loose) < 0;
-    module.exports = lt;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/eq.js
-var require_eq = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/eq.js"(exports, module) {
-    "use strict";
-    var compare2 = require_compare();
-    var eq = (a, b, loose) => compare2(a, b, loose) === 0;
-    module.exports = eq;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/neq.js
-var require_neq = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/neq.js"(exports, module) {
-    "use strict";
-    var compare2 = require_compare();
-    var neq = (a, b, loose) => compare2(a, b, loose) !== 0;
-    module.exports = neq;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/gte.js
-var require_gte = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/gte.js"(exports, module) {
-    "use strict";
-    var compare2 = require_compare();
-    var gte = (a, b, loose) => compare2(a, b, loose) >= 0;
-    module.exports = gte;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/lte.js
-var require_lte = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/lte.js"(exports, module) {
-    "use strict";
-    var compare2 = require_compare();
-    var lte = (a, b, loose) => compare2(a, b, loose) <= 0;
-    module.exports = lte;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/cmp.js
-var require_cmp = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/cmp.js"(exports, module) {
-    "use strict";
-    var eq = require_eq();
-    var neq = require_neq();
-    var gt = require_gt();
-    var gte = require_gte();
-    var lt = require_lt();
-    var lte = require_lte();
-    var cmp = (a, op, b, loose) => {
-      switch (op) {
-        case "===":
-          if (typeof a === "object") {
-            a = a.version;
-          }
-          if (typeof b === "object") {
-            b = b.version;
-          }
-          return a === b;
-        case "!==":
-          if (typeof a === "object") {
-            a = a.version;
-          }
-          if (typeof b === "object") {
-            b = b.version;
-          }
-          return a !== b;
-        case "":
-        case "=":
-        case "==":
-          return eq(a, b, loose);
-        case "!=":
-          return neq(a, b, loose);
-        case ">":
-          return gt(a, b, loose);
-        case ">=":
-          return gte(a, b, loose);
-        case "<":
-          return lt(a, b, loose);
-        case "<=":
-          return lte(a, b, loose);
-        default:
-          throw new TypeError(`Invalid operator: ${op}`);
-      }
-    };
-    module.exports = cmp;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/coerce.js
-var require_coerce = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/coerce.js"(exports, module) {
-    "use strict";
-    var SemVer = require_semver();
-    var parse4 = require_parse();
-    var { safeRe: re, t } = require_re();
-    var coerce = (version2, options) => {
-      if (version2 instanceof SemVer) {
-        return version2;
-      }
-      if (typeof version2 === "number") {
-        version2 = String(version2);
-      }
-      if (typeof version2 !== "string") {
-        return null;
-      }
-      options = options || {};
-      let match = null;
-      if (!options.rtl) {
-        match = version2.match(options.includePrerelease ? re[t.COERCEFULL] : re[t.COERCE]);
-      } else {
-        const coerceRtlRegex = options.includePrerelease ? re[t.COERCERTLFULL] : re[t.COERCERTL];
-        let next;
-        while ((next = coerceRtlRegex.exec(version2)) && (!match || match.index + match[0].length !== version2.length)) {
-          if (!match || next.index + next[0].length !== match.index + match[0].length) {
-            match = next;
-          }
-          coerceRtlRegex.lastIndex = next.index + next[1].length + next[2].length;
+      /**
+       * Determines if the field is a wildcard based on the values.
+       * When options.rawValue is not empty, it checks if the raw value is a wildcard, otherwise it checks if all values in the range are included.
+       * @returns {boolean}
+       */
+      #isWildcardValue() {
+        if (this.options.rawValue.length > 0) {
+          return ["*", "?"].includes(this.options.rawValue);
         }
-        coerceRtlRegex.lastIndex = -1;
+        return Array.from({ length: this.max - this.min + 1 }, (_, i) => i + this.min).every((value) => this.#values.includes(value));
       }
-      if (match === null) {
-        return null;
-      }
-      const major = match[2];
-      const minor = match[3] || "0";
-      const patch = match[4] || "0";
-      const prerelease = options.includePrerelease && match[5] ? `-${match[5]}` : "";
-      const build = options.includePrerelease && match[6] ? `+${match[6]}` : "";
-      return parse4(`${major}.${minor}.${patch}${prerelease}${build}`, options);
     };
-    module.exports = coerce;
+    exports.CronField = CronField;
   }
 });
 
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/truncate.js
-var require_truncate = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/truncate.js"(exports, module) {
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/CronDayOfMonth.js
+var require_CronDayOfMonth = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/CronDayOfMonth.js"(exports) {
     "use strict";
-    var parse4 = require_parse();
-    var constants4 = require_constants();
-    var SemVer = require_semver();
-    var truncate = (version2, truncation, options) => {
-      if (!constants4.RELEASE_TYPES.includes(truncation)) {
-        return null;
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CronDayOfMonth = void 0;
+    var CronField_1 = require_CronField();
+    var MIN_DAY = 1;
+    var MAX_DAY = 31;
+    var DAY_CHARS = Object.freeze(["L"]);
+    var CronDayOfMonth = class extends CronField_1.CronField {
+      static get min() {
+        return MIN_DAY;
       }
-      const clonedVersion = cloneInputVersion(version2, options);
-      return clonedVersion && doTruncation(clonedVersion, truncation);
-    };
-    var cloneInputVersion = (version2, options) => {
-      const versionStringToParse = version2 instanceof SemVer ? version2.version : version2;
-      return parse4(versionStringToParse, options);
-    };
-    var doTruncation = (version2, truncation) => {
-      if (isPrerelease(truncation)) {
-        return version2.version;
+      static get max() {
+        return MAX_DAY;
       }
-      version2.prerelease = [];
-      switch (truncation) {
-        case "major":
-          version2.minor = 0;
-          version2.patch = 0;
-          break;
-        case "minor":
-          version2.patch = 0;
-          break;
+      static get chars() {
+        return DAY_CHARS;
       }
-      return version2.format();
+      static get validChars() {
+        return /^[?,*\dLH/-]+$|^.*H\(\d+-\d+\)\/\d+.*$|^.*H\(\d+-\d+\).*$|^.*H\/\d+.*$/;
+      }
+      /**
+       * CronDayOfMonth constructor. Initializes the "day of the month" field with the provided values.
+       * @param {DayOfMonthRange[]} values - Values for the "day of the month" field
+       * @param {CronFieldOptions} [options] - Options provided by the parser
+       * @throws {Error} if validation fails
+       */
+      constructor(values, options) {
+        super(values, options);
+        this.validate();
+      }
+      /**
+       * Returns an array of allowed values for the "day of the month" field.
+       * @returns {DayOfMonthRange[]}
+       */
+      get values() {
+        return super.values;
+      }
     };
-    var isPrerelease = (type) => {
-      return type.startsWith("pre");
-    };
-    module.exports = truncate;
+    exports.CronDayOfMonth = CronDayOfMonth;
   }
 });
 
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/internal/lrucache.js
-var require_lrucache = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/internal/lrucache.js"(exports, module) {
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/CronDayOfWeek.js
+var require_CronDayOfWeek = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/CronDayOfWeek.js"(exports) {
     "use strict";
-    var LRUCache = class {
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CronDayOfWeek = void 0;
+    var CronField_1 = require_CronField();
+    var MIN_DAY = 0;
+    var MAX_DAY = 7;
+    var DAY_CHARS = Object.freeze(["L"]);
+    var CronDayOfWeek = class extends CronField_1.CronField {
+      static get min() {
+        return MIN_DAY;
+      }
+      static get max() {
+        return MAX_DAY;
+      }
+      static get chars() {
+        return DAY_CHARS;
+      }
+      static get validChars() {
+        return /^[?,*\dLH#/-]+$|^.*H\(\d+-\d+\)\/\d+.*$|^.*H\(\d+-\d+\).*$|^.*H\/\d+.*$/;
+      }
+      /**
+       * CronDayOfTheWeek constructor. Initializes the "day of the week" field with the provided values.
+       * @param {DayOfWeekRange[]} values - Values for the "day of the week" field
+       * @param {CronFieldOptions} [options] - Options provided by the parser
+       */
+      constructor(values, options) {
+        super(values, options);
+        this.validate();
+      }
+      /**
+       * Returns an array of allowed values for the "day of the week" field.
+       * @returns {DayOfWeekRange[]}
+       */
+      get values() {
+        return super.values;
+      }
+      /**
+       * Returns the nth day of the week if specified in the cron expression.
+       * This is used for the '#' character in the cron expression.
+       * @returns {number} The nth day of the week (1-5) or 0 if not specified.
+       */
+      get nthDay() {
+        return this.options.nthDayOfWeek ?? 0;
+      }
+    };
+    exports.CronDayOfWeek = CronDayOfWeek;
+  }
+});
+
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/CronHour.js
+var require_CronHour = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/CronHour.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CronHour = void 0;
+    var CronField_1 = require_CronField();
+    var MIN_HOUR = 0;
+    var MAX_HOUR = 23;
+    var HOUR_CHARS = Object.freeze([]);
+    var CronHour = class extends CronField_1.CronField {
+      static get min() {
+        return MIN_HOUR;
+      }
+      static get max() {
+        return MAX_HOUR;
+      }
+      static get chars() {
+        return HOUR_CHARS;
+      }
+      /**
+       * CronHour constructor. Initializes the "hour" field with the provided values.
+       * @param {HourRange[]} values - Values for the "hour" field
+       * @param {CronFieldOptions} [options] - Options provided by the parser
+       */
+      constructor(values, options) {
+        super(values, options);
+        this.validate();
+      }
+      /**
+       * Returns an array of allowed values for the "hour" field.
+       * @returns {HourRange[]}
+       */
+      get values() {
+        return super.values;
+      }
+    };
+    exports.CronHour = CronHour;
+  }
+});
+
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/CronMinute.js
+var require_CronMinute = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/CronMinute.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CronMinute = void 0;
+    var CronField_1 = require_CronField();
+    var MIN_MINUTE = 0;
+    var MAX_MINUTE = 59;
+    var MINUTE_CHARS = Object.freeze([]);
+    var CronMinute = class extends CronField_1.CronField {
+      static get min() {
+        return MIN_MINUTE;
+      }
+      static get max() {
+        return MAX_MINUTE;
+      }
+      static get chars() {
+        return MINUTE_CHARS;
+      }
+      /**
+       * CronSecond constructor. Initializes the "second" field with the provided values.
+       * @param {SixtyRange[]} values - Values for the "second" field
+       * @param {CronFieldOptions} [options] - Options provided by the parser
+       */
+      constructor(values, options) {
+        super(values, options);
+        this.validate();
+      }
+      /**
+       * Returns an array of allowed values for the "second" field.
+       * @returns {SixtyRange[]}
+       */
+      get values() {
+        return super.values;
+      }
+    };
+    exports.CronMinute = CronMinute;
+  }
+});
+
+// ../../node_modules/.pnpm/luxon@3.7.2/node_modules/luxon/build/node/luxon.js
+var require_luxon = __commonJS({
+  "../../node_modules/.pnpm/luxon@3.7.2/node_modules/luxon/build/node/luxon.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var LuxonError = class extends Error {
+    };
+    var InvalidDateTimeError = class extends LuxonError {
+      constructor(reason) {
+        super(`Invalid DateTime: ${reason.toMessage()}`);
+      }
+    };
+    var InvalidIntervalError = class extends LuxonError {
+      constructor(reason) {
+        super(`Invalid Interval: ${reason.toMessage()}`);
+      }
+    };
+    var InvalidDurationError = class extends LuxonError {
+      constructor(reason) {
+        super(`Invalid Duration: ${reason.toMessage()}`);
+      }
+    };
+    var ConflictingSpecificationError = class extends LuxonError {
+    };
+    var InvalidUnitError = class extends LuxonError {
+      constructor(unit) {
+        super(`Invalid unit ${unit}`);
+      }
+    };
+    var InvalidArgumentError = class extends LuxonError {
+    };
+    var ZoneIsAbstractError = class extends LuxonError {
       constructor() {
-        this.max = 1e3;
-        this.map = /* @__PURE__ */ new Map();
-      }
-      get(key) {
-        const value = this.map.get(key);
-        if (value === void 0) {
-          return void 0;
-        } else {
-          this.map.delete(key);
-          this.map.set(key, value);
-          return value;
-        }
-      }
-      delete(key) {
-        return this.map.delete(key);
-      }
-      set(key, value) {
-        const deleted = this.delete(key);
-        if (!deleted && value !== void 0) {
-          if (this.map.size >= this.max) {
-            const firstKey = this.map.keys().next().value;
-            this.delete(firstKey);
-          }
-          this.map.set(key, value);
-        }
-        return this;
+        super("Zone is an abstract class");
       }
     };
-    module.exports = LRUCache;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/classes/range.js
-var require_range = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/classes/range.js"(exports, module) {
-    "use strict";
-    var SPACE_CHARACTERS = /\s+/g;
-    var Range = class _Range {
-      constructor(range, options) {
-        options = parseOptions(options);
-        if (range instanceof _Range) {
-          if (range.loose === !!options.loose && range.includePrerelease === !!options.includePrerelease) {
-            return range;
-          } else {
-            return new _Range(range.raw, options);
-          }
-        }
-        if (range instanceof Comparator) {
-          this.raw = range.value;
-          this.set = [[range]];
-          this.formatted = void 0;
-          return this;
-        }
-        this.options = options;
-        this.loose = !!options.loose;
-        this.includePrerelease = !!options.includePrerelease;
-        this.raw = range.trim().replace(SPACE_CHARACTERS, " ");
-        this.set = this.raw.split("||").map((r) => this.parseRange(r.trim())).filter((c) => c.length);
-        if (!this.set.length) {
-          throw new TypeError(`Invalid SemVer Range: ${this.raw}`);
-        }
-        if (this.set.length > 1) {
-          const first = this.set[0];
-          this.set = this.set.filter((c) => !isNullSet(c[0]));
-          if (this.set.length === 0) {
-            this.set = [first];
-          } else if (this.set.length > 1) {
-            for (const c of this.set) {
-              if (c.length === 1 && isAny(c[0])) {
-                this.set = [c];
-                break;
-              }
-            }
-          }
-        }
-        this.formatted = void 0;
+    var n = "numeric";
+    var s = "short";
+    var l = "long";
+    var DATE_SHORT = {
+      year: n,
+      month: n,
+      day: n
+    };
+    var DATE_MED = {
+      year: n,
+      month: s,
+      day: n
+    };
+    var DATE_MED_WITH_WEEKDAY = {
+      year: n,
+      month: s,
+      day: n,
+      weekday: s
+    };
+    var DATE_FULL = {
+      year: n,
+      month: l,
+      day: n
+    };
+    var DATE_HUGE = {
+      year: n,
+      month: l,
+      day: n,
+      weekday: l
+    };
+    var TIME_SIMPLE = {
+      hour: n,
+      minute: n
+    };
+    var TIME_WITH_SECONDS = {
+      hour: n,
+      minute: n,
+      second: n
+    };
+    var TIME_WITH_SHORT_OFFSET = {
+      hour: n,
+      minute: n,
+      second: n,
+      timeZoneName: s
+    };
+    var TIME_WITH_LONG_OFFSET = {
+      hour: n,
+      minute: n,
+      second: n,
+      timeZoneName: l
+    };
+    var TIME_24_SIMPLE = {
+      hour: n,
+      minute: n,
+      hourCycle: "h23"
+    };
+    var TIME_24_WITH_SECONDS = {
+      hour: n,
+      minute: n,
+      second: n,
+      hourCycle: "h23"
+    };
+    var TIME_24_WITH_SHORT_OFFSET = {
+      hour: n,
+      minute: n,
+      second: n,
+      hourCycle: "h23",
+      timeZoneName: s
+    };
+    var TIME_24_WITH_LONG_OFFSET = {
+      hour: n,
+      minute: n,
+      second: n,
+      hourCycle: "h23",
+      timeZoneName: l
+    };
+    var DATETIME_SHORT = {
+      year: n,
+      month: n,
+      day: n,
+      hour: n,
+      minute: n
+    };
+    var DATETIME_SHORT_WITH_SECONDS = {
+      year: n,
+      month: n,
+      day: n,
+      hour: n,
+      minute: n,
+      second: n
+    };
+    var DATETIME_MED = {
+      year: n,
+      month: s,
+      day: n,
+      hour: n,
+      minute: n
+    };
+    var DATETIME_MED_WITH_SECONDS = {
+      year: n,
+      month: s,
+      day: n,
+      hour: n,
+      minute: n,
+      second: n
+    };
+    var DATETIME_MED_WITH_WEEKDAY = {
+      year: n,
+      month: s,
+      day: n,
+      weekday: s,
+      hour: n,
+      minute: n
+    };
+    var DATETIME_FULL = {
+      year: n,
+      month: l,
+      day: n,
+      hour: n,
+      minute: n,
+      timeZoneName: s
+    };
+    var DATETIME_FULL_WITH_SECONDS = {
+      year: n,
+      month: l,
+      day: n,
+      hour: n,
+      minute: n,
+      second: n,
+      timeZoneName: s
+    };
+    var DATETIME_HUGE = {
+      year: n,
+      month: l,
+      day: n,
+      weekday: l,
+      hour: n,
+      minute: n,
+      timeZoneName: l
+    };
+    var DATETIME_HUGE_WITH_SECONDS = {
+      year: n,
+      month: l,
+      day: n,
+      weekday: l,
+      hour: n,
+      minute: n,
+      second: n,
+      timeZoneName: l
+    };
+    var Zone = class {
+      /**
+       * The type of zone
+       * @abstract
+       * @type {string}
+       */
+      get type() {
+        throw new ZoneIsAbstractError();
       }
-      get range() {
-        if (this.formatted === void 0) {
-          this.formatted = "";
-          for (let i = 0; i < this.set.length; i++) {
-            if (i > 0) {
-              this.formatted += "||";
-            }
-            const comps = this.set[i];
-            for (let k = 0; k < comps.length; k++) {
-              if (k > 0) {
-                this.formatted += " ";
-              }
-              this.formatted += comps[k].toString().trim();
-            }
-          }
-        }
-        return this.formatted;
+      /**
+       * The name of this zone.
+       * @abstract
+       * @type {string}
+       */
+      get name() {
+        throw new ZoneIsAbstractError();
       }
-      format() {
-        return this.range;
+      /**
+       * The IANA name of this zone.
+       * Defaults to `name` if not overwritten by a subclass.
+       * @abstract
+       * @type {string}
+       */
+      get ianaName() {
+        return this.name;
       }
-      toString() {
-        return this.range;
+      /**
+       * Returns whether the offset is known to be fixed for the whole year.
+       * @abstract
+       * @type {boolean}
+       */
+      get isUniversal() {
+        throw new ZoneIsAbstractError();
       }
-      parseRange(range) {
-        range = range.replace(BUILDSTRIPRE, "");
-        const memoOpts = (this.options.includePrerelease && FLAG_INCLUDE_PRERELEASE) | (this.options.loose && FLAG_LOOSE);
-        const memoKey = memoOpts + ":" + range;
-        const cached2 = cache.get(memoKey);
-        if (cached2) {
-          return cached2;
-        }
-        const loose = this.options.loose;
-        const hr = loose ? re[t.HYPHENRANGELOOSE] : re[t.HYPHENRANGE];
-        range = range.replace(hr, hyphenReplace(this.options.includePrerelease));
-        debug("hyphen replace", range);
-        range = range.replace(re[t.COMPARATORTRIM], comparatorTrimReplace);
-        debug("comparator trim", range);
-        range = range.replace(re[t.TILDETRIM], tildeTrimReplace);
-        debug("tilde trim", range);
-        range = range.replace(re[t.CARETTRIM], caretTrimReplace);
-        debug("caret trim", range);
-        let rangeList = range.split(" ").map((comp) => parseComparator(comp, this.options)).join(" ").split(/\s+/).map((comp) => replaceGTE0(comp, this.options));
-        if (loose) {
-          rangeList = rangeList.filter((comp) => {
-            debug("loose invalid filter", comp, this.options);
-            return !!comp.match(re[t.COMPARATORLOOSE]);
-          });
-        }
-        debug("range list", rangeList);
-        const rangeMap = /* @__PURE__ */ new Map();
-        const comparators = rangeList.map((comp) => new Comparator(comp, this.options));
-        for (const comp of comparators) {
-          if (isNullSet(comp)) {
-            return [comp];
-          }
-          rangeMap.set(comp.value, comp);
-        }
-        if (rangeMap.size > 1 && rangeMap.has("")) {
-          rangeMap.delete("");
-        }
-        const result = [...rangeMap.values()];
-        cache.set(memoKey, result);
-        return result;
+      /**
+       * Returns the offset's common name (such as EST) at the specified timestamp
+       * @abstract
+       * @param {number} ts - Epoch milliseconds for which to get the name
+       * @param {Object} opts - Options to affect the format
+       * @param {string} opts.format - What style of offset to return. Accepts 'long' or 'short'.
+       * @param {string} opts.locale - What locale to return the offset name in.
+       * @return {string}
+       */
+      offsetName(ts, opts) {
+        throw new ZoneIsAbstractError();
       }
-      intersects(range, options) {
-        if (!(range instanceof _Range)) {
-          throw new TypeError("a Range is required");
+      /**
+       * Returns the offset's value as a string
+       * @abstract
+       * @param {number} ts - Epoch milliseconds for which to get the offset
+       * @param {string} format - What style of offset to return.
+       *                          Accepts 'narrow', 'short', or 'techie'. Returning '+6', '+06:00', or '+0600' respectively
+       * @return {string}
+       */
+      formatOffset(ts, format) {
+        throw new ZoneIsAbstractError();
+      }
+      /**
+       * Return the offset in minutes for this zone at the specified timestamp.
+       * @abstract
+       * @param {number} ts - Epoch milliseconds for which to compute the offset
+       * @return {number}
+       */
+      offset(ts) {
+        throw new ZoneIsAbstractError();
+      }
+      /**
+       * Return whether this Zone is equal to another zone
+       * @abstract
+       * @param {Zone} otherZone - the zone to compare
+       * @return {boolean}
+       */
+      equals(otherZone) {
+        throw new ZoneIsAbstractError();
+      }
+      /**
+       * Return whether this Zone is valid.
+       * @abstract
+       * @type {boolean}
+       */
+      get isValid() {
+        throw new ZoneIsAbstractError();
+      }
+    };
+    var singleton$1 = null;
+    var SystemZone = class _SystemZone extends Zone {
+      /**
+       * Get a singleton instance of the local zone
+       * @return {SystemZone}
+       */
+      static get instance() {
+        if (singleton$1 === null) {
+          singleton$1 = new _SystemZone();
         }
-        return this.set.some((thisComparators) => {
-          return isSatisfiable(thisComparators, options) && range.set.some((rangeComparators) => {
-            return isSatisfiable(rangeComparators, options) && thisComparators.every((thisComparator) => {
-              return rangeComparators.every((rangeComparator) => {
-                return thisComparator.intersects(rangeComparator, options);
-              });
-            });
-          });
+        return singleton$1;
+      }
+      /** @override **/
+      get type() {
+        return "system";
+      }
+      /** @override **/
+      get name() {
+        return new Intl.DateTimeFormat().resolvedOptions().timeZone;
+      }
+      /** @override **/
+      get isUniversal() {
+        return false;
+      }
+      /** @override **/
+      offsetName(ts, {
+        format,
+        locale
+      }) {
+        return parseZoneInfo(ts, format, locale);
+      }
+      /** @override **/
+      formatOffset(ts, format) {
+        return formatOffset(this.offset(ts), format);
+      }
+      /** @override **/
+      offset(ts) {
+        return -new Date(ts).getTimezoneOffset();
+      }
+      /** @override **/
+      equals(otherZone) {
+        return otherZone.type === "system";
+      }
+      /** @override **/
+      get isValid() {
+        return true;
+      }
+    };
+    var dtfCache = /* @__PURE__ */ new Map();
+    function makeDTF(zoneName) {
+      let dtf = dtfCache.get(zoneName);
+      if (dtf === void 0) {
+        dtf = new Intl.DateTimeFormat("en-US", {
+          hour12: false,
+          timeZone: zoneName,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          era: "short"
         });
+        dtfCache.set(zoneName, dtf);
       }
-      // if ANY of the sets match ALL of its comparators, then pass
-      test(version2) {
-        if (!version2) {
+      return dtf;
+    }
+    var typeToPos = {
+      year: 0,
+      month: 1,
+      day: 2,
+      era: 3,
+      hour: 4,
+      minute: 5,
+      second: 6
+    };
+    function hackyOffset(dtf, date5) {
+      const formatted = dtf.format(date5).replace(/\u200E/g, ""), parsed = /(\d+)\/(\d+)\/(\d+) (AD|BC),? (\d+):(\d+):(\d+)/.exec(formatted), [, fMonth, fDay, fYear, fadOrBc, fHour, fMinute, fSecond] = parsed;
+      return [fYear, fMonth, fDay, fadOrBc, fHour, fMinute, fSecond];
+    }
+    function partsOffset(dtf, date5) {
+      const formatted = dtf.formatToParts(date5);
+      const filled = [];
+      for (let i = 0; i < formatted.length; i++) {
+        const {
+          type,
+          value
+        } = formatted[i];
+        const pos = typeToPos[type];
+        if (type === "era") {
+          filled[pos] = value;
+        } else if (!isUndefined(pos)) {
+          filled[pos] = parseInt(value, 10);
+        }
+      }
+      return filled;
+    }
+    var ianaZoneCache = /* @__PURE__ */ new Map();
+    var IANAZone = class _IANAZone extends Zone {
+      /**
+       * @param {string} name - Zone name
+       * @return {IANAZone}
+       */
+      static create(name) {
+        let zone = ianaZoneCache.get(name);
+        if (zone === void 0) {
+          ianaZoneCache.set(name, zone = new _IANAZone(name));
+        }
+        return zone;
+      }
+      /**
+       * Reset local caches. Should only be necessary in testing scenarios.
+       * @return {void}
+       */
+      static resetCache() {
+        ianaZoneCache.clear();
+        dtfCache.clear();
+      }
+      /**
+       * Returns whether the provided string is a valid specifier. This only checks the string's format, not that the specifier identifies a known zone; see isValidZone for that.
+       * @param {string} s - The string to check validity on
+       * @example IANAZone.isValidSpecifier("America/New_York") //=> true
+       * @example IANAZone.isValidSpecifier("Sport~~blorp") //=> false
+       * @deprecated For backward compatibility, this forwards to isValidZone, better use `isValidZone()` directly instead.
+       * @return {boolean}
+       */
+      static isValidSpecifier(s2) {
+        return this.isValidZone(s2);
+      }
+      /**
+       * Returns whether the provided string identifies a real zone
+       * @param {string} zone - The string to check
+       * @example IANAZone.isValidZone("America/New_York") //=> true
+       * @example IANAZone.isValidZone("Fantasia/Castle") //=> false
+       * @example IANAZone.isValidZone("Sport~~blorp") //=> false
+       * @return {boolean}
+       */
+      static isValidZone(zone) {
+        if (!zone) {
           return false;
         }
-        if (typeof version2 === "string") {
-          try {
-            version2 = new SemVer(version2, this.options);
-          } catch (er) {
-            return false;
+        try {
+          new Intl.DateTimeFormat("en-US", {
+            timeZone: zone
+          }).format();
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+      constructor(name) {
+        super();
+        this.zoneName = name;
+        this.valid = _IANAZone.isValidZone(name);
+      }
+      /**
+       * The type of zone. `iana` for all instances of `IANAZone`.
+       * @override
+       * @type {string}
+       */
+      get type() {
+        return "iana";
+      }
+      /**
+       * The name of this zone (i.e. the IANA zone name).
+       * @override
+       * @type {string}
+       */
+      get name() {
+        return this.zoneName;
+      }
+      /**
+       * Returns whether the offset is known to be fixed for the whole year:
+       * Always returns false for all IANA zones.
+       * @override
+       * @type {boolean}
+       */
+      get isUniversal() {
+        return false;
+      }
+      /**
+       * Returns the offset's common name (such as EST) at the specified timestamp
+       * @override
+       * @param {number} ts - Epoch milliseconds for which to get the name
+       * @param {Object} opts - Options to affect the format
+       * @param {string} opts.format - What style of offset to return. Accepts 'long' or 'short'.
+       * @param {string} opts.locale - What locale to return the offset name in.
+       * @return {string}
+       */
+      offsetName(ts, {
+        format,
+        locale
+      }) {
+        return parseZoneInfo(ts, format, locale, this.name);
+      }
+      /**
+       * Returns the offset's value as a string
+       * @override
+       * @param {number} ts - Epoch milliseconds for which to get the offset
+       * @param {string} format - What style of offset to return.
+       *                          Accepts 'narrow', 'short', or 'techie'. Returning '+6', '+06:00', or '+0600' respectively
+       * @return {string}
+       */
+      formatOffset(ts, format) {
+        return formatOffset(this.offset(ts), format);
+      }
+      /**
+       * Return the offset in minutes for this zone at the specified timestamp.
+       * @override
+       * @param {number} ts - Epoch milliseconds for which to compute the offset
+       * @return {number}
+       */
+      offset(ts) {
+        if (!this.valid) return NaN;
+        const date5 = new Date(ts);
+        if (isNaN(date5)) return NaN;
+        const dtf = makeDTF(this.name);
+        let [year, month, day, adOrBc, hour, minute, second] = dtf.formatToParts ? partsOffset(dtf, date5) : hackyOffset(dtf, date5);
+        if (adOrBc === "BC") {
+          year = -Math.abs(year) + 1;
+        }
+        const adjustedHour = hour === 24 ? 0 : hour;
+        const asUTC = objToLocalTS({
+          year,
+          month,
+          day,
+          hour: adjustedHour,
+          minute,
+          second,
+          millisecond: 0
+        });
+        let asTS = +date5;
+        const over = asTS % 1e3;
+        asTS -= over >= 0 ? over : 1e3 + over;
+        return (asUTC - asTS) / (60 * 1e3);
+      }
+      /**
+       * Return whether this Zone is equal to another zone
+       * @override
+       * @param {Zone} otherZone - the zone to compare
+       * @return {boolean}
+       */
+      equals(otherZone) {
+        return otherZone.type === "iana" && otherZone.name === this.name;
+      }
+      /**
+       * Return whether this Zone is valid.
+       * @override
+       * @type {boolean}
+       */
+      get isValid() {
+        return this.valid;
+      }
+    };
+    var intlLFCache = {};
+    function getCachedLF(locString, opts = {}) {
+      const key = JSON.stringify([locString, opts]);
+      let dtf = intlLFCache[key];
+      if (!dtf) {
+        dtf = new Intl.ListFormat(locString, opts);
+        intlLFCache[key] = dtf;
+      }
+      return dtf;
+    }
+    var intlDTCache = /* @__PURE__ */ new Map();
+    function getCachedDTF(locString, opts = {}) {
+      const key = JSON.stringify([locString, opts]);
+      let dtf = intlDTCache.get(key);
+      if (dtf === void 0) {
+        dtf = new Intl.DateTimeFormat(locString, opts);
+        intlDTCache.set(key, dtf);
+      }
+      return dtf;
+    }
+    var intlNumCache = /* @__PURE__ */ new Map();
+    function getCachedINF(locString, opts = {}) {
+      const key = JSON.stringify([locString, opts]);
+      let inf = intlNumCache.get(key);
+      if (inf === void 0) {
+        inf = new Intl.NumberFormat(locString, opts);
+        intlNumCache.set(key, inf);
+      }
+      return inf;
+    }
+    var intlRelCache = /* @__PURE__ */ new Map();
+    function getCachedRTF(locString, opts = {}) {
+      const {
+        base,
+        ...cacheKeyOpts
+      } = opts;
+      const key = JSON.stringify([locString, cacheKeyOpts]);
+      let inf = intlRelCache.get(key);
+      if (inf === void 0) {
+        inf = new Intl.RelativeTimeFormat(locString, opts);
+        intlRelCache.set(key, inf);
+      }
+      return inf;
+    }
+    var sysLocaleCache = null;
+    function systemLocale() {
+      if (sysLocaleCache) {
+        return sysLocaleCache;
+      } else {
+        sysLocaleCache = new Intl.DateTimeFormat().resolvedOptions().locale;
+        return sysLocaleCache;
+      }
+    }
+    var intlResolvedOptionsCache = /* @__PURE__ */ new Map();
+    function getCachedIntResolvedOptions(locString) {
+      let opts = intlResolvedOptionsCache.get(locString);
+      if (opts === void 0) {
+        opts = new Intl.DateTimeFormat(locString).resolvedOptions();
+        intlResolvedOptionsCache.set(locString, opts);
+      }
+      return opts;
+    }
+    var weekInfoCache = /* @__PURE__ */ new Map();
+    function getCachedWeekInfo(locString) {
+      let data = weekInfoCache.get(locString);
+      if (!data) {
+        const locale = new Intl.Locale(locString);
+        data = "getWeekInfo" in locale ? locale.getWeekInfo() : locale.weekInfo;
+        if (!("minimalDays" in data)) {
+          data = {
+            ...fallbackWeekSettings,
+            ...data
+          };
+        }
+        weekInfoCache.set(locString, data);
+      }
+      return data;
+    }
+    function parseLocaleString(localeStr) {
+      const xIndex = localeStr.indexOf("-x-");
+      if (xIndex !== -1) {
+        localeStr = localeStr.substring(0, xIndex);
+      }
+      const uIndex = localeStr.indexOf("-u-");
+      if (uIndex === -1) {
+        return [localeStr];
+      } else {
+        let options;
+        let selectedStr;
+        try {
+          options = getCachedDTF(localeStr).resolvedOptions();
+          selectedStr = localeStr;
+        } catch (e) {
+          const smaller = localeStr.substring(0, uIndex);
+          options = getCachedDTF(smaller).resolvedOptions();
+          selectedStr = smaller;
+        }
+        const {
+          numberingSystem,
+          calendar
+        } = options;
+        return [selectedStr, numberingSystem, calendar];
+      }
+    }
+    function intlConfigString(localeStr, numberingSystem, outputCalendar) {
+      if (outputCalendar || numberingSystem) {
+        if (!localeStr.includes("-u-")) {
+          localeStr += "-u";
+        }
+        if (outputCalendar) {
+          localeStr += `-ca-${outputCalendar}`;
+        }
+        if (numberingSystem) {
+          localeStr += `-nu-${numberingSystem}`;
+        }
+        return localeStr;
+      } else {
+        return localeStr;
+      }
+    }
+    function mapMonths(f) {
+      const ms = [];
+      for (let i = 1; i <= 12; i++) {
+        const dt = DateTime.utc(2009, i, 1);
+        ms.push(f(dt));
+      }
+      return ms;
+    }
+    function mapWeekdays(f) {
+      const ms = [];
+      for (let i = 1; i <= 7; i++) {
+        const dt = DateTime.utc(2016, 11, 13 + i);
+        ms.push(f(dt));
+      }
+      return ms;
+    }
+    function listStuff(loc, length, englishFn, intlFn) {
+      const mode = loc.listingMode();
+      if (mode === "error") {
+        return null;
+      } else if (mode === "en") {
+        return englishFn(length);
+      } else {
+        return intlFn(length);
+      }
+    }
+    function supportsFastNumbers(loc) {
+      if (loc.numberingSystem && loc.numberingSystem !== "latn") {
+        return false;
+      } else {
+        return loc.numberingSystem === "latn" || !loc.locale || loc.locale.startsWith("en") || getCachedIntResolvedOptions(loc.locale).numberingSystem === "latn";
+      }
+    }
+    var PolyNumberFormatter = class {
+      constructor(intl, forceSimple, opts) {
+        this.padTo = opts.padTo || 0;
+        this.floor = opts.floor || false;
+        const {
+          padTo,
+          floor,
+          ...otherOpts
+        } = opts;
+        if (!forceSimple || Object.keys(otherOpts).length > 0) {
+          const intlOpts = {
+            useGrouping: false,
+            ...opts
+          };
+          if (opts.padTo > 0) intlOpts.minimumIntegerDigits = opts.padTo;
+          this.inf = getCachedINF(intl, intlOpts);
+        }
+      }
+      format(i) {
+        if (this.inf) {
+          const fixed = this.floor ? Math.floor(i) : i;
+          return this.inf.format(fixed);
+        } else {
+          const fixed = this.floor ? Math.floor(i) : roundTo(i, 3);
+          return padStart(fixed, this.padTo);
+        }
+      }
+    };
+    var PolyDateFormatter = class {
+      constructor(dt, intl, opts) {
+        this.opts = opts;
+        this.originalZone = void 0;
+        let z2 = void 0;
+        if (this.opts.timeZone) {
+          this.dt = dt;
+        } else if (dt.zone.type === "fixed") {
+          const gmtOffset = -1 * (dt.offset / 60);
+          const offsetZ = gmtOffset >= 0 ? `Etc/GMT+${gmtOffset}` : `Etc/GMT${gmtOffset}`;
+          if (dt.offset !== 0 && IANAZone.create(offsetZ).valid) {
+            z2 = offsetZ;
+            this.dt = dt;
+          } else {
+            z2 = "UTC";
+            this.dt = dt.offset === 0 ? dt : dt.setZone("UTC").plus({
+              minutes: dt.offset
+            });
+            this.originalZone = dt.zone;
+          }
+        } else if (dt.zone.type === "system") {
+          this.dt = dt;
+        } else if (dt.zone.type === "iana") {
+          this.dt = dt;
+          z2 = dt.zone.name;
+        } else {
+          z2 = "UTC";
+          this.dt = dt.setZone("UTC").plus({
+            minutes: dt.offset
+          });
+          this.originalZone = dt.zone;
+        }
+        const intlOpts = {
+          ...this.opts
+        };
+        intlOpts.timeZone = intlOpts.timeZone || z2;
+        this.dtf = getCachedDTF(intl, intlOpts);
+      }
+      format() {
+        if (this.originalZone) {
+          return this.formatToParts().map(({
+            value
+          }) => value).join("");
+        }
+        return this.dtf.format(this.dt.toJSDate());
+      }
+      formatToParts() {
+        const parts = this.dtf.formatToParts(this.dt.toJSDate());
+        if (this.originalZone) {
+          return parts.map((part) => {
+            if (part.type === "timeZoneName") {
+              const offsetName = this.originalZone.offsetName(this.dt.ts, {
+                locale: this.dt.locale,
+                format: this.opts.timeZoneName
+              });
+              return {
+                ...part,
+                value: offsetName
+              };
+            } else {
+              return part;
+            }
+          });
+        }
+        return parts;
+      }
+      resolvedOptions() {
+        return this.dtf.resolvedOptions();
+      }
+    };
+    var PolyRelFormatter = class {
+      constructor(intl, isEnglish, opts) {
+        this.opts = {
+          style: "long",
+          ...opts
+        };
+        if (!isEnglish && hasRelative()) {
+          this.rtf = getCachedRTF(intl, opts);
+        }
+      }
+      format(count, unit) {
+        if (this.rtf) {
+          return this.rtf.format(count, unit);
+        } else {
+          return formatRelativeTime(unit, count, this.opts.numeric, this.opts.style !== "long");
+        }
+      }
+      formatToParts(count, unit) {
+        if (this.rtf) {
+          return this.rtf.formatToParts(count, unit);
+        } else {
+          return [];
+        }
+      }
+    };
+    var fallbackWeekSettings = {
+      firstDay: 1,
+      minimalDays: 4,
+      weekend: [6, 7]
+    };
+    var Locale = class _Locale {
+      static fromOpts(opts) {
+        return _Locale.create(opts.locale, opts.numberingSystem, opts.outputCalendar, opts.weekSettings, opts.defaultToEN);
+      }
+      static create(locale, numberingSystem, outputCalendar, weekSettings, defaultToEN = false) {
+        const specifiedLocale = locale || Settings.defaultLocale;
+        const localeR = specifiedLocale || (defaultToEN ? "en-US" : systemLocale());
+        const numberingSystemR = numberingSystem || Settings.defaultNumberingSystem;
+        const outputCalendarR = outputCalendar || Settings.defaultOutputCalendar;
+        const weekSettingsR = validateWeekSettings(weekSettings) || Settings.defaultWeekSettings;
+        return new _Locale(localeR, numberingSystemR, outputCalendarR, weekSettingsR, specifiedLocale);
+      }
+      static resetCache() {
+        sysLocaleCache = null;
+        intlDTCache.clear();
+        intlNumCache.clear();
+        intlRelCache.clear();
+        intlResolvedOptionsCache.clear();
+        weekInfoCache.clear();
+      }
+      static fromObject({
+        locale,
+        numberingSystem,
+        outputCalendar,
+        weekSettings
+      } = {}) {
+        return _Locale.create(locale, numberingSystem, outputCalendar, weekSettings);
+      }
+      constructor(locale, numbering, outputCalendar, weekSettings, specifiedLocale) {
+        const [parsedLocale, parsedNumberingSystem, parsedOutputCalendar] = parseLocaleString(locale);
+        this.locale = parsedLocale;
+        this.numberingSystem = numbering || parsedNumberingSystem || null;
+        this.outputCalendar = outputCalendar || parsedOutputCalendar || null;
+        this.weekSettings = weekSettings;
+        this.intl = intlConfigString(this.locale, this.numberingSystem, this.outputCalendar);
+        this.weekdaysCache = {
+          format: {},
+          standalone: {}
+        };
+        this.monthsCache = {
+          format: {},
+          standalone: {}
+        };
+        this.meridiemCache = null;
+        this.eraCache = {};
+        this.specifiedLocale = specifiedLocale;
+        this.fastNumbersCached = null;
+      }
+      get fastNumbers() {
+        if (this.fastNumbersCached == null) {
+          this.fastNumbersCached = supportsFastNumbers(this);
+        }
+        return this.fastNumbersCached;
+      }
+      listingMode() {
+        const isActuallyEn = this.isEnglish();
+        const hasNoWeirdness = (this.numberingSystem === null || this.numberingSystem === "latn") && (this.outputCalendar === null || this.outputCalendar === "gregory");
+        return isActuallyEn && hasNoWeirdness ? "en" : "intl";
+      }
+      clone(alts) {
+        if (!alts || Object.getOwnPropertyNames(alts).length === 0) {
+          return this;
+        } else {
+          return _Locale.create(alts.locale || this.specifiedLocale, alts.numberingSystem || this.numberingSystem, alts.outputCalendar || this.outputCalendar, validateWeekSettings(alts.weekSettings) || this.weekSettings, alts.defaultToEN || false);
+        }
+      }
+      redefaultToEN(alts = {}) {
+        return this.clone({
+          ...alts,
+          defaultToEN: true
+        });
+      }
+      redefaultToSystem(alts = {}) {
+        return this.clone({
+          ...alts,
+          defaultToEN: false
+        });
+      }
+      months(length, format = false) {
+        return listStuff(this, length, months, () => {
+          const monthSpecialCase = this.intl === "ja" || this.intl.startsWith("ja-");
+          format &= !monthSpecialCase;
+          const intl = format ? {
+            month: length,
+            day: "numeric"
+          } : {
+            month: length
+          }, formatStr = format ? "format" : "standalone";
+          if (!this.monthsCache[formatStr][length]) {
+            const mapper = !monthSpecialCase ? (dt) => this.extract(dt, intl, "month") : (dt) => this.dtFormatter(dt, intl).format();
+            this.monthsCache[formatStr][length] = mapMonths(mapper);
+          }
+          return this.monthsCache[formatStr][length];
+        });
+      }
+      weekdays(length, format = false) {
+        return listStuff(this, length, weekdays, () => {
+          const intl = format ? {
+            weekday: length,
+            year: "numeric",
+            month: "long",
+            day: "numeric"
+          } : {
+            weekday: length
+          }, formatStr = format ? "format" : "standalone";
+          if (!this.weekdaysCache[formatStr][length]) {
+            this.weekdaysCache[formatStr][length] = mapWeekdays((dt) => this.extract(dt, intl, "weekday"));
+          }
+          return this.weekdaysCache[formatStr][length];
+        });
+      }
+      meridiems() {
+        return listStuff(this, void 0, () => meridiems, () => {
+          if (!this.meridiemCache) {
+            const intl = {
+              hour: "numeric",
+              hourCycle: "h12"
+            };
+            this.meridiemCache = [DateTime.utc(2016, 11, 13, 9), DateTime.utc(2016, 11, 13, 19)].map((dt) => this.extract(dt, intl, "dayperiod"));
+          }
+          return this.meridiemCache;
+        });
+      }
+      eras(length) {
+        return listStuff(this, length, eras, () => {
+          const intl = {
+            era: length
+          };
+          if (!this.eraCache[length]) {
+            this.eraCache[length] = [DateTime.utc(-40, 1, 1), DateTime.utc(2017, 1, 1)].map((dt) => this.extract(dt, intl, "era"));
+          }
+          return this.eraCache[length];
+        });
+      }
+      extract(dt, intlOpts, field) {
+        const df = this.dtFormatter(dt, intlOpts), results = df.formatToParts(), matching = results.find((m) => m.type.toLowerCase() === field);
+        return matching ? matching.value : null;
+      }
+      numberFormatter(opts = {}) {
+        return new PolyNumberFormatter(this.intl, opts.forceSimple || this.fastNumbers, opts);
+      }
+      dtFormatter(dt, intlOpts = {}) {
+        return new PolyDateFormatter(dt, this.intl, intlOpts);
+      }
+      relFormatter(opts = {}) {
+        return new PolyRelFormatter(this.intl, this.isEnglish(), opts);
+      }
+      listFormatter(opts = {}) {
+        return getCachedLF(this.intl, opts);
+      }
+      isEnglish() {
+        return this.locale === "en" || this.locale.toLowerCase() === "en-us" || getCachedIntResolvedOptions(this.intl).locale.startsWith("en-us");
+      }
+      getWeekSettings() {
+        if (this.weekSettings) {
+          return this.weekSettings;
+        } else if (!hasLocaleWeekInfo()) {
+          return fallbackWeekSettings;
+        } else {
+          return getCachedWeekInfo(this.locale);
+        }
+      }
+      getStartOfWeek() {
+        return this.getWeekSettings().firstDay;
+      }
+      getMinDaysInFirstWeek() {
+        return this.getWeekSettings().minimalDays;
+      }
+      getWeekendDays() {
+        return this.getWeekSettings().weekend;
+      }
+      equals(other) {
+        return this.locale === other.locale && this.numberingSystem === other.numberingSystem && this.outputCalendar === other.outputCalendar;
+      }
+      toString() {
+        return `Locale(${this.locale}, ${this.numberingSystem}, ${this.outputCalendar})`;
+      }
+    };
+    var singleton = null;
+    var FixedOffsetZone = class _FixedOffsetZone extends Zone {
+      /**
+       * Get a singleton instance of UTC
+       * @return {FixedOffsetZone}
+       */
+      static get utcInstance() {
+        if (singleton === null) {
+          singleton = new _FixedOffsetZone(0);
+        }
+        return singleton;
+      }
+      /**
+       * Get an instance with a specified offset
+       * @param {number} offset - The offset in minutes
+       * @return {FixedOffsetZone}
+       */
+      static instance(offset2) {
+        return offset2 === 0 ? _FixedOffsetZone.utcInstance : new _FixedOffsetZone(offset2);
+      }
+      /**
+       * Get an instance of FixedOffsetZone from a UTC offset string, like "UTC+6"
+       * @param {string} s - The offset string to parse
+       * @example FixedOffsetZone.parseSpecifier("UTC+6")
+       * @example FixedOffsetZone.parseSpecifier("UTC+06")
+       * @example FixedOffsetZone.parseSpecifier("UTC-6:00")
+       * @return {FixedOffsetZone}
+       */
+      static parseSpecifier(s2) {
+        if (s2) {
+          const r = s2.match(/^utc(?:([+-]\d{1,2})(?::(\d{2}))?)?$/i);
+          if (r) {
+            return new _FixedOffsetZone(signedOffset(r[1], r[2]));
           }
         }
-        for (let i = 0; i < this.set.length; i++) {
-          if (testSet(this.set[i], version2, this.options)) {
-            return true;
-          }
+        return null;
+      }
+      constructor(offset2) {
+        super();
+        this.fixed = offset2;
+      }
+      /**
+       * The type of zone. `fixed` for all instances of `FixedOffsetZone`.
+       * @override
+       * @type {string}
+       */
+      get type() {
+        return "fixed";
+      }
+      /**
+       * The name of this zone.
+       * All fixed zones' names always start with "UTC" (plus optional offset)
+       * @override
+       * @type {string}
+       */
+      get name() {
+        return this.fixed === 0 ? "UTC" : `UTC${formatOffset(this.fixed, "narrow")}`;
+      }
+      /**
+       * The IANA name of this zone, i.e. `Etc/UTC` or `Etc/GMT+/-nn`
+       *
+       * @override
+       * @type {string}
+       */
+      get ianaName() {
+        if (this.fixed === 0) {
+          return "Etc/UTC";
+        } else {
+          return `Etc/GMT${formatOffset(-this.fixed, "narrow")}`;
         }
+      }
+      /**
+       * Returns the offset's common name at the specified timestamp.
+       *
+       * For fixed offset zones this equals to the zone name.
+       * @override
+       */
+      offsetName() {
+        return this.name;
+      }
+      /**
+       * Returns the offset's value as a string
+       * @override
+       * @param {number} ts - Epoch milliseconds for which to get the offset
+       * @param {string} format - What style of offset to return.
+       *                          Accepts 'narrow', 'short', or 'techie'. Returning '+6', '+06:00', or '+0600' respectively
+       * @return {string}
+       */
+      formatOffset(ts, format) {
+        return formatOffset(this.fixed, format);
+      }
+      /**
+       * Returns whether the offset is known to be fixed for the whole year:
+       * Always returns true for all fixed offset zones.
+       * @override
+       * @type {boolean}
+       */
+      get isUniversal() {
+        return true;
+      }
+      /**
+       * Return the offset in minutes for this zone at the specified timestamp.
+       *
+       * For fixed offset zones, this is constant and does not depend on a timestamp.
+       * @override
+       * @return {number}
+       */
+      offset() {
+        return this.fixed;
+      }
+      /**
+       * Return whether this Zone is equal to another zone (i.e. also fixed and same offset)
+       * @override
+       * @param {Zone} otherZone - the zone to compare
+       * @return {boolean}
+       */
+      equals(otherZone) {
+        return otherZone.type === "fixed" && otherZone.fixed === this.fixed;
+      }
+      /**
+       * Return whether this Zone is valid:
+       * All fixed offset zones are valid.
+       * @override
+       * @type {boolean}
+       */
+      get isValid() {
+        return true;
+      }
+    };
+    var InvalidZone = class extends Zone {
+      constructor(zoneName) {
+        super();
+        this.zoneName = zoneName;
+      }
+      /** @override **/
+      get type() {
+        return "invalid";
+      }
+      /** @override **/
+      get name() {
+        return this.zoneName;
+      }
+      /** @override **/
+      get isUniversal() {
+        return false;
+      }
+      /** @override **/
+      offsetName() {
+        return null;
+      }
+      /** @override **/
+      formatOffset() {
+        return "";
+      }
+      /** @override **/
+      offset() {
+        return NaN;
+      }
+      /** @override **/
+      equals() {
+        return false;
+      }
+      /** @override **/
+      get isValid() {
         return false;
       }
     };
-    module.exports = Range;
-    var LRU = require_lrucache();
-    var cache = new LRU();
-    var parseOptions = require_parse_options();
-    var Comparator = require_comparator();
-    var debug = require_debug();
-    var SemVer = require_semver();
-    var {
-      safeRe: re,
-      src,
-      t,
-      comparatorTrimReplace,
-      tildeTrimReplace,
-      caretTrimReplace
-    } = require_re();
-    var { FLAG_INCLUDE_PRERELEASE, FLAG_LOOSE } = require_constants();
-    var BUILDSTRIPRE = new RegExp(src[t.BUILD], "g");
-    var isNullSet = (c) => c.value === "<0.0.0-0";
-    var isAny = (c) => c.value === "";
-    var isSatisfiable = (comparators, options) => {
-      let result = true;
-      const remainingComparators = comparators.slice();
-      let testComparator = remainingComparators.pop();
-      while (result && remainingComparators.length) {
-        result = remainingComparators.every((otherComparator) => {
-          return testComparator.intersects(otherComparator, options);
+    function normalizeZone(input, defaultZone2) {
+      if (isUndefined(input) || input === null) {
+        return defaultZone2;
+      } else if (input instanceof Zone) {
+        return input;
+      } else if (isString(input)) {
+        const lowered = input.toLowerCase();
+        if (lowered === "default") return defaultZone2;
+        else if (lowered === "local" || lowered === "system") return SystemZone.instance;
+        else if (lowered === "utc" || lowered === "gmt") return FixedOffsetZone.utcInstance;
+        else return FixedOffsetZone.parseSpecifier(lowered) || IANAZone.create(input);
+      } else if (isNumber(input)) {
+        return FixedOffsetZone.instance(input);
+      } else if (typeof input === "object" && "offset" in input && typeof input.offset === "function") {
+        return input;
+      } else {
+        return new InvalidZone(input);
+      }
+    }
+    var numberingSystems = {
+      arab: "[\u0660-\u0669]",
+      arabext: "[\u06F0-\u06F9]",
+      bali: "[\u1B50-\u1B59]",
+      beng: "[\u09E6-\u09EF]",
+      deva: "[\u0966-\u096F]",
+      fullwide: "[\uFF10-\uFF19]",
+      gujr: "[\u0AE6-\u0AEF]",
+      hanidec: "[\u3007|\u4E00|\u4E8C|\u4E09|\u56DB|\u4E94|\u516D|\u4E03|\u516B|\u4E5D]",
+      khmr: "[\u17E0-\u17E9]",
+      knda: "[\u0CE6-\u0CEF]",
+      laoo: "[\u0ED0-\u0ED9]",
+      limb: "[\u1946-\u194F]",
+      mlym: "[\u0D66-\u0D6F]",
+      mong: "[\u1810-\u1819]",
+      mymr: "[\u1040-\u1049]",
+      orya: "[\u0B66-\u0B6F]",
+      tamldec: "[\u0BE6-\u0BEF]",
+      telu: "[\u0C66-\u0C6F]",
+      thai: "[\u0E50-\u0E59]",
+      tibt: "[\u0F20-\u0F29]",
+      latn: "\\d"
+    };
+    var numberingSystemsUTF16 = {
+      arab: [1632, 1641],
+      arabext: [1776, 1785],
+      bali: [6992, 7001],
+      beng: [2534, 2543],
+      deva: [2406, 2415],
+      fullwide: [65296, 65303],
+      gujr: [2790, 2799],
+      khmr: [6112, 6121],
+      knda: [3302, 3311],
+      laoo: [3792, 3801],
+      limb: [6470, 6479],
+      mlym: [3430, 3439],
+      mong: [6160, 6169],
+      mymr: [4160, 4169],
+      orya: [2918, 2927],
+      tamldec: [3046, 3055],
+      telu: [3174, 3183],
+      thai: [3664, 3673],
+      tibt: [3872, 3881]
+    };
+    var hanidecChars = numberingSystems.hanidec.replace(/[\[|\]]/g, "").split("");
+    function parseDigits(str) {
+      let value = parseInt(str, 10);
+      if (isNaN(value)) {
+        value = "";
+        for (let i = 0; i < str.length; i++) {
+          const code = str.charCodeAt(i);
+          if (str[i].search(numberingSystems.hanidec) !== -1) {
+            value += hanidecChars.indexOf(str[i]);
+          } else {
+            for (const key in numberingSystemsUTF16) {
+              const [min, max] = numberingSystemsUTF16[key];
+              if (code >= min && code <= max) {
+                value += code - min;
+              }
+            }
+          }
+        }
+        return parseInt(value, 10);
+      } else {
+        return value;
+      }
+    }
+    var digitRegexCache = /* @__PURE__ */ new Map();
+    function resetDigitRegexCache() {
+      digitRegexCache.clear();
+    }
+    function digitRegex({
+      numberingSystem
+    }, append = "") {
+      const ns = numberingSystem || "latn";
+      let appendCache = digitRegexCache.get(ns);
+      if (appendCache === void 0) {
+        appendCache = /* @__PURE__ */ new Map();
+        digitRegexCache.set(ns, appendCache);
+      }
+      let regex = appendCache.get(append);
+      if (regex === void 0) {
+        regex = new RegExp(`${numberingSystems[ns]}${append}`);
+        appendCache.set(append, regex);
+      }
+      return regex;
+    }
+    var now = () => Date.now();
+    var defaultZone = "system";
+    var defaultLocale = null;
+    var defaultNumberingSystem = null;
+    var defaultOutputCalendar = null;
+    var twoDigitCutoffYear = 60;
+    var throwOnInvalid;
+    var defaultWeekSettings = null;
+    var Settings = class {
+      /**
+       * Get the callback for returning the current timestamp.
+       * @type {function}
+       */
+      static get now() {
+        return now;
+      }
+      /**
+       * Set the callback for returning the current timestamp.
+       * The function should return a number, which will be interpreted as an Epoch millisecond count
+       * @type {function}
+       * @example Settings.now = () => Date.now() + 3000 // pretend it is 3 seconds in the future
+       * @example Settings.now = () => 0 // always pretend it's Jan 1, 1970 at midnight in UTC time
+       */
+      static set now(n2) {
+        now = n2;
+      }
+      /**
+       * Set the default time zone to create DateTimes in. Does not affect existing instances.
+       * Use the value "system" to reset this value to the system's time zone.
+       * @type {string}
+       */
+      static set defaultZone(zone) {
+        defaultZone = zone;
+      }
+      /**
+       * Get the default time zone object currently used to create DateTimes. Does not affect existing instances.
+       * The default value is the system's time zone (the one set on the machine that runs this code).
+       * @type {Zone}
+       */
+      static get defaultZone() {
+        return normalizeZone(defaultZone, SystemZone.instance);
+      }
+      /**
+       * Get the default locale to create DateTimes with. Does not affect existing instances.
+       * @type {string}
+       */
+      static get defaultLocale() {
+        return defaultLocale;
+      }
+      /**
+       * Set the default locale to create DateTimes with. Does not affect existing instances.
+       * @type {string}
+       */
+      static set defaultLocale(locale) {
+        defaultLocale = locale;
+      }
+      /**
+       * Get the default numbering system to create DateTimes with. Does not affect existing instances.
+       * @type {string}
+       */
+      static get defaultNumberingSystem() {
+        return defaultNumberingSystem;
+      }
+      /**
+       * Set the default numbering system to create DateTimes with. Does not affect existing instances.
+       * @type {string}
+       */
+      static set defaultNumberingSystem(numberingSystem) {
+        defaultNumberingSystem = numberingSystem;
+      }
+      /**
+       * Get the default output calendar to create DateTimes with. Does not affect existing instances.
+       * @type {string}
+       */
+      static get defaultOutputCalendar() {
+        return defaultOutputCalendar;
+      }
+      /**
+       * Set the default output calendar to create DateTimes with. Does not affect existing instances.
+       * @type {string}
+       */
+      static set defaultOutputCalendar(outputCalendar) {
+        defaultOutputCalendar = outputCalendar;
+      }
+      /**
+       * @typedef {Object} WeekSettings
+       * @property {number} firstDay
+       * @property {number} minimalDays
+       * @property {number[]} weekend
+       */
+      /**
+       * @return {WeekSettings|null}
+       */
+      static get defaultWeekSettings() {
+        return defaultWeekSettings;
+      }
+      /**
+       * Allows overriding the default locale week settings, i.e. the start of the week, the weekend and
+       * how many days are required in the first week of a year.
+       * Does not affect existing instances.
+       *
+       * @param {WeekSettings|null} weekSettings
+       */
+      static set defaultWeekSettings(weekSettings) {
+        defaultWeekSettings = validateWeekSettings(weekSettings);
+      }
+      /**
+       * Get the cutoff year for whether a 2-digit year string is interpreted in the current or previous century. Numbers higher than the cutoff will be considered to mean 19xx and numbers lower or equal to the cutoff will be considered 20xx.
+       * @type {number}
+       */
+      static get twoDigitCutoffYear() {
+        return twoDigitCutoffYear;
+      }
+      /**
+       * Set the cutoff year for whether a 2-digit year string is interpreted in the current or previous century. Numbers higher than the cutoff will be considered to mean 19xx and numbers lower or equal to the cutoff will be considered 20xx.
+       * @type {number}
+       * @example Settings.twoDigitCutoffYear = 0 // all 'yy' are interpreted as 20th century
+       * @example Settings.twoDigitCutoffYear = 99 // all 'yy' are interpreted as 21st century
+       * @example Settings.twoDigitCutoffYear = 50 // '49' -> 2049; '50' -> 1950
+       * @example Settings.twoDigitCutoffYear = 1950 // interpreted as 50
+       * @example Settings.twoDigitCutoffYear = 2050 // ALSO interpreted as 50
+       */
+      static set twoDigitCutoffYear(cutoffYear) {
+        twoDigitCutoffYear = cutoffYear % 100;
+      }
+      /**
+       * Get whether Luxon will throw when it encounters invalid DateTimes, Durations, or Intervals
+       * @type {boolean}
+       */
+      static get throwOnInvalid() {
+        return throwOnInvalid;
+      }
+      /**
+       * Set whether Luxon will throw when it encounters invalid DateTimes, Durations, or Intervals
+       * @type {boolean}
+       */
+      static set throwOnInvalid(t) {
+        throwOnInvalid = t;
+      }
+      /**
+       * Reset Luxon's global caches. Should only be necessary in testing scenarios.
+       * @return {void}
+       */
+      static resetCaches() {
+        Locale.resetCache();
+        IANAZone.resetCache();
+        DateTime.resetCache();
+        resetDigitRegexCache();
+      }
+    };
+    var Invalid = class {
+      constructor(reason, explanation) {
+        this.reason = reason;
+        this.explanation = explanation;
+      }
+      toMessage() {
+        if (this.explanation) {
+          return `${this.reason}: ${this.explanation}`;
+        } else {
+          return this.reason;
+        }
+      }
+    };
+    var nonLeapLadder = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+    var leapLadder = [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
+    function unitOutOfRange(unit, value) {
+      return new Invalid("unit out of range", `you specified ${value} (of type ${typeof value}) as a ${unit}, which is invalid`);
+    }
+    function dayOfWeek(year, month, day) {
+      const d = new Date(Date.UTC(year, month - 1, day));
+      if (year < 100 && year >= 0) {
+        d.setUTCFullYear(d.getUTCFullYear() - 1900);
+      }
+      const js = d.getUTCDay();
+      return js === 0 ? 7 : js;
+    }
+    function computeOrdinal(year, month, day) {
+      return day + (isLeapYear(year) ? leapLadder : nonLeapLadder)[month - 1];
+    }
+    function uncomputeOrdinal(year, ordinal) {
+      const table2 = isLeapYear(year) ? leapLadder : nonLeapLadder, month0 = table2.findIndex((i) => i < ordinal), day = ordinal - table2[month0];
+      return {
+        month: month0 + 1,
+        day
+      };
+    }
+    function isoWeekdayToLocal(isoWeekday, startOfWeek) {
+      return (isoWeekday - startOfWeek + 7) % 7 + 1;
+    }
+    function gregorianToWeek(gregObj, minDaysInFirstWeek = 4, startOfWeek = 1) {
+      const {
+        year,
+        month,
+        day
+      } = gregObj, ordinal = computeOrdinal(year, month, day), weekday = isoWeekdayToLocal(dayOfWeek(year, month, day), startOfWeek);
+      let weekNumber = Math.floor((ordinal - weekday + 14 - minDaysInFirstWeek) / 7), weekYear;
+      if (weekNumber < 1) {
+        weekYear = year - 1;
+        weekNumber = weeksInWeekYear(weekYear, minDaysInFirstWeek, startOfWeek);
+      } else if (weekNumber > weeksInWeekYear(year, minDaysInFirstWeek, startOfWeek)) {
+        weekYear = year + 1;
+        weekNumber = 1;
+      } else {
+        weekYear = year;
+      }
+      return {
+        weekYear,
+        weekNumber,
+        weekday,
+        ...timeObject(gregObj)
+      };
+    }
+    function weekToGregorian(weekData, minDaysInFirstWeek = 4, startOfWeek = 1) {
+      const {
+        weekYear,
+        weekNumber,
+        weekday
+      } = weekData, weekdayOfJan4 = isoWeekdayToLocal(dayOfWeek(weekYear, 1, minDaysInFirstWeek), startOfWeek), yearInDays = daysInYear(weekYear);
+      let ordinal = weekNumber * 7 + weekday - weekdayOfJan4 - 7 + minDaysInFirstWeek, year;
+      if (ordinal < 1) {
+        year = weekYear - 1;
+        ordinal += daysInYear(year);
+      } else if (ordinal > yearInDays) {
+        year = weekYear + 1;
+        ordinal -= daysInYear(weekYear);
+      } else {
+        year = weekYear;
+      }
+      const {
+        month,
+        day
+      } = uncomputeOrdinal(year, ordinal);
+      return {
+        year,
+        month,
+        day,
+        ...timeObject(weekData)
+      };
+    }
+    function gregorianToOrdinal(gregData) {
+      const {
+        year,
+        month,
+        day
+      } = gregData;
+      const ordinal = computeOrdinal(year, month, day);
+      return {
+        year,
+        ordinal,
+        ...timeObject(gregData)
+      };
+    }
+    function ordinalToGregorian(ordinalData) {
+      const {
+        year,
+        ordinal
+      } = ordinalData;
+      const {
+        month,
+        day
+      } = uncomputeOrdinal(year, ordinal);
+      return {
+        year,
+        month,
+        day,
+        ...timeObject(ordinalData)
+      };
+    }
+    function usesLocalWeekValues(obj, loc) {
+      const hasLocaleWeekData = !isUndefined(obj.localWeekday) || !isUndefined(obj.localWeekNumber) || !isUndefined(obj.localWeekYear);
+      if (hasLocaleWeekData) {
+        const hasIsoWeekData = !isUndefined(obj.weekday) || !isUndefined(obj.weekNumber) || !isUndefined(obj.weekYear);
+        if (hasIsoWeekData) {
+          throw new ConflictingSpecificationError("Cannot mix locale-based week fields with ISO-based week fields");
+        }
+        if (!isUndefined(obj.localWeekday)) obj.weekday = obj.localWeekday;
+        if (!isUndefined(obj.localWeekNumber)) obj.weekNumber = obj.localWeekNumber;
+        if (!isUndefined(obj.localWeekYear)) obj.weekYear = obj.localWeekYear;
+        delete obj.localWeekday;
+        delete obj.localWeekNumber;
+        delete obj.localWeekYear;
+        return {
+          minDaysInFirstWeek: loc.getMinDaysInFirstWeek(),
+          startOfWeek: loc.getStartOfWeek()
+        };
+      } else {
+        return {
+          minDaysInFirstWeek: 4,
+          startOfWeek: 1
+        };
+      }
+    }
+    function hasInvalidWeekData(obj, minDaysInFirstWeek = 4, startOfWeek = 1) {
+      const validYear = isInteger(obj.weekYear), validWeek = integerBetween(obj.weekNumber, 1, weeksInWeekYear(obj.weekYear, minDaysInFirstWeek, startOfWeek)), validWeekday = integerBetween(obj.weekday, 1, 7);
+      if (!validYear) {
+        return unitOutOfRange("weekYear", obj.weekYear);
+      } else if (!validWeek) {
+        return unitOutOfRange("week", obj.weekNumber);
+      } else if (!validWeekday) {
+        return unitOutOfRange("weekday", obj.weekday);
+      } else return false;
+    }
+    function hasInvalidOrdinalData(obj) {
+      const validYear = isInteger(obj.year), validOrdinal = integerBetween(obj.ordinal, 1, daysInYear(obj.year));
+      if (!validYear) {
+        return unitOutOfRange("year", obj.year);
+      } else if (!validOrdinal) {
+        return unitOutOfRange("ordinal", obj.ordinal);
+      } else return false;
+    }
+    function hasInvalidGregorianData(obj) {
+      const validYear = isInteger(obj.year), validMonth = integerBetween(obj.month, 1, 12), validDay = integerBetween(obj.day, 1, daysInMonth(obj.year, obj.month));
+      if (!validYear) {
+        return unitOutOfRange("year", obj.year);
+      } else if (!validMonth) {
+        return unitOutOfRange("month", obj.month);
+      } else if (!validDay) {
+        return unitOutOfRange("day", obj.day);
+      } else return false;
+    }
+    function hasInvalidTimeData(obj) {
+      const {
+        hour,
+        minute,
+        second,
+        millisecond
+      } = obj;
+      const validHour = integerBetween(hour, 0, 23) || hour === 24 && minute === 0 && second === 0 && millisecond === 0, validMinute = integerBetween(minute, 0, 59), validSecond = integerBetween(second, 0, 59), validMillisecond = integerBetween(millisecond, 0, 999);
+      if (!validHour) {
+        return unitOutOfRange("hour", hour);
+      } else if (!validMinute) {
+        return unitOutOfRange("minute", minute);
+      } else if (!validSecond) {
+        return unitOutOfRange("second", second);
+      } else if (!validMillisecond) {
+        return unitOutOfRange("millisecond", millisecond);
+      } else return false;
+    }
+    function isUndefined(o) {
+      return typeof o === "undefined";
+    }
+    function isNumber(o) {
+      return typeof o === "number";
+    }
+    function isInteger(o) {
+      return typeof o === "number" && o % 1 === 0;
+    }
+    function isString(o) {
+      return typeof o === "string";
+    }
+    function isDate(o) {
+      return Object.prototype.toString.call(o) === "[object Date]";
+    }
+    function hasRelative() {
+      try {
+        return typeof Intl !== "undefined" && !!Intl.RelativeTimeFormat;
+      } catch (e) {
+        return false;
+      }
+    }
+    function hasLocaleWeekInfo() {
+      try {
+        return typeof Intl !== "undefined" && !!Intl.Locale && ("weekInfo" in Intl.Locale.prototype || "getWeekInfo" in Intl.Locale.prototype);
+      } catch (e) {
+        return false;
+      }
+    }
+    function maybeArray(thing) {
+      return Array.isArray(thing) ? thing : [thing];
+    }
+    function bestBy(arr, by, compare) {
+      if (arr.length === 0) {
+        return void 0;
+      }
+      return arr.reduce((best, next) => {
+        const pair = [by(next), next];
+        if (!best) {
+          return pair;
+        } else if (compare(best[0], pair[0]) === best[0]) {
+          return best;
+        } else {
+          return pair;
+        }
+      }, null)[1];
+    }
+    function pick2(obj, keys) {
+      return keys.reduce((a, k) => {
+        a[k] = obj[k];
+        return a;
+      }, {});
+    }
+    function hasOwnProperty(obj, prop) {
+      return Object.prototype.hasOwnProperty.call(obj, prop);
+    }
+    function validateWeekSettings(settings) {
+      if (settings == null) {
+        return null;
+      } else if (typeof settings !== "object") {
+        throw new InvalidArgumentError("Week settings must be an object");
+      } else {
+        if (!integerBetween(settings.firstDay, 1, 7) || !integerBetween(settings.minimalDays, 1, 7) || !Array.isArray(settings.weekend) || settings.weekend.some((v) => !integerBetween(v, 1, 7))) {
+          throw new InvalidArgumentError("Invalid week settings");
+        }
+        return {
+          firstDay: settings.firstDay,
+          minimalDays: settings.minimalDays,
+          weekend: Array.from(settings.weekend)
+        };
+      }
+    }
+    function integerBetween(thing, bottom, top) {
+      return isInteger(thing) && thing >= bottom && thing <= top;
+    }
+    function floorMod(x, n2) {
+      return x - n2 * Math.floor(x / n2);
+    }
+    function padStart(input, n2 = 2) {
+      const isNeg = input < 0;
+      let padded;
+      if (isNeg) {
+        padded = "-" + ("" + -input).padStart(n2, "0");
+      } else {
+        padded = ("" + input).padStart(n2, "0");
+      }
+      return padded;
+    }
+    function parseInteger(string4) {
+      if (isUndefined(string4) || string4 === null || string4 === "") {
+        return void 0;
+      } else {
+        return parseInt(string4, 10);
+      }
+    }
+    function parseFloating(string4) {
+      if (isUndefined(string4) || string4 === null || string4 === "") {
+        return void 0;
+      } else {
+        return parseFloat(string4);
+      }
+    }
+    function parseMillis(fraction) {
+      if (isUndefined(fraction) || fraction === null || fraction === "") {
+        return void 0;
+      } else {
+        const f = parseFloat("0." + fraction) * 1e3;
+        return Math.floor(f);
+      }
+    }
+    function roundTo(number4, digits, rounding = "round") {
+      const factor = 10 ** digits;
+      switch (rounding) {
+        case "expand":
+          return number4 > 0 ? Math.ceil(number4 * factor) / factor : Math.floor(number4 * factor) / factor;
+        case "trunc":
+          return Math.trunc(number4 * factor) / factor;
+        case "round":
+          return Math.round(number4 * factor) / factor;
+        case "floor":
+          return Math.floor(number4 * factor) / factor;
+        case "ceil":
+          return Math.ceil(number4 * factor) / factor;
+        default:
+          throw new RangeError(`Value rounding ${rounding} is out of range`);
+      }
+    }
+    function isLeapYear(year) {
+      return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+    }
+    function daysInYear(year) {
+      return isLeapYear(year) ? 366 : 365;
+    }
+    function daysInMonth(year, month) {
+      const modMonth = floorMod(month - 1, 12) + 1, modYear = year + (month - modMonth) / 12;
+      if (modMonth === 2) {
+        return isLeapYear(modYear) ? 29 : 28;
+      } else {
+        return [31, null, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][modMonth - 1];
+      }
+    }
+    function objToLocalTS(obj) {
+      let d = Date.UTC(obj.year, obj.month - 1, obj.day, obj.hour, obj.minute, obj.second, obj.millisecond);
+      if (obj.year < 100 && obj.year >= 0) {
+        d = new Date(d);
+        d.setUTCFullYear(obj.year, obj.month - 1, obj.day);
+      }
+      return +d;
+    }
+    function firstWeekOffset(year, minDaysInFirstWeek, startOfWeek) {
+      const fwdlw = isoWeekdayToLocal(dayOfWeek(year, 1, minDaysInFirstWeek), startOfWeek);
+      return -fwdlw + minDaysInFirstWeek - 1;
+    }
+    function weeksInWeekYear(weekYear, minDaysInFirstWeek = 4, startOfWeek = 1) {
+      const weekOffset = firstWeekOffset(weekYear, minDaysInFirstWeek, startOfWeek);
+      const weekOffsetNext = firstWeekOffset(weekYear + 1, minDaysInFirstWeek, startOfWeek);
+      return (daysInYear(weekYear) - weekOffset + weekOffsetNext) / 7;
+    }
+    function untruncateYear(year) {
+      if (year > 99) {
+        return year;
+      } else return year > Settings.twoDigitCutoffYear ? 1900 + year : 2e3 + year;
+    }
+    function parseZoneInfo(ts, offsetFormat, locale, timeZone = null) {
+      const date5 = new Date(ts), intlOpts = {
+        hourCycle: "h23",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      };
+      if (timeZone) {
+        intlOpts.timeZone = timeZone;
+      }
+      const modified = {
+        timeZoneName: offsetFormat,
+        ...intlOpts
+      };
+      const parsed = new Intl.DateTimeFormat(locale, modified).formatToParts(date5).find((m) => m.type.toLowerCase() === "timezonename");
+      return parsed ? parsed.value : null;
+    }
+    function signedOffset(offHourStr, offMinuteStr) {
+      let offHour = parseInt(offHourStr, 10);
+      if (Number.isNaN(offHour)) {
+        offHour = 0;
+      }
+      const offMin = parseInt(offMinuteStr, 10) || 0, offMinSigned = offHour < 0 || Object.is(offHour, -0) ? -offMin : offMin;
+      return offHour * 60 + offMinSigned;
+    }
+    function asNumber(value) {
+      const numericValue = Number(value);
+      if (typeof value === "boolean" || value === "" || !Number.isFinite(numericValue)) throw new InvalidArgumentError(`Invalid unit value ${value}`);
+      return numericValue;
+    }
+    function normalizeObject(obj, normalizer) {
+      const normalized = {};
+      for (const u in obj) {
+        if (hasOwnProperty(obj, u)) {
+          const v = obj[u];
+          if (v === void 0 || v === null) continue;
+          normalized[normalizer(u)] = asNumber(v);
+        }
+      }
+      return normalized;
+    }
+    function formatOffset(offset2, format) {
+      const hours = Math.trunc(Math.abs(offset2 / 60)), minutes = Math.trunc(Math.abs(offset2 % 60)), sign = offset2 >= 0 ? "+" : "-";
+      switch (format) {
+        case "short":
+          return `${sign}${padStart(hours, 2)}:${padStart(minutes, 2)}`;
+        case "narrow":
+          return `${sign}${hours}${minutes > 0 ? `:${minutes}` : ""}`;
+        case "techie":
+          return `${sign}${padStart(hours, 2)}${padStart(minutes, 2)}`;
+        default:
+          throw new RangeError(`Value format ${format} is out of range for property format`);
+      }
+    }
+    function timeObject(obj) {
+      return pick2(obj, ["hour", "minute", "second", "millisecond"]);
+    }
+    var monthsLong = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    var monthsShort = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    var monthsNarrow = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+    function months(length) {
+      switch (length) {
+        case "narrow":
+          return [...monthsNarrow];
+        case "short":
+          return [...monthsShort];
+        case "long":
+          return [...monthsLong];
+        case "numeric":
+          return ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
+        case "2-digit":
+          return ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+        default:
+          return null;
+      }
+    }
+    var weekdaysLong = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    var weekdaysShort = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    var weekdaysNarrow = ["M", "T", "W", "T", "F", "S", "S"];
+    function weekdays(length) {
+      switch (length) {
+        case "narrow":
+          return [...weekdaysNarrow];
+        case "short":
+          return [...weekdaysShort];
+        case "long":
+          return [...weekdaysLong];
+        case "numeric":
+          return ["1", "2", "3", "4", "5", "6", "7"];
+        default:
+          return null;
+      }
+    }
+    var meridiems = ["AM", "PM"];
+    var erasLong = ["Before Christ", "Anno Domini"];
+    var erasShort = ["BC", "AD"];
+    var erasNarrow = ["B", "A"];
+    function eras(length) {
+      switch (length) {
+        case "narrow":
+          return [...erasNarrow];
+        case "short":
+          return [...erasShort];
+        case "long":
+          return [...erasLong];
+        default:
+          return null;
+      }
+    }
+    function meridiemForDateTime(dt) {
+      return meridiems[dt.hour < 12 ? 0 : 1];
+    }
+    function weekdayForDateTime(dt, length) {
+      return weekdays(length)[dt.weekday - 1];
+    }
+    function monthForDateTime(dt, length) {
+      return months(length)[dt.month - 1];
+    }
+    function eraForDateTime(dt, length) {
+      return eras(length)[dt.year < 0 ? 0 : 1];
+    }
+    function formatRelativeTime(unit, count, numeric = "always", narrow = false) {
+      const units = {
+        years: ["year", "yr."],
+        quarters: ["quarter", "qtr."],
+        months: ["month", "mo."],
+        weeks: ["week", "wk."],
+        days: ["day", "day", "days"],
+        hours: ["hour", "hr."],
+        minutes: ["minute", "min."],
+        seconds: ["second", "sec."]
+      };
+      const lastable = ["hours", "minutes", "seconds"].indexOf(unit) === -1;
+      if (numeric === "auto" && lastable) {
+        const isDay = unit === "days";
+        switch (count) {
+          case 1:
+            return isDay ? "tomorrow" : `next ${units[unit][0]}`;
+          case -1:
+            return isDay ? "yesterday" : `last ${units[unit][0]}`;
+          case 0:
+            return isDay ? "today" : `this ${units[unit][0]}`;
+        }
+      }
+      const isInPast = Object.is(count, -0) || count < 0, fmtValue = Math.abs(count), singular = fmtValue === 1, lilUnits = units[unit], fmtUnit = narrow ? singular ? lilUnits[1] : lilUnits[2] || lilUnits[1] : singular ? units[unit][0] : unit;
+      return isInPast ? `${fmtValue} ${fmtUnit} ago` : `in ${fmtValue} ${fmtUnit}`;
+    }
+    function stringifyTokens(splits, tokenToString) {
+      let s2 = "";
+      for (const token of splits) {
+        if (token.literal) {
+          s2 += token.val;
+        } else {
+          s2 += tokenToString(token.val);
+        }
+      }
+      return s2;
+    }
+    var macroTokenToFormatOpts = {
+      D: DATE_SHORT,
+      DD: DATE_MED,
+      DDD: DATE_FULL,
+      DDDD: DATE_HUGE,
+      t: TIME_SIMPLE,
+      tt: TIME_WITH_SECONDS,
+      ttt: TIME_WITH_SHORT_OFFSET,
+      tttt: TIME_WITH_LONG_OFFSET,
+      T: TIME_24_SIMPLE,
+      TT: TIME_24_WITH_SECONDS,
+      TTT: TIME_24_WITH_SHORT_OFFSET,
+      TTTT: TIME_24_WITH_LONG_OFFSET,
+      f: DATETIME_SHORT,
+      ff: DATETIME_MED,
+      fff: DATETIME_FULL,
+      ffff: DATETIME_HUGE,
+      F: DATETIME_SHORT_WITH_SECONDS,
+      FF: DATETIME_MED_WITH_SECONDS,
+      FFF: DATETIME_FULL_WITH_SECONDS,
+      FFFF: DATETIME_HUGE_WITH_SECONDS
+    };
+    var Formatter = class _Formatter {
+      static create(locale, opts = {}) {
+        return new _Formatter(locale, opts);
+      }
+      static parseFormat(fmt) {
+        let current = null, currentFull = "", bracketed = false;
+        const splits = [];
+        for (let i = 0; i < fmt.length; i++) {
+          const c = fmt.charAt(i);
+          if (c === "'") {
+            if (currentFull.length > 0 || bracketed) {
+              splits.push({
+                literal: bracketed || /^\s+$/.test(currentFull),
+                val: currentFull === "" ? "'" : currentFull
+              });
+            }
+            current = null;
+            currentFull = "";
+            bracketed = !bracketed;
+          } else if (bracketed) {
+            currentFull += c;
+          } else if (c === current) {
+            currentFull += c;
+          } else {
+            if (currentFull.length > 0) {
+              splits.push({
+                literal: /^\s+$/.test(currentFull),
+                val: currentFull
+              });
+            }
+            currentFull = c;
+            current = c;
+          }
+        }
+        if (currentFull.length > 0) {
+          splits.push({
+            literal: bracketed || /^\s+$/.test(currentFull),
+            val: currentFull
+          });
+        }
+        return splits;
+      }
+      static macroTokenToFormatOpts(token) {
+        return macroTokenToFormatOpts[token];
+      }
+      constructor(locale, formatOpts) {
+        this.opts = formatOpts;
+        this.loc = locale;
+        this.systemLoc = null;
+      }
+      formatWithSystemDefault(dt, opts) {
+        if (this.systemLoc === null) {
+          this.systemLoc = this.loc.redefaultToSystem();
+        }
+        const df = this.systemLoc.dtFormatter(dt, {
+          ...this.opts,
+          ...opts
         });
-        testComparator = remainingComparators.pop();
+        return df.format();
+      }
+      dtFormatter(dt, opts = {}) {
+        return this.loc.dtFormatter(dt, {
+          ...this.opts,
+          ...opts
+        });
+      }
+      formatDateTime(dt, opts) {
+        return this.dtFormatter(dt, opts).format();
+      }
+      formatDateTimeParts(dt, opts) {
+        return this.dtFormatter(dt, opts).formatToParts();
+      }
+      formatInterval(interval, opts) {
+        const df = this.dtFormatter(interval.start, opts);
+        return df.dtf.formatRange(interval.start.toJSDate(), interval.end.toJSDate());
+      }
+      resolvedOptions(dt, opts) {
+        return this.dtFormatter(dt, opts).resolvedOptions();
+      }
+      num(n2, p = 0, signDisplay = void 0) {
+        if (this.opts.forceSimple) {
+          return padStart(n2, p);
+        }
+        const opts = {
+          ...this.opts
+        };
+        if (p > 0) {
+          opts.padTo = p;
+        }
+        if (signDisplay) {
+          opts.signDisplay = signDisplay;
+        }
+        return this.loc.numberFormatter(opts).format(n2);
+      }
+      formatDateTimeFromString(dt, fmt) {
+        const knownEnglish = this.loc.listingMode() === "en", useDateTimeFormatter = this.loc.outputCalendar && this.loc.outputCalendar !== "gregory", string4 = (opts, extract) => this.loc.extract(dt, opts, extract), formatOffset2 = (opts) => {
+          if (dt.isOffsetFixed && dt.offset === 0 && opts.allowZ) {
+            return "Z";
+          }
+          return dt.isValid ? dt.zone.formatOffset(dt.ts, opts.format) : "";
+        }, meridiem = () => knownEnglish ? meridiemForDateTime(dt) : string4({
+          hour: "numeric",
+          hourCycle: "h12"
+        }, "dayperiod"), month = (length, standalone) => knownEnglish ? monthForDateTime(dt, length) : string4(standalone ? {
+          month: length
+        } : {
+          month: length,
+          day: "numeric"
+        }, "month"), weekday = (length, standalone) => knownEnglish ? weekdayForDateTime(dt, length) : string4(standalone ? {
+          weekday: length
+        } : {
+          weekday: length,
+          month: "long",
+          day: "numeric"
+        }, "weekday"), maybeMacro = (token) => {
+          const formatOpts = _Formatter.macroTokenToFormatOpts(token);
+          if (formatOpts) {
+            return this.formatWithSystemDefault(dt, formatOpts);
+          } else {
+            return token;
+          }
+        }, era = (length) => knownEnglish ? eraForDateTime(dt, length) : string4({
+          era: length
+        }, "era"), tokenToString = (token) => {
+          switch (token) {
+            // ms
+            case "S":
+              return this.num(dt.millisecond);
+            case "u":
+            // falls through
+            case "SSS":
+              return this.num(dt.millisecond, 3);
+            // seconds
+            case "s":
+              return this.num(dt.second);
+            case "ss":
+              return this.num(dt.second, 2);
+            // fractional seconds
+            case "uu":
+              return this.num(Math.floor(dt.millisecond / 10), 2);
+            case "uuu":
+              return this.num(Math.floor(dt.millisecond / 100));
+            // minutes
+            case "m":
+              return this.num(dt.minute);
+            case "mm":
+              return this.num(dt.minute, 2);
+            // hours
+            case "h":
+              return this.num(dt.hour % 12 === 0 ? 12 : dt.hour % 12);
+            case "hh":
+              return this.num(dt.hour % 12 === 0 ? 12 : dt.hour % 12, 2);
+            case "H":
+              return this.num(dt.hour);
+            case "HH":
+              return this.num(dt.hour, 2);
+            // offset
+            case "Z":
+              return formatOffset2({
+                format: "narrow",
+                allowZ: this.opts.allowZ
+              });
+            case "ZZ":
+              return formatOffset2({
+                format: "short",
+                allowZ: this.opts.allowZ
+              });
+            case "ZZZ":
+              return formatOffset2({
+                format: "techie",
+                allowZ: this.opts.allowZ
+              });
+            case "ZZZZ":
+              return dt.zone.offsetName(dt.ts, {
+                format: "short",
+                locale: this.loc.locale
+              });
+            case "ZZZZZ":
+              return dt.zone.offsetName(dt.ts, {
+                format: "long",
+                locale: this.loc.locale
+              });
+            // zone
+            case "z":
+              return dt.zoneName;
+            // meridiems
+            case "a":
+              return meridiem();
+            // dates
+            case "d":
+              return useDateTimeFormatter ? string4({
+                day: "numeric"
+              }, "day") : this.num(dt.day);
+            case "dd":
+              return useDateTimeFormatter ? string4({
+                day: "2-digit"
+              }, "day") : this.num(dt.day, 2);
+            // weekdays - standalone
+            case "c":
+              return this.num(dt.weekday);
+            case "ccc":
+              return weekday("short", true);
+            case "cccc":
+              return weekday("long", true);
+            case "ccccc":
+              return weekday("narrow", true);
+            // weekdays - format
+            case "E":
+              return this.num(dt.weekday);
+            case "EEE":
+              return weekday("short", false);
+            case "EEEE":
+              return weekday("long", false);
+            case "EEEEE":
+              return weekday("narrow", false);
+            // months - standalone
+            case "L":
+              return useDateTimeFormatter ? string4({
+                month: "numeric",
+                day: "numeric"
+              }, "month") : this.num(dt.month);
+            case "LL":
+              return useDateTimeFormatter ? string4({
+                month: "2-digit",
+                day: "numeric"
+              }, "month") : this.num(dt.month, 2);
+            case "LLL":
+              return month("short", true);
+            case "LLLL":
+              return month("long", true);
+            case "LLLLL":
+              return month("narrow", true);
+            // months - format
+            case "M":
+              return useDateTimeFormatter ? string4({
+                month: "numeric"
+              }, "month") : this.num(dt.month);
+            case "MM":
+              return useDateTimeFormatter ? string4({
+                month: "2-digit"
+              }, "month") : this.num(dt.month, 2);
+            case "MMM":
+              return month("short", false);
+            case "MMMM":
+              return month("long", false);
+            case "MMMMM":
+              return month("narrow", false);
+            // years
+            case "y":
+              return useDateTimeFormatter ? string4({
+                year: "numeric"
+              }, "year") : this.num(dt.year);
+            case "yy":
+              return useDateTimeFormatter ? string4({
+                year: "2-digit"
+              }, "year") : this.num(dt.year.toString().slice(-2), 2);
+            case "yyyy":
+              return useDateTimeFormatter ? string4({
+                year: "numeric"
+              }, "year") : this.num(dt.year, 4);
+            case "yyyyyy":
+              return useDateTimeFormatter ? string4({
+                year: "numeric"
+              }, "year") : this.num(dt.year, 6);
+            // eras
+            case "G":
+              return era("short");
+            case "GG":
+              return era("long");
+            case "GGGGG":
+              return era("narrow");
+            case "kk":
+              return this.num(dt.weekYear.toString().slice(-2), 2);
+            case "kkkk":
+              return this.num(dt.weekYear, 4);
+            case "W":
+              return this.num(dt.weekNumber);
+            case "WW":
+              return this.num(dt.weekNumber, 2);
+            case "n":
+              return this.num(dt.localWeekNumber);
+            case "nn":
+              return this.num(dt.localWeekNumber, 2);
+            case "ii":
+              return this.num(dt.localWeekYear.toString().slice(-2), 2);
+            case "iiii":
+              return this.num(dt.localWeekYear, 4);
+            case "o":
+              return this.num(dt.ordinal);
+            case "ooo":
+              return this.num(dt.ordinal, 3);
+            case "q":
+              return this.num(dt.quarter);
+            case "qq":
+              return this.num(dt.quarter, 2);
+            case "X":
+              return this.num(Math.floor(dt.ts / 1e3));
+            case "x":
+              return this.num(dt.ts);
+            default:
+              return maybeMacro(token);
+          }
+        };
+        return stringifyTokens(_Formatter.parseFormat(fmt), tokenToString);
+      }
+      formatDurationFromString(dur, fmt) {
+        const invertLargest = this.opts.signMode === "negativeLargestOnly" ? -1 : 1;
+        const tokenToField = (token) => {
+          switch (token[0]) {
+            case "S":
+              return "milliseconds";
+            case "s":
+              return "seconds";
+            case "m":
+              return "minutes";
+            case "h":
+              return "hours";
+            case "d":
+              return "days";
+            case "w":
+              return "weeks";
+            case "M":
+              return "months";
+            case "y":
+              return "years";
+            default:
+              return null;
+          }
+        }, tokenToString = (lildur, info) => (token) => {
+          const mapped = tokenToField(token);
+          if (mapped) {
+            const inversionFactor = info.isNegativeDuration && mapped !== info.largestUnit ? invertLargest : 1;
+            let signDisplay;
+            if (this.opts.signMode === "negativeLargestOnly" && mapped !== info.largestUnit) {
+              signDisplay = "never";
+            } else if (this.opts.signMode === "all") {
+              signDisplay = "always";
+            } else {
+              signDisplay = "auto";
+            }
+            return this.num(lildur.get(mapped) * inversionFactor, token.length, signDisplay);
+          } else {
+            return token;
+          }
+        }, tokens = _Formatter.parseFormat(fmt), realTokens = tokens.reduce((found, {
+          literal: literal2,
+          val
+        }) => literal2 ? found : found.concat(val), []), collapsed = dur.shiftTo(...realTokens.map(tokenToField).filter((t) => t)), durationInfo = {
+          isNegativeDuration: collapsed < 0,
+          // this relies on "collapsed" being based on "shiftTo", which builds up the object
+          // in order
+          largestUnit: Object.keys(collapsed.values)[0]
+        };
+        return stringifyTokens(tokens, tokenToString(collapsed, durationInfo));
+      }
+    };
+    var ianaRegex = /[A-Za-z_+-]{1,256}(?::?\/[A-Za-z0-9_+-]{1,256}(?:\/[A-Za-z0-9_+-]{1,256})?)?/;
+    function combineRegexes(...regexes) {
+      const full = regexes.reduce((f, r) => f + r.source, "");
+      return RegExp(`^${full}$`);
+    }
+    function combineExtractors(...extractors) {
+      return (m) => extractors.reduce(([mergedVals, mergedZone, cursor], ex) => {
+        const [val, zone, next] = ex(m, cursor);
+        return [{
+          ...mergedVals,
+          ...val
+        }, zone || mergedZone, next];
+      }, [{}, null, 1]).slice(0, 2);
+    }
+    function parse3(s2, ...patterns) {
+      if (s2 == null) {
+        return [null, null];
+      }
+      for (const [regex, extractor] of patterns) {
+        const m = regex.exec(s2);
+        if (m) {
+          return extractor(m);
+        }
+      }
+      return [null, null];
+    }
+    function simpleParse(...keys) {
+      return (match2, cursor) => {
+        const ret = {};
+        let i;
+        for (i = 0; i < keys.length; i++) {
+          ret[keys[i]] = parseInteger(match2[cursor + i]);
+        }
+        return [ret, null, cursor + i];
+      };
+    }
+    var offsetRegex = /(?:([Zz])|([+-]\d\d)(?::?(\d\d))?)/;
+    var isoExtendedZone = `(?:${offsetRegex.source}?(?:\\[(${ianaRegex.source})\\])?)?`;
+    var isoTimeBaseRegex = /(\d\d)(?::?(\d\d)(?::?(\d\d)(?:[.,](\d{1,30}))?)?)?/;
+    var isoTimeRegex = RegExp(`${isoTimeBaseRegex.source}${isoExtendedZone}`);
+    var isoTimeExtensionRegex = RegExp(`(?:[Tt]${isoTimeRegex.source})?`);
+    var isoYmdRegex = /([+-]\d{6}|\d{4})(?:-?(\d\d)(?:-?(\d\d))?)?/;
+    var isoWeekRegex = /(\d{4})-?W(\d\d)(?:-?(\d))?/;
+    var isoOrdinalRegex = /(\d{4})-?(\d{3})/;
+    var extractISOWeekData = simpleParse("weekYear", "weekNumber", "weekDay");
+    var extractISOOrdinalData = simpleParse("year", "ordinal");
+    var sqlYmdRegex = /(\d{4})-(\d\d)-(\d\d)/;
+    var sqlTimeRegex = RegExp(`${isoTimeBaseRegex.source} ?(?:${offsetRegex.source}|(${ianaRegex.source}))?`);
+    var sqlTimeExtensionRegex = RegExp(`(?: ${sqlTimeRegex.source})?`);
+    function int2(match2, pos, fallback) {
+      const m = match2[pos];
+      return isUndefined(m) ? fallback : parseInteger(m);
+    }
+    function extractISOYmd(match2, cursor) {
+      const item = {
+        year: int2(match2, cursor),
+        month: int2(match2, cursor + 1, 1),
+        day: int2(match2, cursor + 2, 1)
+      };
+      return [item, null, cursor + 3];
+    }
+    function extractISOTime(match2, cursor) {
+      const item = {
+        hours: int2(match2, cursor, 0),
+        minutes: int2(match2, cursor + 1, 0),
+        seconds: int2(match2, cursor + 2, 0),
+        milliseconds: parseMillis(match2[cursor + 3])
+      };
+      return [item, null, cursor + 4];
+    }
+    function extractISOOffset(match2, cursor) {
+      const local = !match2[cursor] && !match2[cursor + 1], fullOffset = signedOffset(match2[cursor + 1], match2[cursor + 2]), zone = local ? null : FixedOffsetZone.instance(fullOffset);
+      return [{}, zone, cursor + 3];
+    }
+    function extractIANAZone(match2, cursor) {
+      const zone = match2[cursor] ? IANAZone.create(match2[cursor]) : null;
+      return [{}, zone, cursor + 1];
+    }
+    var isoTimeOnly = RegExp(`^T?${isoTimeBaseRegex.source}$`);
+    var isoDuration = /^-?P(?:(?:(-?\d{1,20}(?:\.\d{1,20})?)Y)?(?:(-?\d{1,20}(?:\.\d{1,20})?)M)?(?:(-?\d{1,20}(?:\.\d{1,20})?)W)?(?:(-?\d{1,20}(?:\.\d{1,20})?)D)?(?:T(?:(-?\d{1,20}(?:\.\d{1,20})?)H)?(?:(-?\d{1,20}(?:\.\d{1,20})?)M)?(?:(-?\d{1,20})(?:[.,](-?\d{1,20}))?S)?)?)$/;
+    function extractISODuration(match2) {
+      const [s2, yearStr, monthStr, weekStr, dayStr, hourStr, minuteStr, secondStr, millisecondsStr] = match2;
+      const hasNegativePrefix = s2[0] === "-";
+      const negativeSeconds = secondStr && secondStr[0] === "-";
+      const maybeNegate = (num, force = false) => num !== void 0 && (force || num && hasNegativePrefix) ? -num : num;
+      return [{
+        years: maybeNegate(parseFloating(yearStr)),
+        months: maybeNegate(parseFloating(monthStr)),
+        weeks: maybeNegate(parseFloating(weekStr)),
+        days: maybeNegate(parseFloating(dayStr)),
+        hours: maybeNegate(parseFloating(hourStr)),
+        minutes: maybeNegate(parseFloating(minuteStr)),
+        seconds: maybeNegate(parseFloating(secondStr), secondStr === "-0"),
+        milliseconds: maybeNegate(parseMillis(millisecondsStr), negativeSeconds)
+      }];
+    }
+    var obsOffsets = {
+      GMT: 0,
+      EDT: -4 * 60,
+      EST: -5 * 60,
+      CDT: -5 * 60,
+      CST: -6 * 60,
+      MDT: -6 * 60,
+      MST: -7 * 60,
+      PDT: -7 * 60,
+      PST: -8 * 60
+    };
+    function fromStrings(weekdayStr, yearStr, monthStr, dayStr, hourStr, minuteStr, secondStr) {
+      const result = {
+        year: yearStr.length === 2 ? untruncateYear(parseInteger(yearStr)) : parseInteger(yearStr),
+        month: monthsShort.indexOf(monthStr) + 1,
+        day: parseInteger(dayStr),
+        hour: parseInteger(hourStr),
+        minute: parseInteger(minuteStr)
+      };
+      if (secondStr) result.second = parseInteger(secondStr);
+      if (weekdayStr) {
+        result.weekday = weekdayStr.length > 3 ? weekdaysLong.indexOf(weekdayStr) + 1 : weekdaysShort.indexOf(weekdayStr) + 1;
       }
       return result;
-    };
-    var parseComparator = (comp, options) => {
-      comp = comp.replace(re[t.BUILD], "");
-      debug("comp", comp, options);
-      comp = replaceCarets(comp, options);
-      debug("caret", comp);
-      comp = replaceTildes(comp, options);
-      debug("tildes", comp);
-      comp = replaceXRanges(comp, options);
-      debug("xrange", comp);
-      comp = replaceStars(comp, options);
-      debug("stars", comp);
-      return comp;
-    };
-    var isX = (id) => !id || id.toLowerCase() === "x" || id === "*";
-    var invalidXRangeOrder = (M, m, p) => isX(M) && !isX(m) || isX(m) && p && !isX(p);
-    var replaceTildes = (comp, options) => {
-      return comp.trim().split(/\s+/).map((c) => replaceTilde(c, options)).join(" ");
-    };
-    var replaceTilde = (comp, options) => {
-      const r = options.loose ? re[t.TILDELOOSE] : re[t.TILDE];
-      const z2 = options.includePrerelease ? "-0" : "";
-      return comp.replace(r, (_, M, m, p, pr) => {
-        debug("tilde", comp, _, M, m, p, pr);
-        let ret;
-        if (isX(M)) {
-          ret = "";
-        } else if (isX(m)) {
-          ret = `>=${M}.0.0${z2} <${+M + 1}.0.0-0`;
-        } else if (isX(p)) {
-          ret = `>=${M}.${m}.0${z2} <${M}.${+m + 1}.0-0`;
-        } else if (pr) {
-          debug("replaceTilde pr", pr);
-          ret = `>=${M}.${m}.${p}-${pr} <${M}.${+m + 1}.0-0`;
-        } else {
-          ret = `>=${M}.${m}.${p} <${M}.${+m + 1}.0-0`;
-        }
-        debug("tilde return", ret);
-        return ret;
-      });
-    };
-    var replaceCarets = (comp, options) => {
-      return comp.trim().split(/\s+/).map((c) => replaceCaret(c, options)).join(" ");
-    };
-    var replaceCaret = (comp, options) => {
-      debug("caret", comp, options);
-      const r = options.loose ? re[t.CARETLOOSE] : re[t.CARET];
-      const z2 = options.includePrerelease ? "-0" : "";
-      return comp.replace(r, (_, M, m, p, pr) => {
-        debug("caret", comp, _, M, m, p, pr);
-        let ret;
-        if (isX(M)) {
-          ret = "";
-        } else if (isX(m)) {
-          ret = `>=${M}.0.0${z2} <${+M + 1}.0.0-0`;
-        } else if (isX(p)) {
-          if (M === "0") {
-            ret = `>=${M}.${m}.0${z2} <${M}.${+m + 1}.0-0`;
-          } else {
-            ret = `>=${M}.${m}.0${z2} <${+M + 1}.0.0-0`;
-          }
-        } else if (pr) {
-          debug("replaceCaret pr", pr);
-          if (M === "0") {
-            if (m === "0") {
-              ret = `>=${M}.${m}.${p}-${pr} <${M}.${m}.${+p + 1}-0`;
-            } else {
-              ret = `>=${M}.${m}.${p}-${pr} <${M}.${+m + 1}.0-0`;
-            }
-          } else {
-            ret = `>=${M}.${m}.${p}-${pr} <${+M + 1}.0.0-0`;
-          }
-        } else {
-          debug("no pr");
-          if (M === "0") {
-            if (m === "0") {
-              ret = `>=${M}.${m}.${p} <${M}.${m}.${+p + 1}-0`;
-            } else {
-              ret = `>=${M}.${m}.${p} <${M}.${+m + 1}.0-0`;
-            }
-          } else {
-            ret = `>=${M}.${m}.${p} <${+M + 1}.0.0-0`;
-          }
-        }
-        debug("caret return", ret);
-        return ret;
-      });
-    };
-    var replaceXRanges = (comp, options) => {
-      debug("replaceXRanges", comp, options);
-      return comp.split(/\s+/).map((c) => replaceXRange(c, options)).join(" ");
-    };
-    var replaceXRange = (comp, options) => {
-      comp = comp.trim();
-      const r = options.loose ? re[t.XRANGELOOSE] : re[t.XRANGE];
-      return comp.replace(r, (ret, gtlt, M, m, p, pr) => {
-        debug("xRange", comp, ret, gtlt, M, m, p, pr);
-        if (invalidXRangeOrder(M, m, p)) {
-          return comp;
-        }
-        const xM = isX(M);
-        const xm = xM || isX(m);
-        const xp = xm || isX(p);
-        const anyX = xp;
-        if (gtlt === "=" && anyX) {
-          gtlt = "";
-        }
-        pr = options.includePrerelease ? "-0" : "";
-        if (xM) {
-          if (gtlt === ">" || gtlt === "<") {
-            ret = "<0.0.0-0";
-          } else {
-            ret = "*";
-          }
-        } else if (gtlt && anyX) {
-          if (xm) {
-            m = 0;
-          }
-          p = 0;
-          if (gtlt === ">") {
-            gtlt = ">=";
-            if (xm) {
-              M = +M + 1;
-              m = 0;
-              p = 0;
-            } else {
-              m = +m + 1;
-              p = 0;
-            }
-          } else if (gtlt === "<=") {
-            gtlt = "<";
-            if (xm) {
-              M = +M + 1;
-            } else {
-              m = +m + 1;
-            }
-          }
-          if (gtlt === "<") {
-            pr = "-0";
-          }
-          ret = `${gtlt + M}.${m}.${p}${pr}`;
-        } else if (xm) {
-          ret = `>=${M}.0.0${pr} <${+M + 1}.0.0-0`;
-        } else if (xp) {
-          ret = `>=${M}.${m}.0${pr} <${M}.${+m + 1}.0-0`;
-        }
-        debug("xRange return", ret);
-        return ret;
-      });
-    };
-    var replaceStars = (comp, options) => {
-      debug("replaceStars", comp, options);
-      return comp.trim().replace(re[t.STAR], "");
-    };
-    var replaceGTE0 = (comp, options) => {
-      debug("replaceGTE0", comp, options);
-      return comp.trim().replace(re[options.includePrerelease ? t.GTE0PRE : t.GTE0], "");
-    };
-    var hyphenReplace = (incPr) => ($0, from, fM, fm, fp, fpr, fb, to, tM, tm, tp, tpr) => {
-      if (isX(fM)) {
-        from = "";
-      } else if (isX(fm)) {
-        from = `>=${fM}.0.0${incPr ? "-0" : ""}`;
-      } else if (isX(fp)) {
-        from = `>=${fM}.${fm}.0${incPr ? "-0" : ""}`;
-      } else if (fpr) {
-        from = `>=${from}`;
+    }
+    var rfc2822 = /^(?:(Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s)?(\d{1,2})\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s(\d{2,4})\s(\d\d):(\d\d)(?::(\d\d))?\s(?:(UT|GMT|[ECMP][SD]T)|([Zz])|(?:([+-]\d\d)(\d\d)))$/;
+    function extractRFC2822(match2) {
+      const [, weekdayStr, dayStr, monthStr, yearStr, hourStr, minuteStr, secondStr, obsOffset, milOffset, offHourStr, offMinuteStr] = match2, result = fromStrings(weekdayStr, yearStr, monthStr, dayStr, hourStr, minuteStr, secondStr);
+      let offset2;
+      if (obsOffset) {
+        offset2 = obsOffsets[obsOffset];
+      } else if (milOffset) {
+        offset2 = 0;
       } else {
-        from = `>=${from}${incPr ? "-0" : ""}`;
+        offset2 = signedOffset(offHourStr, offMinuteStr);
       }
-      if (isX(tM)) {
-        to = "";
-      } else if (isX(tm)) {
-        to = `<${+tM + 1}.0.0-0`;
-      } else if (isX(tp)) {
-        to = `<${tM}.${+tm + 1}.0-0`;
-      } else if (tpr) {
-        to = `<=${tM}.${tm}.${tp}-${tpr}`;
-      } else if (incPr) {
-        to = `<${tM}.${tm}.${+tp + 1}-0`;
-      } else {
-        to = `<=${to}`;
+      return [result, new FixedOffsetZone(offset2)];
+    }
+    function preprocessRFC2822(s2) {
+      return s2.replace(/\([^()]*\)|[\n\t]/g, " ").replace(/(\s\s+)/g, " ").trim();
+    }
+    var rfc1123 = /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), (\d\d) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4}) (\d\d):(\d\d):(\d\d) GMT$/;
+    var rfc850 = /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), (\d\d)-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-(\d\d) (\d\d):(\d\d):(\d\d) GMT$/;
+    var ascii = /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) ( \d|\d\d) (\d\d):(\d\d):(\d\d) (\d{4})$/;
+    function extractRFC1123Or850(match2) {
+      const [, weekdayStr, dayStr, monthStr, yearStr, hourStr, minuteStr, secondStr] = match2, result = fromStrings(weekdayStr, yearStr, monthStr, dayStr, hourStr, minuteStr, secondStr);
+      return [result, FixedOffsetZone.utcInstance];
+    }
+    function extractASCII(match2) {
+      const [, weekdayStr, monthStr, dayStr, hourStr, minuteStr, secondStr, yearStr] = match2, result = fromStrings(weekdayStr, yearStr, monthStr, dayStr, hourStr, minuteStr, secondStr);
+      return [result, FixedOffsetZone.utcInstance];
+    }
+    var isoYmdWithTimeExtensionRegex = combineRegexes(isoYmdRegex, isoTimeExtensionRegex);
+    var isoWeekWithTimeExtensionRegex = combineRegexes(isoWeekRegex, isoTimeExtensionRegex);
+    var isoOrdinalWithTimeExtensionRegex = combineRegexes(isoOrdinalRegex, isoTimeExtensionRegex);
+    var isoTimeCombinedRegex = combineRegexes(isoTimeRegex);
+    var extractISOYmdTimeAndOffset = combineExtractors(extractISOYmd, extractISOTime, extractISOOffset, extractIANAZone);
+    var extractISOWeekTimeAndOffset = combineExtractors(extractISOWeekData, extractISOTime, extractISOOffset, extractIANAZone);
+    var extractISOOrdinalDateAndTime = combineExtractors(extractISOOrdinalData, extractISOTime, extractISOOffset, extractIANAZone);
+    var extractISOTimeAndOffset = combineExtractors(extractISOTime, extractISOOffset, extractIANAZone);
+    function parseISODate(s2) {
+      return parse3(s2, [isoYmdWithTimeExtensionRegex, extractISOYmdTimeAndOffset], [isoWeekWithTimeExtensionRegex, extractISOWeekTimeAndOffset], [isoOrdinalWithTimeExtensionRegex, extractISOOrdinalDateAndTime], [isoTimeCombinedRegex, extractISOTimeAndOffset]);
+    }
+    function parseRFC2822Date(s2) {
+      return parse3(preprocessRFC2822(s2), [rfc2822, extractRFC2822]);
+    }
+    function parseHTTPDate(s2) {
+      return parse3(s2, [rfc1123, extractRFC1123Or850], [rfc850, extractRFC1123Or850], [ascii, extractASCII]);
+    }
+    function parseISODuration(s2) {
+      return parse3(s2, [isoDuration, extractISODuration]);
+    }
+    var extractISOTimeOnly = combineExtractors(extractISOTime);
+    function parseISOTimeOnly(s2) {
+      return parse3(s2, [isoTimeOnly, extractISOTimeOnly]);
+    }
+    var sqlYmdWithTimeExtensionRegex = combineRegexes(sqlYmdRegex, sqlTimeExtensionRegex);
+    var sqlTimeCombinedRegex = combineRegexes(sqlTimeRegex);
+    var extractISOTimeOffsetAndIANAZone = combineExtractors(extractISOTime, extractISOOffset, extractIANAZone);
+    function parseSQL(s2) {
+      return parse3(s2, [sqlYmdWithTimeExtensionRegex, extractISOYmdTimeAndOffset], [sqlTimeCombinedRegex, extractISOTimeOffsetAndIANAZone]);
+    }
+    var INVALID$2 = "Invalid Duration";
+    var lowOrderMatrix = {
+      weeks: {
+        days: 7,
+        hours: 7 * 24,
+        minutes: 7 * 24 * 60,
+        seconds: 7 * 24 * 60 * 60,
+        milliseconds: 7 * 24 * 60 * 60 * 1e3
+      },
+      days: {
+        hours: 24,
+        minutes: 24 * 60,
+        seconds: 24 * 60 * 60,
+        milliseconds: 24 * 60 * 60 * 1e3
+      },
+      hours: {
+        minutes: 60,
+        seconds: 60 * 60,
+        milliseconds: 60 * 60 * 1e3
+      },
+      minutes: {
+        seconds: 60,
+        milliseconds: 60 * 1e3
+      },
+      seconds: {
+        milliseconds: 1e3
       }
-      return `${from} ${to}`.trim();
     };
-    var testSet = (set2, version2, options) => {
-      for (let i = 0; i < set2.length; i++) {
-        if (!set2[i].test(version2)) {
+    var casualMatrix = {
+      years: {
+        quarters: 4,
+        months: 12,
+        weeks: 52,
+        days: 365,
+        hours: 365 * 24,
+        minutes: 365 * 24 * 60,
+        seconds: 365 * 24 * 60 * 60,
+        milliseconds: 365 * 24 * 60 * 60 * 1e3
+      },
+      quarters: {
+        months: 3,
+        weeks: 13,
+        days: 91,
+        hours: 91 * 24,
+        minutes: 91 * 24 * 60,
+        seconds: 91 * 24 * 60 * 60,
+        milliseconds: 91 * 24 * 60 * 60 * 1e3
+      },
+      months: {
+        weeks: 4,
+        days: 30,
+        hours: 30 * 24,
+        minutes: 30 * 24 * 60,
+        seconds: 30 * 24 * 60 * 60,
+        milliseconds: 30 * 24 * 60 * 60 * 1e3
+      },
+      ...lowOrderMatrix
+    };
+    var daysInYearAccurate = 146097 / 400;
+    var daysInMonthAccurate = 146097 / 4800;
+    var accurateMatrix = {
+      years: {
+        quarters: 4,
+        months: 12,
+        weeks: daysInYearAccurate / 7,
+        days: daysInYearAccurate,
+        hours: daysInYearAccurate * 24,
+        minutes: daysInYearAccurate * 24 * 60,
+        seconds: daysInYearAccurate * 24 * 60 * 60,
+        milliseconds: daysInYearAccurate * 24 * 60 * 60 * 1e3
+      },
+      quarters: {
+        months: 3,
+        weeks: daysInYearAccurate / 28,
+        days: daysInYearAccurate / 4,
+        hours: daysInYearAccurate * 24 / 4,
+        minutes: daysInYearAccurate * 24 * 60 / 4,
+        seconds: daysInYearAccurate * 24 * 60 * 60 / 4,
+        milliseconds: daysInYearAccurate * 24 * 60 * 60 * 1e3 / 4
+      },
+      months: {
+        weeks: daysInMonthAccurate / 7,
+        days: daysInMonthAccurate,
+        hours: daysInMonthAccurate * 24,
+        minutes: daysInMonthAccurate * 24 * 60,
+        seconds: daysInMonthAccurate * 24 * 60 * 60,
+        milliseconds: daysInMonthAccurate * 24 * 60 * 60 * 1e3
+      },
+      ...lowOrderMatrix
+    };
+    var orderedUnits$1 = ["years", "quarters", "months", "weeks", "days", "hours", "minutes", "seconds", "milliseconds"];
+    var reverseUnits = orderedUnits$1.slice(0).reverse();
+    function clone$1(dur, alts, clear = false) {
+      const conf = {
+        values: clear ? alts.values : {
+          ...dur.values,
+          ...alts.values || {}
+        },
+        loc: dur.loc.clone(alts.loc),
+        conversionAccuracy: alts.conversionAccuracy || dur.conversionAccuracy,
+        matrix: alts.matrix || dur.matrix
+      };
+      return new Duration(conf);
+    }
+    function durationToMillis(matrix, vals) {
+      var _vals$milliseconds;
+      let sum = (_vals$milliseconds = vals.milliseconds) != null ? _vals$milliseconds : 0;
+      for (const unit of reverseUnits.slice(1)) {
+        if (vals[unit]) {
+          sum += vals[unit] * matrix[unit]["milliseconds"];
+        }
+      }
+      return sum;
+    }
+    function normalizeValues(matrix, vals) {
+      const factor = durationToMillis(matrix, vals) < 0 ? -1 : 1;
+      orderedUnits$1.reduceRight((previous, current) => {
+        if (!isUndefined(vals[current])) {
+          if (previous) {
+            const previousVal = vals[previous] * factor;
+            const conv = matrix[current][previous];
+            const rollUp = Math.floor(previousVal / conv);
+            vals[current] += rollUp * factor;
+            vals[previous] -= rollUp * conv * factor;
+          }
+          return current;
+        } else {
+          return previous;
+        }
+      }, null);
+      orderedUnits$1.reduce((previous, current) => {
+        if (!isUndefined(vals[current])) {
+          if (previous) {
+            const fraction = vals[previous] % 1;
+            vals[previous] -= fraction;
+            vals[current] += fraction * matrix[previous][current];
+          }
+          return current;
+        } else {
+          return previous;
+        }
+      }, null);
+    }
+    function removeZeroes(vals) {
+      const newVals = {};
+      for (const [key, value] of Object.entries(vals)) {
+        if (value !== 0) {
+          newVals[key] = value;
+        }
+      }
+      return newVals;
+    }
+    var Duration = class _Duration {
+      /**
+       * @private
+       */
+      constructor(config2) {
+        const accurate = config2.conversionAccuracy === "longterm" || false;
+        let matrix = accurate ? accurateMatrix : casualMatrix;
+        if (config2.matrix) {
+          matrix = config2.matrix;
+        }
+        this.values = config2.values;
+        this.loc = config2.loc || Locale.create();
+        this.conversionAccuracy = accurate ? "longterm" : "casual";
+        this.invalid = config2.invalid || null;
+        this.matrix = matrix;
+        this.isLuxonDuration = true;
+      }
+      /**
+       * Create Duration from a number of milliseconds.
+       * @param {number} count of milliseconds
+       * @param {Object} opts - options for parsing
+       * @param {string} [opts.locale='en-US'] - the locale to use
+       * @param {string} opts.numberingSystem - the numbering system to use
+       * @param {string} [opts.conversionAccuracy='casual'] - the conversion system to use
+       * @return {Duration}
+       */
+      static fromMillis(count, opts) {
+        return _Duration.fromObject({
+          milliseconds: count
+        }, opts);
+      }
+      /**
+       * Create a Duration from a JavaScript object with keys like 'years' and 'hours'.
+       * If this object is empty then a zero milliseconds duration is returned.
+       * @param {Object} obj - the object to create the DateTime from
+       * @param {number} obj.years
+       * @param {number} obj.quarters
+       * @param {number} obj.months
+       * @param {number} obj.weeks
+       * @param {number} obj.days
+       * @param {number} obj.hours
+       * @param {number} obj.minutes
+       * @param {number} obj.seconds
+       * @param {number} obj.milliseconds
+       * @param {Object} [opts=[]] - options for creating this Duration
+       * @param {string} [opts.locale='en-US'] - the locale to use
+       * @param {string} opts.numberingSystem - the numbering system to use
+       * @param {string} [opts.conversionAccuracy='casual'] - the preset conversion system to use
+       * @param {string} [opts.matrix=Object] - the custom conversion system to use
+       * @return {Duration}
+       */
+      static fromObject(obj, opts = {}) {
+        if (obj == null || typeof obj !== "object") {
+          throw new InvalidArgumentError(`Duration.fromObject: argument expected to be an object, got ${obj === null ? "null" : typeof obj}`);
+        }
+        return new _Duration({
+          values: normalizeObject(obj, _Duration.normalizeUnit),
+          loc: Locale.fromObject(opts),
+          conversionAccuracy: opts.conversionAccuracy,
+          matrix: opts.matrix
+        });
+      }
+      /**
+       * Create a Duration from DurationLike.
+       *
+       * @param {Object | number | Duration} durationLike
+       * One of:
+       * - object with keys like 'years' and 'hours'.
+       * - number representing milliseconds
+       * - Duration instance
+       * @return {Duration}
+       */
+      static fromDurationLike(durationLike) {
+        if (isNumber(durationLike)) {
+          return _Duration.fromMillis(durationLike);
+        } else if (_Duration.isDuration(durationLike)) {
+          return durationLike;
+        } else if (typeof durationLike === "object") {
+          return _Duration.fromObject(durationLike);
+        } else {
+          throw new InvalidArgumentError(`Unknown duration argument ${durationLike} of type ${typeof durationLike}`);
+        }
+      }
+      /**
+       * Create a Duration from an ISO 8601 duration string.
+       * @param {string} text - text to parse
+       * @param {Object} opts - options for parsing
+       * @param {string} [opts.locale='en-US'] - the locale to use
+       * @param {string} opts.numberingSystem - the numbering system to use
+       * @param {string} [opts.conversionAccuracy='casual'] - the preset conversion system to use
+       * @param {string} [opts.matrix=Object] - the preset conversion system to use
+       * @see https://en.wikipedia.org/wiki/ISO_8601#Durations
+       * @example Duration.fromISO('P3Y6M1W4DT12H30M5S').toObject() //=> { years: 3, months: 6, weeks: 1, days: 4, hours: 12, minutes: 30, seconds: 5 }
+       * @example Duration.fromISO('PT23H').toObject() //=> { hours: 23 }
+       * @example Duration.fromISO('P5Y3M').toObject() //=> { years: 5, months: 3 }
+       * @return {Duration}
+       */
+      static fromISO(text, opts) {
+        const [parsed] = parseISODuration(text);
+        if (parsed) {
+          return _Duration.fromObject(parsed, opts);
+        } else {
+          return _Duration.invalid("unparsable", `the input "${text}" can't be parsed as ISO 8601`);
+        }
+      }
+      /**
+       * Create a Duration from an ISO 8601 time string.
+       * @param {string} text - text to parse
+       * @param {Object} opts - options for parsing
+       * @param {string} [opts.locale='en-US'] - the locale to use
+       * @param {string} opts.numberingSystem - the numbering system to use
+       * @param {string} [opts.conversionAccuracy='casual'] - the preset conversion system to use
+       * @param {string} [opts.matrix=Object] - the conversion system to use
+       * @see https://en.wikipedia.org/wiki/ISO_8601#Times
+       * @example Duration.fromISOTime('11:22:33.444').toObject() //=> { hours: 11, minutes: 22, seconds: 33, milliseconds: 444 }
+       * @example Duration.fromISOTime('11:00').toObject() //=> { hours: 11, minutes: 0, seconds: 0 }
+       * @example Duration.fromISOTime('T11:00').toObject() //=> { hours: 11, minutes: 0, seconds: 0 }
+       * @example Duration.fromISOTime('1100').toObject() //=> { hours: 11, minutes: 0, seconds: 0 }
+       * @example Duration.fromISOTime('T1100').toObject() //=> { hours: 11, minutes: 0, seconds: 0 }
+       * @return {Duration}
+       */
+      static fromISOTime(text, opts) {
+        const [parsed] = parseISOTimeOnly(text);
+        if (parsed) {
+          return _Duration.fromObject(parsed, opts);
+        } else {
+          return _Duration.invalid("unparsable", `the input "${text}" can't be parsed as ISO 8601`);
+        }
+      }
+      /**
+       * Create an invalid Duration.
+       * @param {string} reason - simple string of why this datetime is invalid. Should not contain parameters or anything else data-dependent
+       * @param {string} [explanation=null] - longer explanation, may include parameters and other useful debugging information
+       * @return {Duration}
+       */
+      static invalid(reason, explanation = null) {
+        if (!reason) {
+          throw new InvalidArgumentError("need to specify a reason the Duration is invalid");
+        }
+        const invalid = reason instanceof Invalid ? reason : new Invalid(reason, explanation);
+        if (Settings.throwOnInvalid) {
+          throw new InvalidDurationError(invalid);
+        } else {
+          return new _Duration({
+            invalid
+          });
+        }
+      }
+      /**
+       * @private
+       */
+      static normalizeUnit(unit) {
+        const normalized = {
+          year: "years",
+          years: "years",
+          quarter: "quarters",
+          quarters: "quarters",
+          month: "months",
+          months: "months",
+          week: "weeks",
+          weeks: "weeks",
+          day: "days",
+          days: "days",
+          hour: "hours",
+          hours: "hours",
+          minute: "minutes",
+          minutes: "minutes",
+          second: "seconds",
+          seconds: "seconds",
+          millisecond: "milliseconds",
+          milliseconds: "milliseconds"
+        }[unit ? unit.toLowerCase() : unit];
+        if (!normalized) throw new InvalidUnitError(unit);
+        return normalized;
+      }
+      /**
+       * Check if an object is a Duration. Works across context boundaries
+       * @param {object} o
+       * @return {boolean}
+       */
+      static isDuration(o) {
+        return o && o.isLuxonDuration || false;
+      }
+      /**
+       * Get  the locale of a Duration, such 'en-GB'
+       * @type {string}
+       */
+      get locale() {
+        return this.isValid ? this.loc.locale : null;
+      }
+      /**
+       * Get the numbering system of a Duration, such 'beng'. The numbering system is used when formatting the Duration
+       *
+       * @type {string}
+       */
+      get numberingSystem() {
+        return this.isValid ? this.loc.numberingSystem : null;
+      }
+      /**
+       * Returns a string representation of this Duration formatted according to the specified format string. You may use these tokens:
+       * * `S` for milliseconds
+       * * `s` for seconds
+       * * `m` for minutes
+       * * `h` for hours
+       * * `d` for days
+       * * `w` for weeks
+       * * `M` for months
+       * * `y` for years
+       * Notes:
+       * * Add padding by repeating the token, e.g. "yy" pads the years to two digits, "hhhh" pads the hours out to four digits
+       * * Tokens can be escaped by wrapping with single quotes.
+       * * The duration will be converted to the set of units in the format string using {@link Duration#shiftTo} and the Durations's conversion accuracy setting.
+       * @param {string} fmt - the format string
+       * @param {Object} opts - options
+       * @param {boolean} [opts.floor=true] - floor numerical values
+       * @param {'negative'|'all'|'negativeLargestOnly'} [opts.signMode=negative] - How to handle signs
+       * @example Duration.fromObject({ years: 1, days: 6, seconds: 2 }).toFormat("y d s") //=> "1 6 2"
+       * @example Duration.fromObject({ years: 1, days: 6, seconds: 2 }).toFormat("yy dd sss") //=> "01 06 002"
+       * @example Duration.fromObject({ years: 1, days: 6, seconds: 2 }).toFormat("M S") //=> "12 518402000"
+       * @example Duration.fromObject({ days: 6, seconds: 2 }).toFormat("d s", { signMode: "all" }) //=> "+6 +2"
+       * @example Duration.fromObject({ days: -6, seconds: -2 }).toFormat("d s", { signMode: "all" }) //=> "-6 -2"
+       * @example Duration.fromObject({ days: -6, seconds: -2 }).toFormat("d s", { signMode: "negativeLargestOnly" }) //=> "-6 2"
+       * @return {string}
+       */
+      toFormat(fmt, opts = {}) {
+        const fmtOpts = {
+          ...opts,
+          floor: opts.round !== false && opts.floor !== false
+        };
+        return this.isValid ? Formatter.create(this.loc, fmtOpts).formatDurationFromString(this, fmt) : INVALID$2;
+      }
+      /**
+       * Returns a string representation of a Duration with all units included.
+       * To modify its behavior, use `listStyle` and any Intl.NumberFormat option, though `unitDisplay` is especially relevant.
+       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat/NumberFormat#options
+       * @param {Object} opts - Formatting options. Accepts the same keys as the options parameter of the native `Intl.NumberFormat` constructor, as well as `listStyle`.
+       * @param {string} [opts.listStyle='narrow'] - How to format the merged list. Corresponds to the `style` property of the options parameter of the native `Intl.ListFormat` constructor.
+       * @param {boolean} [opts.showZeros=true] - Show all units previously used by the duration even if they are zero
+       * @example
+       * ```js
+       * var dur = Duration.fromObject({ months: 1, weeks: 0, hours: 5, minutes: 6 })
+       * dur.toHuman() //=> '1 month, 0 weeks, 5 hours, 6 minutes'
+       * dur.toHuman({ listStyle: "long" }) //=> '1 month, 0 weeks, 5 hours, and 6 minutes'
+       * dur.toHuman({ unitDisplay: "short" }) //=> '1 mth, 0 wks, 5 hr, 6 min'
+       * dur.toHuman({ showZeros: false }) //=> '1 month, 5 hours, 6 minutes'
+       * ```
+       */
+      toHuman(opts = {}) {
+        if (!this.isValid) return INVALID$2;
+        const showZeros = opts.showZeros !== false;
+        const l2 = orderedUnits$1.map((unit) => {
+          const val = this.values[unit];
+          if (isUndefined(val) || val === 0 && !showZeros) {
+            return null;
+          }
+          return this.loc.numberFormatter({
+            style: "unit",
+            unitDisplay: "long",
+            ...opts,
+            unit: unit.slice(0, -1)
+          }).format(val);
+        }).filter((n2) => n2);
+        return this.loc.listFormatter({
+          type: "conjunction",
+          style: opts.listStyle || "narrow",
+          ...opts
+        }).format(l2);
+      }
+      /**
+       * Returns a JavaScript object with this Duration's values.
+       * @example Duration.fromObject({ years: 1, days: 6, seconds: 2 }).toObject() //=> { years: 1, days: 6, seconds: 2 }
+       * @return {Object}
+       */
+      toObject() {
+        if (!this.isValid) return {};
+        return {
+          ...this.values
+        };
+      }
+      /**
+       * Returns an ISO 8601-compliant string representation of this Duration.
+       * @see https://en.wikipedia.org/wiki/ISO_8601#Durations
+       * @example Duration.fromObject({ years: 3, seconds: 45 }).toISO() //=> 'P3YT45S'
+       * @example Duration.fromObject({ months: 4, seconds: 45 }).toISO() //=> 'P4MT45S'
+       * @example Duration.fromObject({ months: 5 }).toISO() //=> 'P5M'
+       * @example Duration.fromObject({ minutes: 5 }).toISO() //=> 'PT5M'
+       * @example Duration.fromObject({ milliseconds: 6 }).toISO() //=> 'PT0.006S'
+       * @return {string}
+       */
+      toISO() {
+        if (!this.isValid) return null;
+        let s2 = "P";
+        if (this.years !== 0) s2 += this.years + "Y";
+        if (this.months !== 0 || this.quarters !== 0) s2 += this.months + this.quarters * 3 + "M";
+        if (this.weeks !== 0) s2 += this.weeks + "W";
+        if (this.days !== 0) s2 += this.days + "D";
+        if (this.hours !== 0 || this.minutes !== 0 || this.seconds !== 0 || this.milliseconds !== 0) s2 += "T";
+        if (this.hours !== 0) s2 += this.hours + "H";
+        if (this.minutes !== 0) s2 += this.minutes + "M";
+        if (this.seconds !== 0 || this.milliseconds !== 0)
+          s2 += roundTo(this.seconds + this.milliseconds / 1e3, 3) + "S";
+        if (s2 === "P") s2 += "T0S";
+        return s2;
+      }
+      /**
+       * Returns an ISO 8601-compliant string representation of this Duration, formatted as a time of day.
+       * Note that this will return null if the duration is invalid, negative, or equal to or greater than 24 hours.
+       * @see https://en.wikipedia.org/wiki/ISO_8601#Times
+       * @param {Object} opts - options
+       * @param {boolean} [opts.suppressMilliseconds=false] - exclude milliseconds from the format if they're 0
+       * @param {boolean} [opts.suppressSeconds=false] - exclude seconds from the format if they're 0
+       * @param {boolean} [opts.includePrefix=false] - include the `T` prefix
+       * @param {string} [opts.format='extended'] - choose between the basic and extended format
+       * @example Duration.fromObject({ hours: 11 }).toISOTime() //=> '11:00:00.000'
+       * @example Duration.fromObject({ hours: 11 }).toISOTime({ suppressMilliseconds: true }) //=> '11:00:00'
+       * @example Duration.fromObject({ hours: 11 }).toISOTime({ suppressSeconds: true }) //=> '11:00'
+       * @example Duration.fromObject({ hours: 11 }).toISOTime({ includePrefix: true }) //=> 'T11:00:00.000'
+       * @example Duration.fromObject({ hours: 11 }).toISOTime({ format: 'basic' }) //=> '110000.000'
+       * @return {string}
+       */
+      toISOTime(opts = {}) {
+        if (!this.isValid) return null;
+        const millis = this.toMillis();
+        if (millis < 0 || millis >= 864e5) return null;
+        opts = {
+          suppressMilliseconds: false,
+          suppressSeconds: false,
+          includePrefix: false,
+          format: "extended",
+          ...opts,
+          includeOffset: false
+        };
+        const dateTime = DateTime.fromMillis(millis, {
+          zone: "UTC"
+        });
+        return dateTime.toISOTime(opts);
+      }
+      /**
+       * Returns an ISO 8601 representation of this Duration appropriate for use in JSON.
+       * @return {string}
+       */
+      toJSON() {
+        return this.toISO();
+      }
+      /**
+       * Returns an ISO 8601 representation of this Duration appropriate for use in debugging.
+       * @return {string}
+       */
+      toString() {
+        return this.toISO();
+      }
+      /**
+       * Returns a string representation of this Duration appropriate for the REPL.
+       * @return {string}
+       */
+      [/* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom")]() {
+        if (this.isValid) {
+          return `Duration { values: ${JSON.stringify(this.values)} }`;
+        } else {
+          return `Duration { Invalid, reason: ${this.invalidReason} }`;
+        }
+      }
+      /**
+       * Returns an milliseconds value of this Duration.
+       * @return {number}
+       */
+      toMillis() {
+        if (!this.isValid) return NaN;
+        return durationToMillis(this.matrix, this.values);
+      }
+      /**
+       * Returns an milliseconds value of this Duration. Alias of {@link toMillis}
+       * @return {number}
+       */
+      valueOf() {
+        return this.toMillis();
+      }
+      /**
+       * Make this Duration longer by the specified amount. Return a newly-constructed Duration.
+       * @param {Duration|Object|number} duration - The amount to add. Either a Luxon Duration, a number of milliseconds, the object argument to Duration.fromObject()
+       * @return {Duration}
+       */
+      plus(duration3) {
+        if (!this.isValid) return this;
+        const dur = _Duration.fromDurationLike(duration3), result = {};
+        for (const k of orderedUnits$1) {
+          if (hasOwnProperty(dur.values, k) || hasOwnProperty(this.values, k)) {
+            result[k] = dur.get(k) + this.get(k);
+          }
+        }
+        return clone$1(this, {
+          values: result
+        }, true);
+      }
+      /**
+       * Make this Duration shorter by the specified amount. Return a newly-constructed Duration.
+       * @param {Duration|Object|number} duration - The amount to subtract. Either a Luxon Duration, a number of milliseconds, the object argument to Duration.fromObject()
+       * @return {Duration}
+       */
+      minus(duration3) {
+        if (!this.isValid) return this;
+        const dur = _Duration.fromDurationLike(duration3);
+        return this.plus(dur.negate());
+      }
+      /**
+       * Scale this Duration by the specified amount. Return a newly-constructed Duration.
+       * @param {function} fn - The function to apply to each unit. Arity is 1 or 2: the value of the unit and, optionally, the unit name. Must return a number.
+       * @example Duration.fromObject({ hours: 1, minutes: 30 }).mapUnits(x => x * 2) //=> { hours: 2, minutes: 60 }
+       * @example Duration.fromObject({ hours: 1, minutes: 30 }).mapUnits((x, u) => u === "hours" ? x * 2 : x) //=> { hours: 2, minutes: 30 }
+       * @return {Duration}
+       */
+      mapUnits(fn) {
+        if (!this.isValid) return this;
+        const result = {};
+        for (const k of Object.keys(this.values)) {
+          result[k] = asNumber(fn(this.values[k], k));
+        }
+        return clone$1(this, {
+          values: result
+        }, true);
+      }
+      /**
+       * Get the value of unit.
+       * @param {string} unit - a unit such as 'minute' or 'day'
+       * @example Duration.fromObject({years: 2, days: 3}).get('years') //=> 2
+       * @example Duration.fromObject({years: 2, days: 3}).get('months') //=> 0
+       * @example Duration.fromObject({years: 2, days: 3}).get('days') //=> 3
+       * @return {number}
+       */
+      get(unit) {
+        return this[_Duration.normalizeUnit(unit)];
+      }
+      /**
+       * "Set" the values of specified units. Return a newly-constructed Duration.
+       * @param {Object} values - a mapping of units to numbers
+       * @example dur.set({ years: 2017 })
+       * @example dur.set({ hours: 8, minutes: 30 })
+       * @return {Duration}
+       */
+      set(values) {
+        if (!this.isValid) return this;
+        const mixed = {
+          ...this.values,
+          ...normalizeObject(values, _Duration.normalizeUnit)
+        };
+        return clone$1(this, {
+          values: mixed
+        });
+      }
+      /**
+       * "Set" the locale and/or numberingSystem.  Returns a newly-constructed Duration.
+       * @example dur.reconfigure({ locale: 'en-GB' })
+       * @return {Duration}
+       */
+      reconfigure({
+        locale,
+        numberingSystem,
+        conversionAccuracy,
+        matrix
+      } = {}) {
+        const loc = this.loc.clone({
+          locale,
+          numberingSystem
+        });
+        const opts = {
+          loc,
+          matrix,
+          conversionAccuracy
+        };
+        return clone$1(this, opts);
+      }
+      /**
+       * Return the length of the duration in the specified unit.
+       * @param {string} unit - a unit such as 'minutes' or 'days'
+       * @example Duration.fromObject({years: 1}).as('days') //=> 365
+       * @example Duration.fromObject({years: 1}).as('months') //=> 12
+       * @example Duration.fromObject({hours: 60}).as('days') //=> 2.5
+       * @return {number}
+       */
+      as(unit) {
+        return this.isValid ? this.shiftTo(unit).get(unit) : NaN;
+      }
+      /**
+       * Reduce this Duration to its canonical representation in its current units.
+       * Assuming the overall value of the Duration is positive, this means:
+       * - excessive values for lower-order units are converted to higher-order units (if possible, see first and second example)
+       * - negative lower-order units are converted to higher order units (there must be such a higher order unit, otherwise
+       *   the overall value would be negative, see third example)
+       * - fractional values for higher-order units are converted to lower-order units (if possible, see fourth example)
+       *
+       * If the overall value is negative, the result of this method is equivalent to `this.negate().normalize().negate()`.
+       * @example Duration.fromObject({ years: 2, days: 5000 }).normalize().toObject() //=> { years: 15, days: 255 }
+       * @example Duration.fromObject({ days: 5000 }).normalize().toObject() //=> { days: 5000 }
+       * @example Duration.fromObject({ hours: 12, minutes: -45 }).normalize().toObject() //=> { hours: 11, minutes: 15 }
+       * @example Duration.fromObject({ years: 2.5, days: 0, hours: 0 }).normalize().toObject() //=> { years: 2, days: 182, hours: 12 }
+       * @return {Duration}
+       */
+      normalize() {
+        if (!this.isValid) return this;
+        const vals = this.toObject();
+        normalizeValues(this.matrix, vals);
+        return clone$1(this, {
+          values: vals
+        }, true);
+      }
+      /**
+       * Rescale units to its largest representation
+       * @example Duration.fromObject({ milliseconds: 90000 }).rescale().toObject() //=> { minutes: 1, seconds: 30 }
+       * @return {Duration}
+       */
+      rescale() {
+        if (!this.isValid) return this;
+        const vals = removeZeroes(this.normalize().shiftToAll().toObject());
+        return clone$1(this, {
+          values: vals
+        }, true);
+      }
+      /**
+       * Convert this Duration into its representation in a different set of units.
+       * @example Duration.fromObject({ hours: 1, seconds: 30 }).shiftTo('minutes', 'milliseconds').toObject() //=> { minutes: 60, milliseconds: 30000 }
+       * @return {Duration}
+       */
+      shiftTo(...units) {
+        if (!this.isValid) return this;
+        if (units.length === 0) {
+          return this;
+        }
+        units = units.map((u) => _Duration.normalizeUnit(u));
+        const built = {}, accumulated = {}, vals = this.toObject();
+        let lastUnit;
+        for (const k of orderedUnits$1) {
+          if (units.indexOf(k) >= 0) {
+            lastUnit = k;
+            let own = 0;
+            for (const ak in accumulated) {
+              own += this.matrix[ak][k] * accumulated[ak];
+              accumulated[ak] = 0;
+            }
+            if (isNumber(vals[k])) {
+              own += vals[k];
+            }
+            const i = Math.trunc(own);
+            built[k] = i;
+            accumulated[k] = (own * 1e3 - i * 1e3) / 1e3;
+          } else if (isNumber(vals[k])) {
+            accumulated[k] = vals[k];
+          }
+        }
+        for (const key in accumulated) {
+          if (accumulated[key] !== 0) {
+            built[lastUnit] += key === lastUnit ? accumulated[key] : accumulated[key] / this.matrix[lastUnit][key];
+          }
+        }
+        normalizeValues(this.matrix, built);
+        return clone$1(this, {
+          values: built
+        }, true);
+      }
+      /**
+       * Shift this Duration to all available units.
+       * Same as shiftTo("years", "months", "weeks", "days", "hours", "minutes", "seconds", "milliseconds")
+       * @return {Duration}
+       */
+      shiftToAll() {
+        if (!this.isValid) return this;
+        return this.shiftTo("years", "months", "weeks", "days", "hours", "minutes", "seconds", "milliseconds");
+      }
+      /**
+       * Return the negative of this Duration.
+       * @example Duration.fromObject({ hours: 1, seconds: 30 }).negate().toObject() //=> { hours: -1, seconds: -30 }
+       * @return {Duration}
+       */
+      negate() {
+        if (!this.isValid) return this;
+        const negated = {};
+        for (const k of Object.keys(this.values)) {
+          negated[k] = this.values[k] === 0 ? 0 : -this.values[k];
+        }
+        return clone$1(this, {
+          values: negated
+        }, true);
+      }
+      /**
+       * Removes all units with values equal to 0 from this Duration.
+       * @example Duration.fromObject({ years: 2, days: 0, hours: 0, minutes: 0 }).removeZeros().toObject() //=> { years: 2 }
+       * @return {Duration}
+       */
+      removeZeros() {
+        if (!this.isValid) return this;
+        const vals = removeZeroes(this.values);
+        return clone$1(this, {
+          values: vals
+        }, true);
+      }
+      /**
+       * Get the years.
+       * @type {number}
+       */
+      get years() {
+        return this.isValid ? this.values.years || 0 : NaN;
+      }
+      /**
+       * Get the quarters.
+       * @type {number}
+       */
+      get quarters() {
+        return this.isValid ? this.values.quarters || 0 : NaN;
+      }
+      /**
+       * Get the months.
+       * @type {number}
+       */
+      get months() {
+        return this.isValid ? this.values.months || 0 : NaN;
+      }
+      /**
+       * Get the weeks
+       * @type {number}
+       */
+      get weeks() {
+        return this.isValid ? this.values.weeks || 0 : NaN;
+      }
+      /**
+       * Get the days.
+       * @type {number}
+       */
+      get days() {
+        return this.isValid ? this.values.days || 0 : NaN;
+      }
+      /**
+       * Get the hours.
+       * @type {number}
+       */
+      get hours() {
+        return this.isValid ? this.values.hours || 0 : NaN;
+      }
+      /**
+       * Get the minutes.
+       * @type {number}
+       */
+      get minutes() {
+        return this.isValid ? this.values.minutes || 0 : NaN;
+      }
+      /**
+       * Get the seconds.
+       * @return {number}
+       */
+      get seconds() {
+        return this.isValid ? this.values.seconds || 0 : NaN;
+      }
+      /**
+       * Get the milliseconds.
+       * @return {number}
+       */
+      get milliseconds() {
+        return this.isValid ? this.values.milliseconds || 0 : NaN;
+      }
+      /**
+       * Returns whether the Duration is invalid. Invalid durations are returned by diff operations
+       * on invalid DateTimes or Intervals.
+       * @return {boolean}
+       */
+      get isValid() {
+        return this.invalid === null;
+      }
+      /**
+       * Returns an error code if this Duration became invalid, or null if the Duration is valid
+       * @return {string}
+       */
+      get invalidReason() {
+        return this.invalid ? this.invalid.reason : null;
+      }
+      /**
+       * Returns an explanation of why this Duration became invalid, or null if the Duration is valid
+       * @type {string}
+       */
+      get invalidExplanation() {
+        return this.invalid ? this.invalid.explanation : null;
+      }
+      /**
+       * Equality check
+       * Two Durations are equal iff they have the same units and the same values for each unit.
+       * @param {Duration} other
+       * @return {boolean}
+       */
+      equals(other) {
+        if (!this.isValid || !other.isValid) {
           return false;
         }
-      }
-      if (version2.prerelease.length && !options.includePrerelease) {
-        for (let i = 0; i < set2.length; i++) {
-          debug(set2[i].semver);
-          if (set2[i].semver === Comparator.ANY) {
-            continue;
-          }
-          if (set2[i].semver.prerelease.length > 0) {
-            const allowed = set2[i].semver;
-            if (allowed.major === version2.major && allowed.minor === version2.minor && allowed.patch === version2.patch) {
-              return true;
-            }
-          }
+        if (!this.loc.equals(other.loc)) {
+          return false;
         }
-        return false;
-      }
-      return true;
-    };
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/classes/comparator.js
-var require_comparator = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/classes/comparator.js"(exports, module) {
-    "use strict";
-    var ANY = /* @__PURE__ */ Symbol("SemVer ANY");
-    var Comparator = class _Comparator {
-      static get ANY() {
-        return ANY;
-      }
-      constructor(comp, options) {
-        options = parseOptions(options);
-        if (comp instanceof _Comparator) {
-          if (comp.loose === !!options.loose) {
-            return comp;
-          } else {
-            comp = comp.value;
-          }
+        function eq(v1, v2) {
+          if (v1 === void 0 || v1 === 0) return v2 === void 0 || v2 === 0;
+          return v1 === v2;
         }
-        comp = comp.trim().split(/\s+/).join(" ");
-        debug("comparator", comp, options);
-        this.options = options;
-        this.loose = !!options.loose;
-        this.parse(comp);
-        if (this.semver === ANY) {
-          this.value = "";
-        } else {
-          this.value = this.operator + this.semver.version;
-        }
-        debug("comp", this);
-      }
-      parse(comp) {
-        const r = this.options.loose ? re[t.COMPARATORLOOSE] : re[t.COMPARATOR];
-        const m = comp.match(r);
-        if (!m) {
-          throw new TypeError(`Invalid comparator: ${comp}`);
-        }
-        this.operator = m[1] !== void 0 ? m[1] : "";
-        if (this.operator === "=") {
-          this.operator = "";
-        }
-        if (!m[2]) {
-          this.semver = ANY;
-        } else {
-          this.semver = new SemVer(m[2], this.options.loose);
-        }
-      }
-      toString() {
-        return this.value;
-      }
-      test(version2) {
-        debug("Comparator.test", version2, this.options.loose);
-        if (this.semver === ANY || version2 === ANY) {
-          return true;
-        }
-        if (typeof version2 === "string") {
-          try {
-            version2 = new SemVer(version2, this.options);
-          } catch (er) {
+        for (const u of orderedUnits$1) {
+          if (!eq(this.values[u], other.values[u])) {
             return false;
           }
         }
-        return cmp(version2, this.operator, this.semver, this.options);
-      }
-      intersects(comp, options) {
-        if (!(comp instanceof _Comparator)) {
-          throw new TypeError("a Comparator is required");
-        }
-        if (this.operator === "") {
-          if (this.value === "") {
-            return true;
-          }
-          return new Range(comp.value, options).test(this.value);
-        } else if (comp.operator === "") {
-          if (comp.value === "") {
-            return true;
-          }
-          return new Range(this.value, options).test(comp.semver);
-        }
-        options = parseOptions(options);
-        if (options.includePrerelease && (this.value === "<0.0.0-0" || comp.value === "<0.0.0-0")) {
-          return false;
-        }
-        if (!options.includePrerelease && (this.value.startsWith("<0.0.0") || comp.value.startsWith("<0.0.0"))) {
-          return false;
-        }
-        if (this.operator.startsWith(">") && comp.operator.startsWith(">")) {
-          return true;
-        }
-        if (this.operator.startsWith("<") && comp.operator.startsWith("<")) {
-          return true;
-        }
-        if (this.semver.version === comp.semver.version && this.operator.includes("=") && comp.operator.includes("=")) {
-          return true;
-        }
-        if (cmp(this.semver, "<", comp.semver, options) && this.operator.startsWith(">") && comp.operator.startsWith("<")) {
-          return true;
-        }
-        if (cmp(this.semver, ">", comp.semver, options) && this.operator.startsWith("<") && comp.operator.startsWith(">")) {
-          return true;
-        }
-        return false;
+        return true;
       }
     };
-    module.exports = Comparator;
-    var parseOptions = require_parse_options();
-    var { safeRe: re, t } = require_re();
-    var cmp = require_cmp();
-    var debug = require_debug();
-    var SemVer = require_semver();
-    var Range = require_range();
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/satisfies.js
-var require_satisfies = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/satisfies.js"(exports, module) {
-    "use strict";
-    var Range = require_range();
-    var satisfies = (version2, range, options) => {
-      try {
-        range = new Range(range, options);
-      } catch (er) {
-        return false;
-      }
-      return range.test(version2);
-    };
-    module.exports = satisfies;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/to-comparators.js
-var require_to_comparators = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/to-comparators.js"(exports, module) {
-    "use strict";
-    var Range = require_range();
-    var toComparators = (range, options) => new Range(range, options).set.map((comp) => comp.map((c) => c.value).join(" ").trim().split(" "));
-    module.exports = toComparators;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/max-satisfying.js
-var require_max_satisfying = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/max-satisfying.js"(exports, module) {
-    "use strict";
-    var SemVer = require_semver();
-    var Range = require_range();
-    var maxSatisfying = (versions, range, options) => {
-      let max = null;
-      let maxSV = null;
-      let rangeObj = null;
-      try {
-        rangeObj = new Range(range, options);
-      } catch (er) {
+    var INVALID$1 = "Invalid Interval";
+    function validateStartEnd(start, end) {
+      if (!start || !start.isValid) {
+        return Interval.invalid("missing or invalid start");
+      } else if (!end || !end.isValid) {
+        return Interval.invalid("missing or invalid end");
+      } else if (end < start) {
+        return Interval.invalid("end before start", `The end of an interval must be after its start, but you had start=${start.toISO()} and end=${end.toISO()}`);
+      } else {
         return null;
       }
-      versions.forEach((v) => {
-        if (rangeObj.test(v)) {
-          if (!max || maxSV.compare(v) === -1) {
-            max = v;
-            maxSV = new SemVer(max, options);
+    }
+    var Interval = class _Interval {
+      /**
+       * @private
+       */
+      constructor(config2) {
+        this.s = config2.start;
+        this.e = config2.end;
+        this.invalid = config2.invalid || null;
+        this.isLuxonInterval = true;
+      }
+      /**
+       * Create an invalid Interval.
+       * @param {string} reason - simple string of why this Interval is invalid. Should not contain parameters or anything else data-dependent
+       * @param {string} [explanation=null] - longer explanation, may include parameters and other useful debugging information
+       * @return {Interval}
+       */
+      static invalid(reason, explanation = null) {
+        if (!reason) {
+          throw new InvalidArgumentError("need to specify a reason the Interval is invalid");
+        }
+        const invalid = reason instanceof Invalid ? reason : new Invalid(reason, explanation);
+        if (Settings.throwOnInvalid) {
+          throw new InvalidIntervalError(invalid);
+        } else {
+          return new _Interval({
+            invalid
+          });
+        }
+      }
+      /**
+       * Create an Interval from a start DateTime and an end DateTime. Inclusive of the start but not the end.
+       * @param {DateTime|Date|Object} start
+       * @param {DateTime|Date|Object} end
+       * @return {Interval}
+       */
+      static fromDateTimes(start, end) {
+        const builtStart = friendlyDateTime(start), builtEnd = friendlyDateTime(end);
+        const validateError = validateStartEnd(builtStart, builtEnd);
+        if (validateError == null) {
+          return new _Interval({
+            start: builtStart,
+            end: builtEnd
+          });
+        } else {
+          return validateError;
+        }
+      }
+      /**
+       * Create an Interval from a start DateTime and a Duration to extend to.
+       * @param {DateTime|Date|Object} start
+       * @param {Duration|Object|number} duration - the length of the Interval.
+       * @return {Interval}
+       */
+      static after(start, duration3) {
+        const dur = Duration.fromDurationLike(duration3), dt = friendlyDateTime(start);
+        return _Interval.fromDateTimes(dt, dt.plus(dur));
+      }
+      /**
+       * Create an Interval from an end DateTime and a Duration to extend backwards to.
+       * @param {DateTime|Date|Object} end
+       * @param {Duration|Object|number} duration - the length of the Interval.
+       * @return {Interval}
+       */
+      static before(end, duration3) {
+        const dur = Duration.fromDurationLike(duration3), dt = friendlyDateTime(end);
+        return _Interval.fromDateTimes(dt.minus(dur), dt);
+      }
+      /**
+       * Create an Interval from an ISO 8601 string.
+       * Accepts `<start>/<end>`, `<start>/<duration>`, and `<duration>/<end>` formats.
+       * @param {string} text - the ISO string to parse
+       * @param {Object} [opts] - options to pass {@link DateTime#fromISO} and optionally {@link Duration#fromISO}
+       * @see https://en.wikipedia.org/wiki/ISO_8601#Time_intervals
+       * @return {Interval}
+       */
+      static fromISO(text, opts) {
+        const [s2, e] = (text || "").split("/", 2);
+        if (s2 && e) {
+          let start, startIsValid;
+          try {
+            start = DateTime.fromISO(s2, opts);
+            startIsValid = start.isValid;
+          } catch (e2) {
+            startIsValid = false;
+          }
+          let end, endIsValid;
+          try {
+            end = DateTime.fromISO(e, opts);
+            endIsValid = end.isValid;
+          } catch (e2) {
+            endIsValid = false;
+          }
+          if (startIsValid && endIsValid) {
+            return _Interval.fromDateTimes(start, end);
+          }
+          if (startIsValid) {
+            const dur = Duration.fromISO(e, opts);
+            if (dur.isValid) {
+              return _Interval.after(start, dur);
+            }
+          } else if (endIsValid) {
+            const dur = Duration.fromISO(s2, opts);
+            if (dur.isValid) {
+              return _Interval.before(end, dur);
+            }
           }
         }
-      });
-      return max;
-    };
-    module.exports = maxSatisfying;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/min-satisfying.js
-var require_min_satisfying = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/min-satisfying.js"(exports, module) {
-    "use strict";
-    var SemVer = require_semver();
-    var Range = require_range();
-    var minSatisfying = (versions, range, options) => {
-      let min = null;
-      let minSV = null;
-      let rangeObj = null;
-      try {
-        rangeObj = new Range(range, options);
-      } catch (er) {
-        return null;
+        return _Interval.invalid("unparsable", `the input "${text}" can't be parsed as ISO 8601`);
       }
-      versions.forEach((v) => {
-        if (rangeObj.test(v)) {
-          if (!min || minSV.compare(v) === 1) {
-            min = v;
-            minSV = new SemVer(min, options);
+      /**
+       * Check if an object is an Interval. Works across context boundaries
+       * @param {object} o
+       * @return {boolean}
+       */
+      static isInterval(o) {
+        return o && o.isLuxonInterval || false;
+      }
+      /**
+       * Returns the start of the Interval
+       * @type {DateTime}
+       */
+      get start() {
+        return this.isValid ? this.s : null;
+      }
+      /**
+       * Returns the end of the Interval. This is the first instant which is not part of the interval
+       * (Interval is half-open).
+       * @type {DateTime}
+       */
+      get end() {
+        return this.isValid ? this.e : null;
+      }
+      /**
+       * Returns the last DateTime included in the interval (since end is not part of the interval)
+       * @type {DateTime}
+       */
+      get lastDateTime() {
+        return this.isValid ? this.e ? this.e.minus(1) : null : null;
+      }
+      /**
+       * Returns whether this Interval's end is at least its start, meaning that the Interval isn't 'backwards'.
+       * @type {boolean}
+       */
+      get isValid() {
+        return this.invalidReason === null;
+      }
+      /**
+       * Returns an error code if this Interval is invalid, or null if the Interval is valid
+       * @type {string}
+       */
+      get invalidReason() {
+        return this.invalid ? this.invalid.reason : null;
+      }
+      /**
+       * Returns an explanation of why this Interval became invalid, or null if the Interval is valid
+       * @type {string}
+       */
+      get invalidExplanation() {
+        return this.invalid ? this.invalid.explanation : null;
+      }
+      /**
+       * Returns the length of the Interval in the specified unit.
+       * @param {string} unit - the unit (such as 'hours' or 'days') to return the length in.
+       * @return {number}
+       */
+      length(unit = "milliseconds") {
+        return this.isValid ? this.toDuration(...[unit]).get(unit) : NaN;
+      }
+      /**
+       * Returns the count of minutes, hours, days, months, or years included in the Interval, even in part.
+       * Unlike {@link Interval#length} this counts sections of the calendar, not periods of time, e.g. specifying 'day'
+       * asks 'what dates are included in this interval?', not 'how many days long is this interval?'
+       * @param {string} [unit='milliseconds'] - the unit of time to count.
+       * @param {Object} opts - options
+       * @param {boolean} [opts.useLocaleWeeks=false] - If true, use weeks based on the locale, i.e. use the locale-dependent start of the week; this operation will always use the locale of the start DateTime
+       * @return {number}
+       */
+      count(unit = "milliseconds", opts) {
+        if (!this.isValid) return NaN;
+        const start = this.start.startOf(unit, opts);
+        let end;
+        if (opts != null && opts.useLocaleWeeks) {
+          end = this.end.reconfigure({
+            locale: start.locale
+          });
+        } else {
+          end = this.end;
+        }
+        end = end.startOf(unit, opts);
+        return Math.floor(end.diff(start, unit).get(unit)) + (end.valueOf() !== this.end.valueOf());
+      }
+      /**
+       * Returns whether this Interval's start and end are both in the same unit of time
+       * @param {string} unit - the unit of time to check sameness on
+       * @return {boolean}
+       */
+      hasSame(unit) {
+        return this.isValid ? this.isEmpty() || this.e.minus(1).hasSame(this.s, unit) : false;
+      }
+      /**
+       * Return whether this Interval has the same start and end DateTimes.
+       * @return {boolean}
+       */
+      isEmpty() {
+        return this.s.valueOf() === this.e.valueOf();
+      }
+      /**
+       * Return whether this Interval's start is after the specified DateTime.
+       * @param {DateTime} dateTime
+       * @return {boolean}
+       */
+      isAfter(dateTime) {
+        if (!this.isValid) return false;
+        return this.s > dateTime;
+      }
+      /**
+       * Return whether this Interval's end is before the specified DateTime.
+       * @param {DateTime} dateTime
+       * @return {boolean}
+       */
+      isBefore(dateTime) {
+        if (!this.isValid) return false;
+        return this.e <= dateTime;
+      }
+      /**
+       * Return whether this Interval contains the specified DateTime.
+       * @param {DateTime} dateTime
+       * @return {boolean}
+       */
+      contains(dateTime) {
+        if (!this.isValid) return false;
+        return this.s <= dateTime && this.e > dateTime;
+      }
+      /**
+       * "Sets" the start and/or end dates. Returns a newly-constructed Interval.
+       * @param {Object} values - the values to set
+       * @param {DateTime} values.start - the starting DateTime
+       * @param {DateTime} values.end - the ending DateTime
+       * @return {Interval}
+       */
+      set({
+        start,
+        end
+      } = {}) {
+        if (!this.isValid) return this;
+        return _Interval.fromDateTimes(start || this.s, end || this.e);
+      }
+      /**
+       * Split this Interval at each of the specified DateTimes
+       * @param {...DateTime} dateTimes - the unit of time to count.
+       * @return {Array}
+       */
+      splitAt(...dateTimes) {
+        if (!this.isValid) return [];
+        const sorted = dateTimes.map(friendlyDateTime).filter((d) => this.contains(d)).sort((a, b) => a.toMillis() - b.toMillis()), results = [];
+        let {
+          s: s2
+        } = this, i = 0;
+        while (s2 < this.e) {
+          const added = sorted[i] || this.e, next = +added > +this.e ? this.e : added;
+          results.push(_Interval.fromDateTimes(s2, next));
+          s2 = next;
+          i += 1;
+        }
+        return results;
+      }
+      /**
+       * Split this Interval into smaller Intervals, each of the specified length.
+       * Left over time is grouped into a smaller interval
+       * @param {Duration|Object|number} duration - The length of each resulting interval.
+       * @return {Array}
+       */
+      splitBy(duration3) {
+        const dur = Duration.fromDurationLike(duration3);
+        if (!this.isValid || !dur.isValid || dur.as("milliseconds") === 0) {
+          return [];
+        }
+        let {
+          s: s2
+        } = this, idx = 1, next;
+        const results = [];
+        while (s2 < this.e) {
+          const added = this.start.plus(dur.mapUnits((x) => x * idx));
+          next = +added > +this.e ? this.e : added;
+          results.push(_Interval.fromDateTimes(s2, next));
+          s2 = next;
+          idx += 1;
+        }
+        return results;
+      }
+      /**
+       * Split this Interval into the specified number of smaller intervals.
+       * @param {number} numberOfParts - The number of Intervals to divide the Interval into.
+       * @return {Array}
+       */
+      divideEqually(numberOfParts) {
+        if (!this.isValid) return [];
+        return this.splitBy(this.length() / numberOfParts).slice(0, numberOfParts);
+      }
+      /**
+       * Return whether this Interval overlaps with the specified Interval
+       * @param {Interval} other
+       * @return {boolean}
+       */
+      overlaps(other) {
+        return this.e > other.s && this.s < other.e;
+      }
+      /**
+       * Return whether this Interval's end is adjacent to the specified Interval's start.
+       * @param {Interval} other
+       * @return {boolean}
+       */
+      abutsStart(other) {
+        if (!this.isValid) return false;
+        return +this.e === +other.s;
+      }
+      /**
+       * Return whether this Interval's start is adjacent to the specified Interval's end.
+       * @param {Interval} other
+       * @return {boolean}
+       */
+      abutsEnd(other) {
+        if (!this.isValid) return false;
+        return +other.e === +this.s;
+      }
+      /**
+       * Returns true if this Interval fully contains the specified Interval, specifically if the intersect (of this Interval and the other Interval) is equal to the other Interval; false otherwise.
+       * @param {Interval} other
+       * @return {boolean}
+       */
+      engulfs(other) {
+        if (!this.isValid) return false;
+        return this.s <= other.s && this.e >= other.e;
+      }
+      /**
+       * Return whether this Interval has the same start and end as the specified Interval.
+       * @param {Interval} other
+       * @return {boolean}
+       */
+      equals(other) {
+        if (!this.isValid || !other.isValid) {
+          return false;
+        }
+        return this.s.equals(other.s) && this.e.equals(other.e);
+      }
+      /**
+       * Return an Interval representing the intersection of this Interval and the specified Interval.
+       * Specifically, the resulting Interval has the maximum start time and the minimum end time of the two Intervals.
+       * Returns null if the intersection is empty, meaning, the intervals don't intersect.
+       * @param {Interval} other
+       * @return {Interval}
+       */
+      intersection(other) {
+        if (!this.isValid) return this;
+        const s2 = this.s > other.s ? this.s : other.s, e = this.e < other.e ? this.e : other.e;
+        if (s2 >= e) {
+          return null;
+        } else {
+          return _Interval.fromDateTimes(s2, e);
+        }
+      }
+      /**
+       * Return an Interval representing the union of this Interval and the specified Interval.
+       * Specifically, the resulting Interval has the minimum start time and the maximum end time of the two Intervals.
+       * @param {Interval} other
+       * @return {Interval}
+       */
+      union(other) {
+        if (!this.isValid) return this;
+        const s2 = this.s < other.s ? this.s : other.s, e = this.e > other.e ? this.e : other.e;
+        return _Interval.fromDateTimes(s2, e);
+      }
+      /**
+       * Merge an array of Intervals into an equivalent minimal set of Intervals.
+       * Combines overlapping and adjacent Intervals.
+       * The resulting array will contain the Intervals in ascending order, that is, starting with the earliest Interval
+       * and ending with the latest.
+       *
+       * @param {Array} intervals
+       * @return {Array}
+       */
+      static merge(intervals) {
+        const [found, final] = intervals.sort((a, b) => a.s - b.s).reduce(([sofar, current], item) => {
+          if (!current) {
+            return [sofar, item];
+          } else if (current.overlaps(item) || current.abutsStart(item)) {
+            return [sofar, current.union(item)];
+          } else {
+            return [sofar.concat([current]), item];
+          }
+        }, [[], null]);
+        if (final) {
+          found.push(final);
+        }
+        return found;
+      }
+      /**
+       * Return an array of Intervals representing the spans of time that only appear in one of the specified Intervals.
+       * @param {Array} intervals
+       * @return {Array}
+       */
+      static xor(intervals) {
+        let start = null, currentCount = 0;
+        const results = [], ends = intervals.map((i) => [{
+          time: i.s,
+          type: "s"
+        }, {
+          time: i.e,
+          type: "e"
+        }]), flattened = Array.prototype.concat(...ends), arr = flattened.sort((a, b) => a.time - b.time);
+        for (const i of arr) {
+          currentCount += i.type === "s" ? 1 : -1;
+          if (currentCount === 1) {
+            start = i.time;
+          } else {
+            if (start && +start !== +i.time) {
+              results.push(_Interval.fromDateTimes(start, i.time));
+            }
+            start = null;
           }
         }
-      });
-      return min;
+        return _Interval.merge(results);
+      }
+      /**
+       * Return an Interval representing the span of time in this Interval that doesn't overlap with any of the specified Intervals.
+       * @param {...Interval} intervals
+       * @return {Array}
+       */
+      difference(...intervals) {
+        return _Interval.xor([this].concat(intervals)).map((i) => this.intersection(i)).filter((i) => i && !i.isEmpty());
+      }
+      /**
+       * Returns a string representation of this Interval appropriate for debugging.
+       * @return {string}
+       */
+      toString() {
+        if (!this.isValid) return INVALID$1;
+        return `[${this.s.toISO()} \u2013 ${this.e.toISO()})`;
+      }
+      /**
+       * Returns a string representation of this Interval appropriate for the REPL.
+       * @return {string}
+       */
+      [/* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom")]() {
+        if (this.isValid) {
+          return `Interval { start: ${this.s.toISO()}, end: ${this.e.toISO()} }`;
+        } else {
+          return `Interval { Invalid, reason: ${this.invalidReason} }`;
+        }
+      }
+      /**
+       * Returns a localized string representing this Interval. Accepts the same options as the
+       * Intl.DateTimeFormat constructor and any presets defined by Luxon, such as
+       * {@link DateTime.DATE_FULL} or {@link DateTime.TIME_SIMPLE}. The exact behavior of this method
+       * is browser-specific, but in general it will return an appropriate representation of the
+       * Interval in the assigned locale. Defaults to the system's locale if no locale has been
+       * specified.
+       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DateTimeFormat
+       * @param {Object} [formatOpts=DateTime.DATE_SHORT] - Either a DateTime preset or
+       * Intl.DateTimeFormat constructor options.
+       * @param {Object} opts - Options to override the configuration of the start DateTime.
+       * @example Interval.fromISO('2022-11-07T09:00Z/2022-11-08T09:00Z').toLocaleString(); //=> 11/7/2022 – 11/8/2022
+       * @example Interval.fromISO('2022-11-07T09:00Z/2022-11-08T09:00Z').toLocaleString(DateTime.DATE_FULL); //=> November 7 – 8, 2022
+       * @example Interval.fromISO('2022-11-07T09:00Z/2022-11-08T09:00Z').toLocaleString(DateTime.DATE_FULL, { locale: 'fr-FR' }); //=> 7–8 novembre 2022
+       * @example Interval.fromISO('2022-11-07T17:00Z/2022-11-07T19:00Z').toLocaleString(DateTime.TIME_SIMPLE); //=> 6:00 – 8:00 PM
+       * @example Interval.fromISO('2022-11-07T17:00Z/2022-11-07T19:00Z').toLocaleString({ weekday: 'short', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }); //=> Mon, Nov 07, 6:00 – 8:00 p
+       * @return {string}
+       */
+      toLocaleString(formatOpts = DATE_SHORT, opts = {}) {
+        return this.isValid ? Formatter.create(this.s.loc.clone(opts), formatOpts).formatInterval(this) : INVALID$1;
+      }
+      /**
+       * Returns an ISO 8601-compliant string representation of this Interval.
+       * @see https://en.wikipedia.org/wiki/ISO_8601#Time_intervals
+       * @param {Object} opts - The same options as {@link DateTime#toISO}
+       * @return {string}
+       */
+      toISO(opts) {
+        if (!this.isValid) return INVALID$1;
+        return `${this.s.toISO(opts)}/${this.e.toISO(opts)}`;
+      }
+      /**
+       * Returns an ISO 8601-compliant string representation of date of this Interval.
+       * The time components are ignored.
+       * @see https://en.wikipedia.org/wiki/ISO_8601#Time_intervals
+       * @return {string}
+       */
+      toISODate() {
+        if (!this.isValid) return INVALID$1;
+        return `${this.s.toISODate()}/${this.e.toISODate()}`;
+      }
+      /**
+       * Returns an ISO 8601-compliant string representation of time of this Interval.
+       * The date components are ignored.
+       * @see https://en.wikipedia.org/wiki/ISO_8601#Time_intervals
+       * @param {Object} opts - The same options as {@link DateTime#toISO}
+       * @return {string}
+       */
+      toISOTime(opts) {
+        if (!this.isValid) return INVALID$1;
+        return `${this.s.toISOTime(opts)}/${this.e.toISOTime(opts)}`;
+      }
+      /**
+       * Returns a string representation of this Interval formatted according to the specified format
+       * string. **You may not want this.** See {@link Interval#toLocaleString} for a more flexible
+       * formatting tool.
+       * @param {string} dateFormat - The format string. This string formats the start and end time.
+       * See {@link DateTime#toFormat} for details.
+       * @param {Object} opts - Options.
+       * @param {string} [opts.separator =  ' – '] - A separator to place between the start and end
+       * representations.
+       * @return {string}
+       */
+      toFormat(dateFormat, {
+        separator = " \u2013 "
+      } = {}) {
+        if (!this.isValid) return INVALID$1;
+        return `${this.s.toFormat(dateFormat)}${separator}${this.e.toFormat(dateFormat)}`;
+      }
+      /**
+       * Return a Duration representing the time spanned by this interval.
+       * @param {string|string[]} [unit=['milliseconds']] - the unit or units (such as 'hours' or 'days') to include in the duration.
+       * @param {Object} opts - options that affect the creation of the Duration
+       * @param {string} [opts.conversionAccuracy='casual'] - the conversion system to use
+       * @example Interval.fromDateTimes(dt1, dt2).toDuration().toObject() //=> { milliseconds: 88489257 }
+       * @example Interval.fromDateTimes(dt1, dt2).toDuration('days').toObject() //=> { days: 1.0241812152777778 }
+       * @example Interval.fromDateTimes(dt1, dt2).toDuration(['hours', 'minutes']).toObject() //=> { hours: 24, minutes: 34.82095 }
+       * @example Interval.fromDateTimes(dt1, dt2).toDuration(['hours', 'minutes', 'seconds']).toObject() //=> { hours: 24, minutes: 34, seconds: 49.257 }
+       * @example Interval.fromDateTimes(dt1, dt2).toDuration('seconds').toObject() //=> { seconds: 88489.257 }
+       * @return {Duration}
+       */
+      toDuration(unit, opts) {
+        if (!this.isValid) {
+          return Duration.invalid(this.invalidReason);
+        }
+        return this.e.diff(this.s, unit, opts);
+      }
+      /**
+       * Run mapFn on the interval start and end, returning a new Interval from the resulting DateTimes
+       * @param {function} mapFn
+       * @return {Interval}
+       * @example Interval.fromDateTimes(dt1, dt2).mapEndpoints(endpoint => endpoint.toUTC())
+       * @example Interval.fromDateTimes(dt1, dt2).mapEndpoints(endpoint => endpoint.plus({ hours: 2 }))
+       */
+      mapEndpoints(mapFn) {
+        return _Interval.fromDateTimes(mapFn(this.s), mapFn(this.e));
+      }
     };
-    module.exports = minSatisfying;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/min-version.js
-var require_min_version = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/min-version.js"(exports, module) {
-    "use strict";
-    var SemVer = require_semver();
-    var Range = require_range();
-    var gt = require_gt();
-    var minVersion = (range, loose) => {
-      range = new Range(range, loose);
-      let minver = new SemVer("0.0.0");
-      if (range.test(minver)) {
-        return minver;
-      }
-      minver = new SemVer("0.0.0-0");
-      if (range.test(minver)) {
-        return minver;
-      }
-      minver = null;
-      for (let i = 0; i < range.set.length; ++i) {
-        const comparators = range.set[i];
-        let setMin = null;
-        comparators.forEach((comparator) => {
-          const compver = new SemVer(comparator.semver.version);
-          switch (comparator.operator) {
-            case ">":
-              if (compver.prerelease.length === 0) {
-                compver.patch++;
-              } else {
-                compver.prerelease.push(0);
-              }
-              compver.raw = compver.format();
-            /* fallthrough */
-            case "":
-            case ">=":
-              if (!setMin || gt(compver, setMin)) {
-                setMin = compver;
-              }
-              break;
-            case "<":
-            case "<=":
-              break;
-            /* istanbul ignore next */
-            default:
-              throw new Error(`Unexpected operation: ${comparator.operator}`);
-          }
+    var Info = class {
+      /**
+       * Return whether the specified zone contains a DST.
+       * @param {string|Zone} [zone='local'] - Zone to check. Defaults to the environment's local zone.
+       * @return {boolean}
+       */
+      static hasDST(zone = Settings.defaultZone) {
+        const proto = DateTime.now().setZone(zone).set({
+          month: 12
         });
-        if (setMin && (!minver || gt(minver, setMin))) {
-          minver = setMin;
+        return !zone.isUniversal && proto.offset !== proto.set({
+          month: 6
+        }).offset;
+      }
+      /**
+       * Return whether the specified zone is a valid IANA specifier.
+       * @param {string} zone - Zone to check
+       * @return {boolean}
+       */
+      static isValidIANAZone(zone) {
+        return IANAZone.isValidZone(zone);
+      }
+      /**
+       * Converts the input into a {@link Zone} instance.
+       *
+       * * If `input` is already a Zone instance, it is returned unchanged.
+       * * If `input` is a string containing a valid time zone name, a Zone instance
+       *   with that name is returned.
+       * * If `input` is a string that doesn't refer to a known time zone, a Zone
+       *   instance with {@link Zone#isValid} == false is returned.
+       * * If `input is a number, a Zone instance with the specified fixed offset
+       *   in minutes is returned.
+       * * If `input` is `null` or `undefined`, the default zone is returned.
+       * @param {string|Zone|number} [input] - the value to be converted
+       * @return {Zone}
+       */
+      static normalizeZone(input) {
+        return normalizeZone(input, Settings.defaultZone);
+      }
+      /**
+       * Get the weekday on which the week starts according to the given locale.
+       * @param {Object} opts - options
+       * @param {string} [opts.locale] - the locale code
+       * @param {string} [opts.locObj=null] - an existing locale object to use
+       * @returns {number} the start of the week, 1 for Monday through 7 for Sunday
+       */
+      static getStartOfWeek({
+        locale = null,
+        locObj = null
+      } = {}) {
+        return (locObj || Locale.create(locale)).getStartOfWeek();
+      }
+      /**
+       * Get the minimum number of days necessary in a week before it is considered part of the next year according
+       * to the given locale.
+       * @param {Object} opts - options
+       * @param {string} [opts.locale] - the locale code
+       * @param {string} [opts.locObj=null] - an existing locale object to use
+       * @returns {number}
+       */
+      static getMinimumDaysInFirstWeek({
+        locale = null,
+        locObj = null
+      } = {}) {
+        return (locObj || Locale.create(locale)).getMinDaysInFirstWeek();
+      }
+      /**
+       * Get the weekdays, which are considered the weekend according to the given locale
+       * @param {Object} opts - options
+       * @param {string} [opts.locale] - the locale code
+       * @param {string} [opts.locObj=null] - an existing locale object to use
+       * @returns {number[]} an array of weekdays, 1 for Monday through 7 for Sunday
+       */
+      static getWeekendWeekdays({
+        locale = null,
+        locObj = null
+      } = {}) {
+        return (locObj || Locale.create(locale)).getWeekendDays().slice();
+      }
+      /**
+       * Return an array of standalone month names.
+       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DateTimeFormat
+       * @param {string} [length='long'] - the length of the month representation, such as "numeric", "2-digit", "narrow", "short", "long"
+       * @param {Object} opts - options
+       * @param {string} [opts.locale] - the locale code
+       * @param {string} [opts.numberingSystem=null] - the numbering system
+       * @param {string} [opts.locObj=null] - an existing locale object to use
+       * @param {string} [opts.outputCalendar='gregory'] - the calendar
+       * @example Info.months()[0] //=> 'January'
+       * @example Info.months('short')[0] //=> 'Jan'
+       * @example Info.months('numeric')[0] //=> '1'
+       * @example Info.months('short', { locale: 'fr-CA' } )[0] //=> 'janv.'
+       * @example Info.months('numeric', { locale: 'ar' })[0] //=> '١'
+       * @example Info.months('long', { outputCalendar: 'islamic' })[0] //=> 'Rabiʻ I'
+       * @return {Array}
+       */
+      static months(length = "long", {
+        locale = null,
+        numberingSystem = null,
+        locObj = null,
+        outputCalendar = "gregory"
+      } = {}) {
+        return (locObj || Locale.create(locale, numberingSystem, outputCalendar)).months(length);
+      }
+      /**
+       * Return an array of format month names.
+       * Format months differ from standalone months in that they're meant to appear next to the day of the month. In some languages, that
+       * changes the string.
+       * See {@link Info#months}
+       * @param {string} [length='long'] - the length of the month representation, such as "numeric", "2-digit", "narrow", "short", "long"
+       * @param {Object} opts - options
+       * @param {string} [opts.locale] - the locale code
+       * @param {string} [opts.numberingSystem=null] - the numbering system
+       * @param {string} [opts.locObj=null] - an existing locale object to use
+       * @param {string} [opts.outputCalendar='gregory'] - the calendar
+       * @return {Array}
+       */
+      static monthsFormat(length = "long", {
+        locale = null,
+        numberingSystem = null,
+        locObj = null,
+        outputCalendar = "gregory"
+      } = {}) {
+        return (locObj || Locale.create(locale, numberingSystem, outputCalendar)).months(length, true);
+      }
+      /**
+       * Return an array of standalone week names.
+       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DateTimeFormat
+       * @param {string} [length='long'] - the length of the weekday representation, such as "narrow", "short", "long".
+       * @param {Object} opts - options
+       * @param {string} [opts.locale] - the locale code
+       * @param {string} [opts.numberingSystem=null] - the numbering system
+       * @param {string} [opts.locObj=null] - an existing locale object to use
+       * @example Info.weekdays()[0] //=> 'Monday'
+       * @example Info.weekdays('short')[0] //=> 'Mon'
+       * @example Info.weekdays('short', { locale: 'fr-CA' })[0] //=> 'lun.'
+       * @example Info.weekdays('short', { locale: 'ar' })[0] //=> 'الاثنين'
+       * @return {Array}
+       */
+      static weekdays(length = "long", {
+        locale = null,
+        numberingSystem = null,
+        locObj = null
+      } = {}) {
+        return (locObj || Locale.create(locale, numberingSystem, null)).weekdays(length);
+      }
+      /**
+       * Return an array of format week names.
+       * Format weekdays differ from standalone weekdays in that they're meant to appear next to more date information. In some languages, that
+       * changes the string.
+       * See {@link Info#weekdays}
+       * @param {string} [length='long'] - the length of the month representation, such as "narrow", "short", "long".
+       * @param {Object} opts - options
+       * @param {string} [opts.locale=null] - the locale code
+       * @param {string} [opts.numberingSystem=null] - the numbering system
+       * @param {string} [opts.locObj=null] - an existing locale object to use
+       * @return {Array}
+       */
+      static weekdaysFormat(length = "long", {
+        locale = null,
+        numberingSystem = null,
+        locObj = null
+      } = {}) {
+        return (locObj || Locale.create(locale, numberingSystem, null)).weekdays(length, true);
+      }
+      /**
+       * Return an array of meridiems.
+       * @param {Object} opts - options
+       * @param {string} [opts.locale] - the locale code
+       * @example Info.meridiems() //=> [ 'AM', 'PM' ]
+       * @example Info.meridiems({ locale: 'my' }) //=> [ 'နံနက်', 'ညနေ' ]
+       * @return {Array}
+       */
+      static meridiems({
+        locale = null
+      } = {}) {
+        return Locale.create(locale).meridiems();
+      }
+      /**
+       * Return an array of eras, such as ['BC', 'AD']. The locale can be specified, but the calendar system is always Gregorian.
+       * @param {string} [length='short'] - the length of the era representation, such as "short" or "long".
+       * @param {Object} opts - options
+       * @param {string} [opts.locale] - the locale code
+       * @example Info.eras() //=> [ 'BC', 'AD' ]
+       * @example Info.eras('long') //=> [ 'Before Christ', 'Anno Domini' ]
+       * @example Info.eras('long', { locale: 'fr' }) //=> [ 'avant Jésus-Christ', 'après Jésus-Christ' ]
+       * @return {Array}
+       */
+      static eras(length = "short", {
+        locale = null
+      } = {}) {
+        return Locale.create(locale, null, "gregory").eras(length);
+      }
+      /**
+       * Return the set of available features in this environment.
+       * Some features of Luxon are not available in all environments. For example, on older browsers, relative time formatting support is not available. Use this function to figure out if that's the case.
+       * Keys:
+       * * `relative`: whether this environment supports relative time formatting
+       * * `localeWeek`: whether this environment supports different weekdays for the start of the week based on the locale
+       * @example Info.features() //=> { relative: false, localeWeek: true }
+       * @return {Object}
+       */
+      static features() {
+        return {
+          relative: hasRelative(),
+          localeWeek: hasLocaleWeekInfo()
+        };
+      }
+    };
+    function dayDiff(earlier, later) {
+      const utcDayStart = (dt) => dt.toUTC(0, {
+        keepLocalTime: true
+      }).startOf("day").valueOf(), ms = utcDayStart(later) - utcDayStart(earlier);
+      return Math.floor(Duration.fromMillis(ms).as("days"));
+    }
+    function highOrderDiffs(cursor, later, units) {
+      const differs = [["years", (a, b) => b.year - a.year], ["quarters", (a, b) => b.quarter - a.quarter + (b.year - a.year) * 4], ["months", (a, b) => b.month - a.month + (b.year - a.year) * 12], ["weeks", (a, b) => {
+        const days = dayDiff(a, b);
+        return (days - days % 7) / 7;
+      }], ["days", dayDiff]];
+      const results = {};
+      const earlier = cursor;
+      let lowestOrder, highWater;
+      for (const [unit, differ] of differs) {
+        if (units.indexOf(unit) >= 0) {
+          lowestOrder = unit;
+          results[unit] = differ(cursor, later);
+          highWater = earlier.plus(results);
+          if (highWater > later) {
+            results[unit]--;
+            cursor = earlier.plus(results);
+            if (cursor > later) {
+              highWater = cursor;
+              results[unit]--;
+              cursor = earlier.plus(results);
+            }
+          } else {
+            cursor = highWater;
+          }
         }
       }
-      if (minver && range.test(minver)) {
-        return minver;
+      return [cursor, results, highWater, lowestOrder];
+    }
+    function diff(earlier, later, units, opts) {
+      let [cursor, results, highWater, lowestOrder] = highOrderDiffs(earlier, later, units);
+      const remainingMillis = later - cursor;
+      const lowerOrderUnits = units.filter((u) => ["hours", "minutes", "seconds", "milliseconds"].indexOf(u) >= 0);
+      if (lowerOrderUnits.length === 0) {
+        if (highWater < later) {
+          highWater = cursor.plus({
+            [lowestOrder]: 1
+          });
+        }
+        if (highWater !== cursor) {
+          results[lowestOrder] = (results[lowestOrder] || 0) + remainingMillis / (highWater - cursor);
+        }
       }
-      return null;
+      const duration3 = Duration.fromObject(results, opts);
+      if (lowerOrderUnits.length > 0) {
+        return Duration.fromMillis(remainingMillis, opts).shiftTo(...lowerOrderUnits).plus(duration3);
+      } else {
+        return duration3;
+      }
+    }
+    var MISSING_FTP = "missing Intl.DateTimeFormat.formatToParts support";
+    function intUnit(regex, post = (i) => i) {
+      return {
+        regex,
+        deser: ([s2]) => post(parseDigits(s2))
+      };
+    }
+    var NBSP = String.fromCharCode(160);
+    var spaceOrNBSP = `[ ${NBSP}]`;
+    var spaceOrNBSPRegExp = new RegExp(spaceOrNBSP, "g");
+    function fixListRegex(s2) {
+      return s2.replace(/\./g, "\\.?").replace(spaceOrNBSPRegExp, spaceOrNBSP);
+    }
+    function stripInsensitivities(s2) {
+      return s2.replace(/\./g, "").replace(spaceOrNBSPRegExp, " ").toLowerCase();
+    }
+    function oneOf(strings, startIndex) {
+      if (strings === null) {
+        return null;
+      } else {
+        return {
+          regex: RegExp(strings.map(fixListRegex).join("|")),
+          deser: ([s2]) => strings.findIndex((i) => stripInsensitivities(s2) === stripInsensitivities(i)) + startIndex
+        };
+      }
+    }
+    function offset(regex, groups) {
+      return {
+        regex,
+        deser: ([, h, m]) => signedOffset(h, m),
+        groups
+      };
+    }
+    function simple(regex) {
+      return {
+        regex,
+        deser: ([s2]) => s2
+      };
+    }
+    function escapeToken(value) {
+      return value.replace(/[\-\[\]{}()*+?.,\\\^$|#\s]/g, "\\$&");
+    }
+    function unitForToken(token, loc) {
+      const one = digitRegex(loc), two = digitRegex(loc, "{2}"), three = digitRegex(loc, "{3}"), four = digitRegex(loc, "{4}"), six = digitRegex(loc, "{6}"), oneOrTwo = digitRegex(loc, "{1,2}"), oneToThree = digitRegex(loc, "{1,3}"), oneToSix = digitRegex(loc, "{1,6}"), oneToNine = digitRegex(loc, "{1,9}"), twoToFour = digitRegex(loc, "{2,4}"), fourToSix = digitRegex(loc, "{4,6}"), literal2 = (t) => ({
+        regex: RegExp(escapeToken(t.val)),
+        deser: ([s2]) => s2,
+        literal: true
+      }), unitate = (t) => {
+        if (token.literal) {
+          return literal2(t);
+        }
+        switch (t.val) {
+          // era
+          case "G":
+            return oneOf(loc.eras("short"), 0);
+          case "GG":
+            return oneOf(loc.eras("long"), 0);
+          // years
+          case "y":
+            return intUnit(oneToSix);
+          case "yy":
+            return intUnit(twoToFour, untruncateYear);
+          case "yyyy":
+            return intUnit(four);
+          case "yyyyy":
+            return intUnit(fourToSix);
+          case "yyyyyy":
+            return intUnit(six);
+          // months
+          case "M":
+            return intUnit(oneOrTwo);
+          case "MM":
+            return intUnit(two);
+          case "MMM":
+            return oneOf(loc.months("short", true), 1);
+          case "MMMM":
+            return oneOf(loc.months("long", true), 1);
+          case "L":
+            return intUnit(oneOrTwo);
+          case "LL":
+            return intUnit(two);
+          case "LLL":
+            return oneOf(loc.months("short", false), 1);
+          case "LLLL":
+            return oneOf(loc.months("long", false), 1);
+          // dates
+          case "d":
+            return intUnit(oneOrTwo);
+          case "dd":
+            return intUnit(two);
+          // ordinals
+          case "o":
+            return intUnit(oneToThree);
+          case "ooo":
+            return intUnit(three);
+          // time
+          case "HH":
+            return intUnit(two);
+          case "H":
+            return intUnit(oneOrTwo);
+          case "hh":
+            return intUnit(two);
+          case "h":
+            return intUnit(oneOrTwo);
+          case "mm":
+            return intUnit(two);
+          case "m":
+            return intUnit(oneOrTwo);
+          case "q":
+            return intUnit(oneOrTwo);
+          case "qq":
+            return intUnit(two);
+          case "s":
+            return intUnit(oneOrTwo);
+          case "ss":
+            return intUnit(two);
+          case "S":
+            return intUnit(oneToThree);
+          case "SSS":
+            return intUnit(three);
+          case "u":
+            return simple(oneToNine);
+          case "uu":
+            return simple(oneOrTwo);
+          case "uuu":
+            return intUnit(one);
+          // meridiem
+          case "a":
+            return oneOf(loc.meridiems(), 0);
+          // weekYear (k)
+          case "kkkk":
+            return intUnit(four);
+          case "kk":
+            return intUnit(twoToFour, untruncateYear);
+          // weekNumber (W)
+          case "W":
+            return intUnit(oneOrTwo);
+          case "WW":
+            return intUnit(two);
+          // weekdays
+          case "E":
+          case "c":
+            return intUnit(one);
+          case "EEE":
+            return oneOf(loc.weekdays("short", false), 1);
+          case "EEEE":
+            return oneOf(loc.weekdays("long", false), 1);
+          case "ccc":
+            return oneOf(loc.weekdays("short", true), 1);
+          case "cccc":
+            return oneOf(loc.weekdays("long", true), 1);
+          // offset/zone
+          case "Z":
+          case "ZZ":
+            return offset(new RegExp(`([+-]${oneOrTwo.source})(?::(${two.source}))?`), 2);
+          case "ZZZ":
+            return offset(new RegExp(`([+-]${oneOrTwo.source})(${two.source})?`), 2);
+          // we don't support ZZZZ (PST) or ZZZZZ (Pacific Standard Time) in parsing
+          // because we don't have any way to figure out what they are
+          case "z":
+            return simple(/[a-z_+-/]{1,256}?/i);
+          // this special-case "token" represents a place where a macro-token expanded into a white-space literal
+          // in this case we accept any non-newline white-space
+          case " ":
+            return simple(/[^\S\n\r]/);
+          default:
+            return literal2(t);
+        }
+      };
+      const unit = unitate(token) || {
+        invalidReason: MISSING_FTP
+      };
+      unit.token = token;
+      return unit;
+    }
+    var partTypeStyleToTokenVal = {
+      year: {
+        "2-digit": "yy",
+        numeric: "yyyyy"
+      },
+      month: {
+        numeric: "M",
+        "2-digit": "MM",
+        short: "MMM",
+        long: "MMMM"
+      },
+      day: {
+        numeric: "d",
+        "2-digit": "dd"
+      },
+      weekday: {
+        short: "EEE",
+        long: "EEEE"
+      },
+      dayperiod: "a",
+      dayPeriod: "a",
+      hour12: {
+        numeric: "h",
+        "2-digit": "hh"
+      },
+      hour24: {
+        numeric: "H",
+        "2-digit": "HH"
+      },
+      minute: {
+        numeric: "m",
+        "2-digit": "mm"
+      },
+      second: {
+        numeric: "s",
+        "2-digit": "ss"
+      },
+      timeZoneName: {
+        long: "ZZZZZ",
+        short: "ZZZ"
+      }
     };
-    module.exports = minVersion;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/valid.js
-var require_valid2 = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/valid.js"(exports, module) {
-    "use strict";
-    var Range = require_range();
-    var validRange = (range, options) => {
-      try {
-        return new Range(range, options).range || "*";
-      } catch (er) {
+    function tokenForPart(part, formatOpts, resolvedOpts) {
+      const {
+        type,
+        value
+      } = part;
+      if (type === "literal") {
+        const isSpace = /^\s+$/.test(value);
+        return {
+          literal: !isSpace,
+          val: isSpace ? " " : value
+        };
+      }
+      const style = formatOpts[type];
+      let actualType = type;
+      if (type === "hour") {
+        if (formatOpts.hour12 != null) {
+          actualType = formatOpts.hour12 ? "hour12" : "hour24";
+        } else if (formatOpts.hourCycle != null) {
+          if (formatOpts.hourCycle === "h11" || formatOpts.hourCycle === "h12") {
+            actualType = "hour12";
+          } else {
+            actualType = "hour24";
+          }
+        } else {
+          actualType = resolvedOpts.hour12 ? "hour12" : "hour24";
+        }
+      }
+      let val = partTypeStyleToTokenVal[actualType];
+      if (typeof val === "object") {
+        val = val[style];
+      }
+      if (val) {
+        return {
+          literal: false,
+          val
+        };
+      }
+      return void 0;
+    }
+    function buildRegex(units) {
+      const re = units.map((u) => u.regex).reduce((f, r) => `${f}(${r.source})`, "");
+      return [`^${re}$`, units];
+    }
+    function match(input, regex, handlers) {
+      const matches = input.match(regex);
+      if (matches) {
+        const all = {};
+        let matchIndex = 1;
+        for (const i in handlers) {
+          if (hasOwnProperty(handlers, i)) {
+            const h = handlers[i], groups = h.groups ? h.groups + 1 : 1;
+            if (!h.literal && h.token) {
+              all[h.token.val[0]] = h.deser(matches.slice(matchIndex, matchIndex + groups));
+            }
+            matchIndex += groups;
+          }
+        }
+        return [matches, all];
+      } else {
+        return [matches, {}];
+      }
+    }
+    function dateTimeFromMatches(matches) {
+      const toField = (token) => {
+        switch (token) {
+          case "S":
+            return "millisecond";
+          case "s":
+            return "second";
+          case "m":
+            return "minute";
+          case "h":
+          case "H":
+            return "hour";
+          case "d":
+            return "day";
+          case "o":
+            return "ordinal";
+          case "L":
+          case "M":
+            return "month";
+          case "y":
+            return "year";
+          case "E":
+          case "c":
+            return "weekday";
+          case "W":
+            return "weekNumber";
+          case "k":
+            return "weekYear";
+          case "q":
+            return "quarter";
+          default:
+            return null;
+        }
+      };
+      let zone = null;
+      let specificOffset;
+      if (!isUndefined(matches.z)) {
+        zone = IANAZone.create(matches.z);
+      }
+      if (!isUndefined(matches.Z)) {
+        if (!zone) {
+          zone = new FixedOffsetZone(matches.Z);
+        }
+        specificOffset = matches.Z;
+      }
+      if (!isUndefined(matches.q)) {
+        matches.M = (matches.q - 1) * 3 + 1;
+      }
+      if (!isUndefined(matches.h)) {
+        if (matches.h < 12 && matches.a === 1) {
+          matches.h += 12;
+        } else if (matches.h === 12 && matches.a === 0) {
+          matches.h = 0;
+        }
+      }
+      if (matches.G === 0 && matches.y) {
+        matches.y = -matches.y;
+      }
+      if (!isUndefined(matches.u)) {
+        matches.S = parseMillis(matches.u);
+      }
+      const vals = Object.keys(matches).reduce((r, k) => {
+        const f = toField(k);
+        if (f) {
+          r[f] = matches[k];
+        }
+        return r;
+      }, {});
+      return [vals, zone, specificOffset];
+    }
+    var dummyDateTimeCache = null;
+    function getDummyDateTime() {
+      if (!dummyDateTimeCache) {
+        dummyDateTimeCache = DateTime.fromMillis(1555555555555);
+      }
+      return dummyDateTimeCache;
+    }
+    function maybeExpandMacroToken(token, locale) {
+      if (token.literal) {
+        return token;
+      }
+      const formatOpts = Formatter.macroTokenToFormatOpts(token.val);
+      const tokens = formatOptsToTokens(formatOpts, locale);
+      if (tokens == null || tokens.includes(void 0)) {
+        return token;
+      }
+      return tokens;
+    }
+    function expandMacroTokens(tokens, locale) {
+      return Array.prototype.concat(...tokens.map((t) => maybeExpandMacroToken(t, locale)));
+    }
+    var TokenParser = class {
+      constructor(locale, format) {
+        this.locale = locale;
+        this.format = format;
+        this.tokens = expandMacroTokens(Formatter.parseFormat(format), locale);
+        this.units = this.tokens.map((t) => unitForToken(t, locale));
+        this.disqualifyingUnit = this.units.find((t) => t.invalidReason);
+        if (!this.disqualifyingUnit) {
+          const [regexString, handlers] = buildRegex(this.units);
+          this.regex = RegExp(regexString, "i");
+          this.handlers = handlers;
+        }
+      }
+      explainFromTokens(input) {
+        if (!this.isValid) {
+          return {
+            input,
+            tokens: this.tokens,
+            invalidReason: this.invalidReason
+          };
+        } else {
+          const [rawMatches, matches] = match(input, this.regex, this.handlers), [result, zone, specificOffset] = matches ? dateTimeFromMatches(matches) : [null, null, void 0];
+          if (hasOwnProperty(matches, "a") && hasOwnProperty(matches, "H")) {
+            throw new ConflictingSpecificationError("Can't include meridiem when specifying 24-hour format");
+          }
+          return {
+            input,
+            tokens: this.tokens,
+            regex: this.regex,
+            rawMatches,
+            matches,
+            result,
+            zone,
+            specificOffset
+          };
+        }
+      }
+      get isValid() {
+        return !this.disqualifyingUnit;
+      }
+      get invalidReason() {
+        return this.disqualifyingUnit ? this.disqualifyingUnit.invalidReason : null;
+      }
+    };
+    function explainFromTokens(locale, input, format) {
+      const parser = new TokenParser(locale, format);
+      return parser.explainFromTokens(input);
+    }
+    function parseFromTokens(locale, input, format) {
+      const {
+        result,
+        zone,
+        specificOffset,
+        invalidReason
+      } = explainFromTokens(locale, input, format);
+      return [result, zone, specificOffset, invalidReason];
+    }
+    function formatOptsToTokens(formatOpts, locale) {
+      if (!formatOpts) {
         return null;
       }
-    };
-    module.exports = validRange;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/outside.js
-var require_outside = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/outside.js"(exports, module) {
-    "use strict";
-    var SemVer = require_semver();
-    var Comparator = require_comparator();
-    var { ANY } = Comparator;
-    var Range = require_range();
-    var satisfies = require_satisfies();
-    var gt = require_gt();
-    var lt = require_lt();
-    var lte = require_lte();
-    var gte = require_gte();
-    var outside = (version2, range, hilo, options) => {
-      version2 = new SemVer(version2, options);
-      range = new Range(range, options);
-      let gtfn, ltefn, ltfn, comp, ecomp;
-      switch (hilo) {
-        case ">":
-          gtfn = gt;
-          ltefn = lte;
-          ltfn = lt;
-          comp = ">";
-          ecomp = ">=";
-          break;
-        case "<":
-          gtfn = lt;
-          ltefn = gte;
-          ltfn = gt;
-          comp = "<";
-          ecomp = "<=";
+      const formatter = Formatter.create(locale, formatOpts);
+      const df = formatter.dtFormatter(getDummyDateTime());
+      const parts = df.formatToParts();
+      const resolvedOpts = df.resolvedOptions();
+      return parts.map((p) => tokenForPart(p, formatOpts, resolvedOpts));
+    }
+    var INVALID = "Invalid DateTime";
+    var MAX_DATE = 864e13;
+    function unsupportedZone(zone) {
+      return new Invalid("unsupported zone", `the zone "${zone.name}" is not supported`);
+    }
+    function possiblyCachedWeekData(dt) {
+      if (dt.weekData === null) {
+        dt.weekData = gregorianToWeek(dt.c);
+      }
+      return dt.weekData;
+    }
+    function possiblyCachedLocalWeekData(dt) {
+      if (dt.localWeekData === null) {
+        dt.localWeekData = gregorianToWeek(dt.c, dt.loc.getMinDaysInFirstWeek(), dt.loc.getStartOfWeek());
+      }
+      return dt.localWeekData;
+    }
+    function clone2(inst, alts) {
+      const current = {
+        ts: inst.ts,
+        zone: inst.zone,
+        c: inst.c,
+        o: inst.o,
+        loc: inst.loc,
+        invalid: inst.invalid
+      };
+      return new DateTime({
+        ...current,
+        ...alts,
+        old: current
+      });
+    }
+    function fixOffset(localTS, o, tz) {
+      let utcGuess = localTS - o * 60 * 1e3;
+      const o2 = tz.offset(utcGuess);
+      if (o === o2) {
+        return [utcGuess, o];
+      }
+      utcGuess -= (o2 - o) * 60 * 1e3;
+      const o3 = tz.offset(utcGuess);
+      if (o2 === o3) {
+        return [utcGuess, o2];
+      }
+      return [localTS - Math.min(o2, o3) * 60 * 1e3, Math.max(o2, o3)];
+    }
+    function tsToObj(ts, offset2) {
+      ts += offset2 * 60 * 1e3;
+      const d = new Date(ts);
+      return {
+        year: d.getUTCFullYear(),
+        month: d.getUTCMonth() + 1,
+        day: d.getUTCDate(),
+        hour: d.getUTCHours(),
+        minute: d.getUTCMinutes(),
+        second: d.getUTCSeconds(),
+        millisecond: d.getUTCMilliseconds()
+      };
+    }
+    function objToTS(obj, offset2, zone) {
+      return fixOffset(objToLocalTS(obj), offset2, zone);
+    }
+    function adjustTime(inst, dur) {
+      const oPre = inst.o, year = inst.c.year + Math.trunc(dur.years), month = inst.c.month + Math.trunc(dur.months) + Math.trunc(dur.quarters) * 3, c = {
+        ...inst.c,
+        year,
+        month,
+        day: Math.min(inst.c.day, daysInMonth(year, month)) + Math.trunc(dur.days) + Math.trunc(dur.weeks) * 7
+      }, millisToAdd = Duration.fromObject({
+        years: dur.years - Math.trunc(dur.years),
+        quarters: dur.quarters - Math.trunc(dur.quarters),
+        months: dur.months - Math.trunc(dur.months),
+        weeks: dur.weeks - Math.trunc(dur.weeks),
+        days: dur.days - Math.trunc(dur.days),
+        hours: dur.hours,
+        minutes: dur.minutes,
+        seconds: dur.seconds,
+        milliseconds: dur.milliseconds
+      }).as("milliseconds"), localTS = objToLocalTS(c);
+      let [ts, o] = fixOffset(localTS, oPre, inst.zone);
+      if (millisToAdd !== 0) {
+        ts += millisToAdd;
+        o = inst.zone.offset(ts);
+      }
+      return {
+        ts,
+        o
+      };
+    }
+    function parseDataToDateTime(parsed, parsedZone, opts, format, text, specificOffset) {
+      const {
+        setZone,
+        zone
+      } = opts;
+      if (parsed && Object.keys(parsed).length !== 0 || parsedZone) {
+        const interpretationZone = parsedZone || zone, inst = DateTime.fromObject(parsed, {
+          ...opts,
+          zone: interpretationZone,
+          specificOffset
+        });
+        return setZone ? inst : inst.setZone(zone);
+      } else {
+        return DateTime.invalid(new Invalid("unparsable", `the input "${text}" can't be parsed as ${format}`));
+      }
+    }
+    function toTechFormat(dt, format, allowZ = true) {
+      return dt.isValid ? Formatter.create(Locale.create("en-US"), {
+        allowZ,
+        forceSimple: true
+      }).formatDateTimeFromString(dt, format) : null;
+    }
+    function toISODate(o, extended, precision) {
+      const longFormat = o.c.year > 9999 || o.c.year < 0;
+      let c = "";
+      if (longFormat && o.c.year >= 0) c += "+";
+      c += padStart(o.c.year, longFormat ? 6 : 4);
+      if (precision === "year") return c;
+      if (extended) {
+        c += "-";
+        c += padStart(o.c.month);
+        if (precision === "month") return c;
+        c += "-";
+      } else {
+        c += padStart(o.c.month);
+        if (precision === "month") return c;
+      }
+      c += padStart(o.c.day);
+      return c;
+    }
+    function toISOTime(o, extended, suppressSeconds, suppressMilliseconds, includeOffset, extendedZone, precision) {
+      let showSeconds = !suppressSeconds || o.c.millisecond !== 0 || o.c.second !== 0, c = "";
+      switch (precision) {
+        case "day":
+        case "month":
+        case "year":
           break;
         default:
-          throw new TypeError('Must provide a hilo val of "<" or ">"');
-      }
-      if (satisfies(version2, range, options)) {
-        return false;
-      }
-      for (let i = 0; i < range.set.length; ++i) {
-        const comparators = range.set[i];
-        let high = null;
-        let low = null;
-        comparators.forEach((comparator) => {
-          if (comparator.semver === ANY) {
-            comparator = new Comparator(">=0.0.0");
+          c += padStart(o.c.hour);
+          if (precision === "hour") break;
+          if (extended) {
+            c += ":";
+            c += padStart(o.c.minute);
+            if (precision === "minute") break;
+            if (showSeconds) {
+              c += ":";
+              c += padStart(o.c.second);
+            }
+          } else {
+            c += padStart(o.c.minute);
+            if (precision === "minute") break;
+            if (showSeconds) {
+              c += padStart(o.c.second);
+            }
           }
-          high = high || comparator;
-          low = low || comparator;
-          if (gtfn(comparator.semver, high.semver, options)) {
-            high = comparator;
-          } else if (ltfn(comparator.semver, low.semver, options)) {
-            low = comparator;
+          if (precision === "second") break;
+          if (showSeconds && (!suppressMilliseconds || o.c.millisecond !== 0)) {
+            c += ".";
+            c += padStart(o.c.millisecond, 3);
+          }
+      }
+      if (includeOffset) {
+        if (o.isOffsetFixed && o.offset === 0 && !extendedZone) {
+          c += "Z";
+        } else if (o.o < 0) {
+          c += "-";
+          c += padStart(Math.trunc(-o.o / 60));
+          c += ":";
+          c += padStart(Math.trunc(-o.o % 60));
+        } else {
+          c += "+";
+          c += padStart(Math.trunc(o.o / 60));
+          c += ":";
+          c += padStart(Math.trunc(o.o % 60));
+        }
+      }
+      if (extendedZone) {
+        c += "[" + o.zone.ianaName + "]";
+      }
+      return c;
+    }
+    var defaultUnitValues = {
+      month: 1,
+      day: 1,
+      hour: 0,
+      minute: 0,
+      second: 0,
+      millisecond: 0
+    };
+    var defaultWeekUnitValues = {
+      weekNumber: 1,
+      weekday: 1,
+      hour: 0,
+      minute: 0,
+      second: 0,
+      millisecond: 0
+    };
+    var defaultOrdinalUnitValues = {
+      ordinal: 1,
+      hour: 0,
+      minute: 0,
+      second: 0,
+      millisecond: 0
+    };
+    var orderedUnits = ["year", "month", "day", "hour", "minute", "second", "millisecond"];
+    var orderedWeekUnits = ["weekYear", "weekNumber", "weekday", "hour", "minute", "second", "millisecond"];
+    var orderedOrdinalUnits = ["year", "ordinal", "hour", "minute", "second", "millisecond"];
+    function normalizeUnit(unit) {
+      const normalized = {
+        year: "year",
+        years: "year",
+        month: "month",
+        months: "month",
+        day: "day",
+        days: "day",
+        hour: "hour",
+        hours: "hour",
+        minute: "minute",
+        minutes: "minute",
+        quarter: "quarter",
+        quarters: "quarter",
+        second: "second",
+        seconds: "second",
+        millisecond: "millisecond",
+        milliseconds: "millisecond",
+        weekday: "weekday",
+        weekdays: "weekday",
+        weeknumber: "weekNumber",
+        weeksnumber: "weekNumber",
+        weeknumbers: "weekNumber",
+        weekyear: "weekYear",
+        weekyears: "weekYear",
+        ordinal: "ordinal"
+      }[unit.toLowerCase()];
+      if (!normalized) throw new InvalidUnitError(unit);
+      return normalized;
+    }
+    function normalizeUnitWithLocalWeeks(unit) {
+      switch (unit.toLowerCase()) {
+        case "localweekday":
+        case "localweekdays":
+          return "localWeekday";
+        case "localweeknumber":
+        case "localweeknumbers":
+          return "localWeekNumber";
+        case "localweekyear":
+        case "localweekyears":
+          return "localWeekYear";
+        default:
+          return normalizeUnit(unit);
+      }
+    }
+    function guessOffsetForZone(zone) {
+      if (zoneOffsetTs === void 0) {
+        zoneOffsetTs = Settings.now();
+      }
+      if (zone.type !== "iana") {
+        return zone.offset(zoneOffsetTs);
+      }
+      const zoneName = zone.name;
+      let offsetGuess = zoneOffsetGuessCache.get(zoneName);
+      if (offsetGuess === void 0) {
+        offsetGuess = zone.offset(zoneOffsetTs);
+        zoneOffsetGuessCache.set(zoneName, offsetGuess);
+      }
+      return offsetGuess;
+    }
+    function quickDT(obj, opts) {
+      const zone = normalizeZone(opts.zone, Settings.defaultZone);
+      if (!zone.isValid) {
+        return DateTime.invalid(unsupportedZone(zone));
+      }
+      const loc = Locale.fromObject(opts);
+      let ts, o;
+      if (!isUndefined(obj.year)) {
+        for (const u of orderedUnits) {
+          if (isUndefined(obj[u])) {
+            obj[u] = defaultUnitValues[u];
+          }
+        }
+        const invalid = hasInvalidGregorianData(obj) || hasInvalidTimeData(obj);
+        if (invalid) {
+          return DateTime.invalid(invalid);
+        }
+        const offsetProvis = guessOffsetForZone(zone);
+        [ts, o] = objToTS(obj, offsetProvis, zone);
+      } else {
+        ts = Settings.now();
+      }
+      return new DateTime({
+        ts,
+        zone,
+        loc,
+        o
+      });
+    }
+    function diffRelative(start, end, opts) {
+      const round = isUndefined(opts.round) ? true : opts.round, rounding = isUndefined(opts.rounding) ? "trunc" : opts.rounding, format = (c, unit) => {
+        c = roundTo(c, round || opts.calendary ? 0 : 2, opts.calendary ? "round" : rounding);
+        const formatter = end.loc.clone(opts).relFormatter(opts);
+        return formatter.format(c, unit);
+      }, differ = (unit) => {
+        if (opts.calendary) {
+          if (!end.hasSame(start, unit)) {
+            return end.startOf(unit).diff(start.startOf(unit), unit).get(unit);
+          } else return 0;
+        } else {
+          return end.diff(start, unit).get(unit);
+        }
+      };
+      if (opts.unit) {
+        return format(differ(opts.unit), opts.unit);
+      }
+      for (const unit of opts.units) {
+        const count = differ(unit);
+        if (Math.abs(count) >= 1) {
+          return format(count, unit);
+        }
+      }
+      return format(start > end ? -0 : 0, opts.units[opts.units.length - 1]);
+    }
+    function lastOpts(argList) {
+      let opts = {}, args;
+      if (argList.length > 0 && typeof argList[argList.length - 1] === "object") {
+        opts = argList[argList.length - 1];
+        args = Array.from(argList).slice(0, argList.length - 1);
+      } else {
+        args = Array.from(argList);
+      }
+      return [opts, args];
+    }
+    var zoneOffsetTs;
+    var zoneOffsetGuessCache = /* @__PURE__ */ new Map();
+    var DateTime = class _DateTime {
+      /**
+       * @access private
+       */
+      constructor(config2) {
+        const zone = config2.zone || Settings.defaultZone;
+        let invalid = config2.invalid || (Number.isNaN(config2.ts) ? new Invalid("invalid input") : null) || (!zone.isValid ? unsupportedZone(zone) : null);
+        this.ts = isUndefined(config2.ts) ? Settings.now() : config2.ts;
+        let c = null, o = null;
+        if (!invalid) {
+          const unchanged = config2.old && config2.old.ts === this.ts && config2.old.zone.equals(zone);
+          if (unchanged) {
+            [c, o] = [config2.old.c, config2.old.o];
+          } else {
+            const ot = isNumber(config2.o) && !config2.old ? config2.o : zone.offset(this.ts);
+            c = tsToObj(this.ts, ot);
+            invalid = Number.isNaN(c.year) ? new Invalid("invalid input") : null;
+            c = invalid ? null : c;
+            o = invalid ? null : ot;
+          }
+        }
+        this._zone = zone;
+        this.loc = config2.loc || Locale.create();
+        this.invalid = invalid;
+        this.weekData = null;
+        this.localWeekData = null;
+        this.c = c;
+        this.o = o;
+        this.isLuxonDateTime = true;
+      }
+      // CONSTRUCT
+      /**
+       * Create a DateTime for the current instant, in the system's time zone.
+       *
+       * Use Settings to override these default values if needed.
+       * @example DateTime.now().toISO() //~> now in the ISO format
+       * @return {DateTime}
+       */
+      static now() {
+        return new _DateTime({});
+      }
+      /**
+       * Create a local DateTime
+       * @param {number} [year] - The calendar year. If omitted (as in, call `local()` with no arguments), the current time will be used
+       * @param {number} [month=1] - The month, 1-indexed
+       * @param {number} [day=1] - The day of the month, 1-indexed
+       * @param {number} [hour=0] - The hour of the day, in 24-hour time
+       * @param {number} [minute=0] - The minute of the hour, meaning a number between 0 and 59
+       * @param {number} [second=0] - The second of the minute, meaning a number between 0 and 59
+       * @param {number} [millisecond=0] - The millisecond of the second, meaning a number between 0 and 999
+       * @example DateTime.local()                                  //~> now
+       * @example DateTime.local({ zone: "America/New_York" })      //~> now, in US east coast time
+       * @example DateTime.local(2017)                              //~> 2017-01-01T00:00:00
+       * @example DateTime.local(2017, 3)                           //~> 2017-03-01T00:00:00
+       * @example DateTime.local(2017, 3, 12, { locale: "fr" })     //~> 2017-03-12T00:00:00, with a French locale
+       * @example DateTime.local(2017, 3, 12, 5)                    //~> 2017-03-12T05:00:00
+       * @example DateTime.local(2017, 3, 12, 5, { zone: "utc" })   //~> 2017-03-12T05:00:00, in UTC
+       * @example DateTime.local(2017, 3, 12, 5, 45)                //~> 2017-03-12T05:45:00
+       * @example DateTime.local(2017, 3, 12, 5, 45, 10)            //~> 2017-03-12T05:45:10
+       * @example DateTime.local(2017, 3, 12, 5, 45, 10, 765)       //~> 2017-03-12T05:45:10.765
+       * @return {DateTime}
+       */
+      static local() {
+        const [opts, args] = lastOpts(arguments), [year, month, day, hour, minute, second, millisecond] = args;
+        return quickDT({
+          year,
+          month,
+          day,
+          hour,
+          minute,
+          second,
+          millisecond
+        }, opts);
+      }
+      /**
+       * Create a DateTime in UTC
+       * @param {number} [year] - The calendar year. If omitted (as in, call `utc()` with no arguments), the current time will be used
+       * @param {number} [month=1] - The month, 1-indexed
+       * @param {number} [day=1] - The day of the month
+       * @param {number} [hour=0] - The hour of the day, in 24-hour time
+       * @param {number} [minute=0] - The minute of the hour, meaning a number between 0 and 59
+       * @param {number} [second=0] - The second of the minute, meaning a number between 0 and 59
+       * @param {number} [millisecond=0] - The millisecond of the second, meaning a number between 0 and 999
+       * @param {Object} options - configuration options for the DateTime
+       * @param {string} [options.locale] - a locale to set on the resulting DateTime instance
+       * @param {string} [options.outputCalendar] - the output calendar to set on the resulting DateTime instance
+       * @param {string} [options.numberingSystem] - the numbering system to set on the resulting DateTime instance
+       * @param {string} [options.weekSettings] - the week settings to set on the resulting DateTime instance
+       * @example DateTime.utc()                                              //~> now
+       * @example DateTime.utc(2017)                                          //~> 2017-01-01T00:00:00Z
+       * @example DateTime.utc(2017, 3)                                       //~> 2017-03-01T00:00:00Z
+       * @example DateTime.utc(2017, 3, 12)                                   //~> 2017-03-12T00:00:00Z
+       * @example DateTime.utc(2017, 3, 12, 5)                                //~> 2017-03-12T05:00:00Z
+       * @example DateTime.utc(2017, 3, 12, 5, 45)                            //~> 2017-03-12T05:45:00Z
+       * @example DateTime.utc(2017, 3, 12, 5, 45, { locale: "fr" })          //~> 2017-03-12T05:45:00Z with a French locale
+       * @example DateTime.utc(2017, 3, 12, 5, 45, 10)                        //~> 2017-03-12T05:45:10Z
+       * @example DateTime.utc(2017, 3, 12, 5, 45, 10, 765, { locale: "fr" }) //~> 2017-03-12T05:45:10.765Z with a French locale
+       * @return {DateTime}
+       */
+      static utc() {
+        const [opts, args] = lastOpts(arguments), [year, month, day, hour, minute, second, millisecond] = args;
+        opts.zone = FixedOffsetZone.utcInstance;
+        return quickDT({
+          year,
+          month,
+          day,
+          hour,
+          minute,
+          second,
+          millisecond
+        }, opts);
+      }
+      /**
+       * Create a DateTime from a JavaScript Date object. Uses the default zone.
+       * @param {Date} date - a JavaScript Date object
+       * @param {Object} options - configuration options for the DateTime
+       * @param {string|Zone} [options.zone='local'] - the zone to place the DateTime into
+       * @return {DateTime}
+       */
+      static fromJSDate(date5, options = {}) {
+        const ts = isDate(date5) ? date5.valueOf() : NaN;
+        if (Number.isNaN(ts)) {
+          return _DateTime.invalid("invalid input");
+        }
+        const zoneToUse = normalizeZone(options.zone, Settings.defaultZone);
+        if (!zoneToUse.isValid) {
+          return _DateTime.invalid(unsupportedZone(zoneToUse));
+        }
+        return new _DateTime({
+          ts,
+          zone: zoneToUse,
+          loc: Locale.fromObject(options)
+        });
+      }
+      /**
+       * Create a DateTime from a number of milliseconds since the epoch (meaning since 1 January 1970 00:00:00 UTC). Uses the default zone.
+       * @param {number} milliseconds - a number of milliseconds since 1970 UTC
+       * @param {Object} options - configuration options for the DateTime
+       * @param {string|Zone} [options.zone='local'] - the zone to place the DateTime into
+       * @param {string} [options.locale] - a locale to set on the resulting DateTime instance
+       * @param {string} options.outputCalendar - the output calendar to set on the resulting DateTime instance
+       * @param {string} options.numberingSystem - the numbering system to set on the resulting DateTime instance
+       * @param {string} options.weekSettings - the week settings to set on the resulting DateTime instance
+       * @return {DateTime}
+       */
+      static fromMillis(milliseconds, options = {}) {
+        if (!isNumber(milliseconds)) {
+          throw new InvalidArgumentError(`fromMillis requires a numerical input, but received a ${typeof milliseconds} with value ${milliseconds}`);
+        } else if (milliseconds < -MAX_DATE || milliseconds > MAX_DATE) {
+          return _DateTime.invalid("Timestamp out of range");
+        } else {
+          return new _DateTime({
+            ts: milliseconds,
+            zone: normalizeZone(options.zone, Settings.defaultZone),
+            loc: Locale.fromObject(options)
+          });
+        }
+      }
+      /**
+       * Create a DateTime from a number of seconds since the epoch (meaning since 1 January 1970 00:00:00 UTC). Uses the default zone.
+       * @param {number} seconds - a number of seconds since 1970 UTC
+       * @param {Object} options - configuration options for the DateTime
+       * @param {string|Zone} [options.zone='local'] - the zone to place the DateTime into
+       * @param {string} [options.locale] - a locale to set on the resulting DateTime instance
+       * @param {string} options.outputCalendar - the output calendar to set on the resulting DateTime instance
+       * @param {string} options.numberingSystem - the numbering system to set on the resulting DateTime instance
+       * @param {string} options.weekSettings - the week settings to set on the resulting DateTime instance
+       * @return {DateTime}
+       */
+      static fromSeconds(seconds, options = {}) {
+        if (!isNumber(seconds)) {
+          throw new InvalidArgumentError("fromSeconds requires a numerical input");
+        } else {
+          return new _DateTime({
+            ts: seconds * 1e3,
+            zone: normalizeZone(options.zone, Settings.defaultZone),
+            loc: Locale.fromObject(options)
+          });
+        }
+      }
+      /**
+       * Create a DateTime from a JavaScript object with keys like 'year' and 'hour' with reasonable defaults.
+       * @param {Object} obj - the object to create the DateTime from
+       * @param {number} obj.year - a year, such as 1987
+       * @param {number} obj.month - a month, 1-12
+       * @param {number} obj.day - a day of the month, 1-31, depending on the month
+       * @param {number} obj.ordinal - day of the year, 1-365 or 366
+       * @param {number} obj.weekYear - an ISO week year
+       * @param {number} obj.weekNumber - an ISO week number, between 1 and 52 or 53, depending on the year
+       * @param {number} obj.weekday - an ISO weekday, 1-7, where 1 is Monday and 7 is Sunday
+       * @param {number} obj.localWeekYear - a week year, according to the locale
+       * @param {number} obj.localWeekNumber - a week number, between 1 and 52 or 53, depending on the year, according to the locale
+       * @param {number} obj.localWeekday - a weekday, 1-7, where 1 is the first and 7 is the last day of the week, according to the locale
+       * @param {number} obj.hour - hour of the day, 0-23
+       * @param {number} obj.minute - minute of the hour, 0-59
+       * @param {number} obj.second - second of the minute, 0-59
+       * @param {number} obj.millisecond - millisecond of the second, 0-999
+       * @param {Object} opts - options for creating this DateTime
+       * @param {string|Zone} [opts.zone='local'] - interpret the numbers in the context of a particular zone. Can take any value taken as the first argument to setZone()
+       * @param {string} [opts.locale='system\'s locale'] - a locale to set on the resulting DateTime instance
+       * @param {string} opts.outputCalendar - the output calendar to set on the resulting DateTime instance
+       * @param {string} opts.numberingSystem - the numbering system to set on the resulting DateTime instance
+       * @param {string} opts.weekSettings - the week settings to set on the resulting DateTime instance
+       * @example DateTime.fromObject({ year: 1982, month: 5, day: 25}).toISODate() //=> '1982-05-25'
+       * @example DateTime.fromObject({ year: 1982 }).toISODate() //=> '1982-01-01'
+       * @example DateTime.fromObject({ hour: 10, minute: 26, second: 6 }) //~> today at 10:26:06
+       * @example DateTime.fromObject({ hour: 10, minute: 26, second: 6 }, { zone: 'utc' }),
+       * @example DateTime.fromObject({ hour: 10, minute: 26, second: 6 }, { zone: 'local' })
+       * @example DateTime.fromObject({ hour: 10, minute: 26, second: 6 }, { zone: 'America/New_York' })
+       * @example DateTime.fromObject({ weekYear: 2016, weekNumber: 2, weekday: 3 }).toISODate() //=> '2016-01-13'
+       * @example DateTime.fromObject({ localWeekYear: 2022, localWeekNumber: 1, localWeekday: 1 }, { locale: "en-US" }).toISODate() //=> '2021-12-26'
+       * @return {DateTime}
+       */
+      static fromObject(obj, opts = {}) {
+        obj = obj || {};
+        const zoneToUse = normalizeZone(opts.zone, Settings.defaultZone);
+        if (!zoneToUse.isValid) {
+          return _DateTime.invalid(unsupportedZone(zoneToUse));
+        }
+        const loc = Locale.fromObject(opts);
+        const normalized = normalizeObject(obj, normalizeUnitWithLocalWeeks);
+        const {
+          minDaysInFirstWeek,
+          startOfWeek
+        } = usesLocalWeekValues(normalized, loc);
+        const tsNow = Settings.now(), offsetProvis = !isUndefined(opts.specificOffset) ? opts.specificOffset : zoneToUse.offset(tsNow), containsOrdinal = !isUndefined(normalized.ordinal), containsGregorYear = !isUndefined(normalized.year), containsGregorMD = !isUndefined(normalized.month) || !isUndefined(normalized.day), containsGregor = containsGregorYear || containsGregorMD, definiteWeekDef = normalized.weekYear || normalized.weekNumber;
+        if ((containsGregor || containsOrdinal) && definiteWeekDef) {
+          throw new ConflictingSpecificationError("Can't mix weekYear/weekNumber units with year/month/day or ordinals");
+        }
+        if (containsGregorMD && containsOrdinal) {
+          throw new ConflictingSpecificationError("Can't mix ordinal dates with month/day");
+        }
+        const useWeekData = definiteWeekDef || normalized.weekday && !containsGregor;
+        let units, defaultValues, objNow = tsToObj(tsNow, offsetProvis);
+        if (useWeekData) {
+          units = orderedWeekUnits;
+          defaultValues = defaultWeekUnitValues;
+          objNow = gregorianToWeek(objNow, minDaysInFirstWeek, startOfWeek);
+        } else if (containsOrdinal) {
+          units = orderedOrdinalUnits;
+          defaultValues = defaultOrdinalUnitValues;
+          objNow = gregorianToOrdinal(objNow);
+        } else {
+          units = orderedUnits;
+          defaultValues = defaultUnitValues;
+        }
+        let foundFirst = false;
+        for (const u of units) {
+          const v = normalized[u];
+          if (!isUndefined(v)) {
+            foundFirst = true;
+          } else if (foundFirst) {
+            normalized[u] = defaultValues[u];
+          } else {
+            normalized[u] = objNow[u];
+          }
+        }
+        const higherOrderInvalid = useWeekData ? hasInvalidWeekData(normalized, minDaysInFirstWeek, startOfWeek) : containsOrdinal ? hasInvalidOrdinalData(normalized) : hasInvalidGregorianData(normalized), invalid = higherOrderInvalid || hasInvalidTimeData(normalized);
+        if (invalid) {
+          return _DateTime.invalid(invalid);
+        }
+        const gregorian = useWeekData ? weekToGregorian(normalized, minDaysInFirstWeek, startOfWeek) : containsOrdinal ? ordinalToGregorian(normalized) : normalized, [tsFinal, offsetFinal] = objToTS(gregorian, offsetProvis, zoneToUse), inst = new _DateTime({
+          ts: tsFinal,
+          zone: zoneToUse,
+          o: offsetFinal,
+          loc
+        });
+        if (normalized.weekday && containsGregor && obj.weekday !== inst.weekday) {
+          return _DateTime.invalid("mismatched weekday", `you can't specify both a weekday of ${normalized.weekday} and a date of ${inst.toISO()}`);
+        }
+        if (!inst.isValid) {
+          return _DateTime.invalid(inst.invalid);
+        }
+        return inst;
+      }
+      /**
+       * Create a DateTime from an ISO 8601 string
+       * @param {string} text - the ISO string
+       * @param {Object} opts - options to affect the creation
+       * @param {string|Zone} [opts.zone='local'] - use this zone if no offset is specified in the input string itself. Will also convert the time to this zone
+       * @param {boolean} [opts.setZone=false] - override the zone with a fixed-offset zone specified in the string itself, if it specifies one
+       * @param {string} [opts.locale='system's locale'] - a locale to set on the resulting DateTime instance
+       * @param {string} [opts.outputCalendar] - the output calendar to set on the resulting DateTime instance
+       * @param {string} [opts.numberingSystem] - the numbering system to set on the resulting DateTime instance
+       * @param {string} [opts.weekSettings] - the week settings to set on the resulting DateTime instance
+       * @example DateTime.fromISO('2016-05-25T09:08:34.123')
+       * @example DateTime.fromISO('2016-05-25T09:08:34.123+06:00')
+       * @example DateTime.fromISO('2016-05-25T09:08:34.123+06:00', {setZone: true})
+       * @example DateTime.fromISO('2016-05-25T09:08:34.123', {zone: 'utc'})
+       * @example DateTime.fromISO('2016-W05-4')
+       * @return {DateTime}
+       */
+      static fromISO(text, opts = {}) {
+        const [vals, parsedZone] = parseISODate(text);
+        return parseDataToDateTime(vals, parsedZone, opts, "ISO 8601", text);
+      }
+      /**
+       * Create a DateTime from an RFC 2822 string
+       * @param {string} text - the RFC 2822 string
+       * @param {Object} opts - options to affect the creation
+       * @param {string|Zone} [opts.zone='local'] - convert the time to this zone. Since the offset is always specified in the string itself, this has no effect on the interpretation of string, merely the zone the resulting DateTime is expressed in.
+       * @param {boolean} [opts.setZone=false] - override the zone with a fixed-offset zone specified in the string itself, if it specifies one
+       * @param {string} [opts.locale='system's locale'] - a locale to set on the resulting DateTime instance
+       * @param {string} opts.outputCalendar - the output calendar to set on the resulting DateTime instance
+       * @param {string} opts.numberingSystem - the numbering system to set on the resulting DateTime instance
+       * @param {string} opts.weekSettings - the week settings to set on the resulting DateTime instance
+       * @example DateTime.fromRFC2822('25 Nov 2016 13:23:12 GMT')
+       * @example DateTime.fromRFC2822('Fri, 25 Nov 2016 13:23:12 +0600')
+       * @example DateTime.fromRFC2822('25 Nov 2016 13:23 Z')
+       * @return {DateTime}
+       */
+      static fromRFC2822(text, opts = {}) {
+        const [vals, parsedZone] = parseRFC2822Date(text);
+        return parseDataToDateTime(vals, parsedZone, opts, "RFC 2822", text);
+      }
+      /**
+       * Create a DateTime from an HTTP header date
+       * @see https://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1
+       * @param {string} text - the HTTP header date
+       * @param {Object} opts - options to affect the creation
+       * @param {string|Zone} [opts.zone='local'] - convert the time to this zone. Since HTTP dates are always in UTC, this has no effect on the interpretation of string, merely the zone the resulting DateTime is expressed in.
+       * @param {boolean} [opts.setZone=false] - override the zone with the fixed-offset zone specified in the string. For HTTP dates, this is always UTC, so this option is equivalent to setting the `zone` option to 'utc', but this option is included for consistency with similar methods.
+       * @param {string} [opts.locale='system's locale'] - a locale to set on the resulting DateTime instance
+       * @param {string} opts.outputCalendar - the output calendar to set on the resulting DateTime instance
+       * @param {string} opts.numberingSystem - the numbering system to set on the resulting DateTime instance
+       * @param {string} opts.weekSettings - the week settings to set on the resulting DateTime instance
+       * @example DateTime.fromHTTP('Sun, 06 Nov 1994 08:49:37 GMT')
+       * @example DateTime.fromHTTP('Sunday, 06-Nov-94 08:49:37 GMT')
+       * @example DateTime.fromHTTP('Sun Nov  6 08:49:37 1994')
+       * @return {DateTime}
+       */
+      static fromHTTP(text, opts = {}) {
+        const [vals, parsedZone] = parseHTTPDate(text);
+        return parseDataToDateTime(vals, parsedZone, opts, "HTTP", opts);
+      }
+      /**
+       * Create a DateTime from an input string and format string.
+       * Defaults to en-US if no locale has been specified, regardless of the system's locale. For a table of tokens and their interpretations, see [here](https://moment.github.io/luxon/#/parsing?id=table-of-tokens).
+       * @param {string} text - the string to parse
+       * @param {string} fmt - the format the string is expected to be in (see the link below for the formats)
+       * @param {Object} opts - options to affect the creation
+       * @param {string|Zone} [opts.zone='local'] - use this zone if no offset is specified in the input string itself. Will also convert the DateTime to this zone
+       * @param {boolean} [opts.setZone=false] - override the zone with a zone specified in the string itself, if it specifies one
+       * @param {string} [opts.locale='en-US'] - a locale string to use when parsing. Will also set the DateTime to this locale
+       * @param {string} opts.numberingSystem - the numbering system to use when parsing. Will also set the resulting DateTime to this numbering system
+       * @param {string} opts.weekSettings - the week settings to set on the resulting DateTime instance
+       * @param {string} opts.outputCalendar - the output calendar to set on the resulting DateTime instance
+       * @return {DateTime}
+       */
+      static fromFormat(text, fmt, opts = {}) {
+        if (isUndefined(text) || isUndefined(fmt)) {
+          throw new InvalidArgumentError("fromFormat requires an input string and a format");
+        }
+        const {
+          locale = null,
+          numberingSystem = null
+        } = opts, localeToUse = Locale.fromOpts({
+          locale,
+          numberingSystem,
+          defaultToEN: true
+        }), [vals, parsedZone, specificOffset, invalid] = parseFromTokens(localeToUse, text, fmt);
+        if (invalid) {
+          return _DateTime.invalid(invalid);
+        } else {
+          return parseDataToDateTime(vals, parsedZone, opts, `format ${fmt}`, text, specificOffset);
+        }
+      }
+      /**
+       * @deprecated use fromFormat instead
+       */
+      static fromString(text, fmt, opts = {}) {
+        return _DateTime.fromFormat(text, fmt, opts);
+      }
+      /**
+       * Create a DateTime from a SQL date, time, or datetime
+       * Defaults to en-US if no locale has been specified, regardless of the system's locale
+       * @param {string} text - the string to parse
+       * @param {Object} opts - options to affect the creation
+       * @param {string|Zone} [opts.zone='local'] - use this zone if no offset is specified in the input string itself. Will also convert the DateTime to this zone
+       * @param {boolean} [opts.setZone=false] - override the zone with a zone specified in the string itself, if it specifies one
+       * @param {string} [opts.locale='en-US'] - a locale string to use when parsing. Will also set the DateTime to this locale
+       * @param {string} opts.numberingSystem - the numbering system to use when parsing. Will also set the resulting DateTime to this numbering system
+       * @param {string} opts.weekSettings - the week settings to set on the resulting DateTime instance
+       * @param {string} opts.outputCalendar - the output calendar to set on the resulting DateTime instance
+       * @example DateTime.fromSQL('2017-05-15')
+       * @example DateTime.fromSQL('2017-05-15 09:12:34')
+       * @example DateTime.fromSQL('2017-05-15 09:12:34.342')
+       * @example DateTime.fromSQL('2017-05-15 09:12:34.342+06:00')
+       * @example DateTime.fromSQL('2017-05-15 09:12:34.342 America/Los_Angeles')
+       * @example DateTime.fromSQL('2017-05-15 09:12:34.342 America/Los_Angeles', { setZone: true })
+       * @example DateTime.fromSQL('2017-05-15 09:12:34.342', { zone: 'America/Los_Angeles' })
+       * @example DateTime.fromSQL('09:12:34.342')
+       * @return {DateTime}
+       */
+      static fromSQL(text, opts = {}) {
+        const [vals, parsedZone] = parseSQL(text);
+        return parseDataToDateTime(vals, parsedZone, opts, "SQL", text);
+      }
+      /**
+       * Create an invalid DateTime.
+       * @param {string} reason - simple string of why this DateTime is invalid. Should not contain parameters or anything else data-dependent.
+       * @param {string} [explanation=null] - longer explanation, may include parameters and other useful debugging information
+       * @return {DateTime}
+       */
+      static invalid(reason, explanation = null) {
+        if (!reason) {
+          throw new InvalidArgumentError("need to specify a reason the DateTime is invalid");
+        }
+        const invalid = reason instanceof Invalid ? reason : new Invalid(reason, explanation);
+        if (Settings.throwOnInvalid) {
+          throw new InvalidDateTimeError(invalid);
+        } else {
+          return new _DateTime({
+            invalid
+          });
+        }
+      }
+      /**
+       * Check if an object is an instance of DateTime. Works across context boundaries
+       * @param {object} o
+       * @return {boolean}
+       */
+      static isDateTime(o) {
+        return o && o.isLuxonDateTime || false;
+      }
+      /**
+       * Produce the format string for a set of options
+       * @param formatOpts
+       * @param localeOpts
+       * @returns {string}
+       */
+      static parseFormatForOpts(formatOpts, localeOpts = {}) {
+        const tokenList = formatOptsToTokens(formatOpts, Locale.fromObject(localeOpts));
+        return !tokenList ? null : tokenList.map((t) => t ? t.val : null).join("");
+      }
+      /**
+       * Produce the the fully expanded format token for the locale
+       * Does NOT quote characters, so quoted tokens will not round trip correctly
+       * @param fmt
+       * @param localeOpts
+       * @returns {string}
+       */
+      static expandFormat(fmt, localeOpts = {}) {
+        const expanded = expandMacroTokens(Formatter.parseFormat(fmt), Locale.fromObject(localeOpts));
+        return expanded.map((t) => t.val).join("");
+      }
+      static resetCache() {
+        zoneOffsetTs = void 0;
+        zoneOffsetGuessCache.clear();
+      }
+      // INFO
+      /**
+       * Get the value of unit.
+       * @param {string} unit - a unit such as 'minute' or 'day'
+       * @example DateTime.local(2017, 7, 4).get('month'); //=> 7
+       * @example DateTime.local(2017, 7, 4).get('day'); //=> 4
+       * @return {number}
+       */
+      get(unit) {
+        return this[unit];
+      }
+      /**
+       * Returns whether the DateTime is valid. Invalid DateTimes occur when:
+       * * The DateTime was created from invalid calendar information, such as the 13th month or February 30
+       * * The DateTime was created by an operation on another invalid date
+       * @type {boolean}
+       */
+      get isValid() {
+        return this.invalid === null;
+      }
+      /**
+       * Returns an error code if this DateTime is invalid, or null if the DateTime is valid
+       * @type {string}
+       */
+      get invalidReason() {
+        return this.invalid ? this.invalid.reason : null;
+      }
+      /**
+       * Returns an explanation of why this DateTime became invalid, or null if the DateTime is valid
+       * @type {string}
+       */
+      get invalidExplanation() {
+        return this.invalid ? this.invalid.explanation : null;
+      }
+      /**
+       * Get the locale of a DateTime, such 'en-GB'. The locale is used when formatting the DateTime
+       *
+       * @type {string}
+       */
+      get locale() {
+        return this.isValid ? this.loc.locale : null;
+      }
+      /**
+       * Get the numbering system of a DateTime, such 'beng'. The numbering system is used when formatting the DateTime
+       *
+       * @type {string}
+       */
+      get numberingSystem() {
+        return this.isValid ? this.loc.numberingSystem : null;
+      }
+      /**
+       * Get the output calendar of a DateTime, such 'islamic'. The output calendar is used when formatting the DateTime
+       *
+       * @type {string}
+       */
+      get outputCalendar() {
+        return this.isValid ? this.loc.outputCalendar : null;
+      }
+      /**
+       * Get the time zone associated with this DateTime.
+       * @type {Zone}
+       */
+      get zone() {
+        return this._zone;
+      }
+      /**
+       * Get the name of the time zone.
+       * @type {string}
+       */
+      get zoneName() {
+        return this.isValid ? this.zone.name : null;
+      }
+      /**
+       * Get the year
+       * @example DateTime.local(2017, 5, 25).year //=> 2017
+       * @type {number}
+       */
+      get year() {
+        return this.isValid ? this.c.year : NaN;
+      }
+      /**
+       * Get the quarter
+       * @example DateTime.local(2017, 5, 25).quarter //=> 2
+       * @type {number}
+       */
+      get quarter() {
+        return this.isValid ? Math.ceil(this.c.month / 3) : NaN;
+      }
+      /**
+       * Get the month (1-12).
+       * @example DateTime.local(2017, 5, 25).month //=> 5
+       * @type {number}
+       */
+      get month() {
+        return this.isValid ? this.c.month : NaN;
+      }
+      /**
+       * Get the day of the month (1-30ish).
+       * @example DateTime.local(2017, 5, 25).day //=> 25
+       * @type {number}
+       */
+      get day() {
+        return this.isValid ? this.c.day : NaN;
+      }
+      /**
+       * Get the hour of the day (0-23).
+       * @example DateTime.local(2017, 5, 25, 9).hour //=> 9
+       * @type {number}
+       */
+      get hour() {
+        return this.isValid ? this.c.hour : NaN;
+      }
+      /**
+       * Get the minute of the hour (0-59).
+       * @example DateTime.local(2017, 5, 25, 9, 30).minute //=> 30
+       * @type {number}
+       */
+      get minute() {
+        return this.isValid ? this.c.minute : NaN;
+      }
+      /**
+       * Get the second of the minute (0-59).
+       * @example DateTime.local(2017, 5, 25, 9, 30, 52).second //=> 52
+       * @type {number}
+       */
+      get second() {
+        return this.isValid ? this.c.second : NaN;
+      }
+      /**
+       * Get the millisecond of the second (0-999).
+       * @example DateTime.local(2017, 5, 25, 9, 30, 52, 654).millisecond //=> 654
+       * @type {number}
+       */
+      get millisecond() {
+        return this.isValid ? this.c.millisecond : NaN;
+      }
+      /**
+       * Get the week year
+       * @see https://en.wikipedia.org/wiki/ISO_week_date
+       * @example DateTime.local(2014, 12, 31).weekYear //=> 2015
+       * @type {number}
+       */
+      get weekYear() {
+        return this.isValid ? possiblyCachedWeekData(this).weekYear : NaN;
+      }
+      /**
+       * Get the week number of the week year (1-52ish).
+       * @see https://en.wikipedia.org/wiki/ISO_week_date
+       * @example DateTime.local(2017, 5, 25).weekNumber //=> 21
+       * @type {number}
+       */
+      get weekNumber() {
+        return this.isValid ? possiblyCachedWeekData(this).weekNumber : NaN;
+      }
+      /**
+       * Get the day of the week.
+       * 1 is Monday and 7 is Sunday
+       * @see https://en.wikipedia.org/wiki/ISO_week_date
+       * @example DateTime.local(2014, 11, 31).weekday //=> 4
+       * @type {number}
+       */
+      get weekday() {
+        return this.isValid ? possiblyCachedWeekData(this).weekday : NaN;
+      }
+      /**
+       * Returns true if this date is on a weekend according to the locale, false otherwise
+       * @returns {boolean}
+       */
+      get isWeekend() {
+        return this.isValid && this.loc.getWeekendDays().includes(this.weekday);
+      }
+      /**
+       * Get the day of the week according to the locale.
+       * 1 is the first day of the week and 7 is the last day of the week.
+       * If the locale assigns Sunday as the first day of the week, then a date which is a Sunday will return 1,
+       * @returns {number}
+       */
+      get localWeekday() {
+        return this.isValid ? possiblyCachedLocalWeekData(this).weekday : NaN;
+      }
+      /**
+       * Get the week number of the week year according to the locale. Different locales assign week numbers differently,
+       * because the week can start on different days of the week (see localWeekday) and because a different number of days
+       * is required for a week to count as the first week of a year.
+       * @returns {number}
+       */
+      get localWeekNumber() {
+        return this.isValid ? possiblyCachedLocalWeekData(this).weekNumber : NaN;
+      }
+      /**
+       * Get the week year according to the locale. Different locales assign week numbers (and therefor week years)
+       * differently, see localWeekNumber.
+       * @returns {number}
+       */
+      get localWeekYear() {
+        return this.isValid ? possiblyCachedLocalWeekData(this).weekYear : NaN;
+      }
+      /**
+       * Get the ordinal (meaning the day of the year)
+       * @example DateTime.local(2017, 5, 25).ordinal //=> 145
+       * @type {number|DateTime}
+       */
+      get ordinal() {
+        return this.isValid ? gregorianToOrdinal(this.c).ordinal : NaN;
+      }
+      /**
+       * Get the human readable short month name, such as 'Oct'.
+       * Defaults to the system's locale if no locale has been specified
+       * @example DateTime.local(2017, 10, 30).monthShort //=> Oct
+       * @type {string}
+       */
+      get monthShort() {
+        return this.isValid ? Info.months("short", {
+          locObj: this.loc
+        })[this.month - 1] : null;
+      }
+      /**
+       * Get the human readable long month name, such as 'October'.
+       * Defaults to the system's locale if no locale has been specified
+       * @example DateTime.local(2017, 10, 30).monthLong //=> October
+       * @type {string}
+       */
+      get monthLong() {
+        return this.isValid ? Info.months("long", {
+          locObj: this.loc
+        })[this.month - 1] : null;
+      }
+      /**
+       * Get the human readable short weekday, such as 'Mon'.
+       * Defaults to the system's locale if no locale has been specified
+       * @example DateTime.local(2017, 10, 30).weekdayShort //=> Mon
+       * @type {string}
+       */
+      get weekdayShort() {
+        return this.isValid ? Info.weekdays("short", {
+          locObj: this.loc
+        })[this.weekday - 1] : null;
+      }
+      /**
+       * Get the human readable long weekday, such as 'Monday'.
+       * Defaults to the system's locale if no locale has been specified
+       * @example DateTime.local(2017, 10, 30).weekdayLong //=> Monday
+       * @type {string}
+       */
+      get weekdayLong() {
+        return this.isValid ? Info.weekdays("long", {
+          locObj: this.loc
+        })[this.weekday - 1] : null;
+      }
+      /**
+       * Get the UTC offset of this DateTime in minutes
+       * @example DateTime.now().offset //=> -240
+       * @example DateTime.utc().offset //=> 0
+       * @type {number}
+       */
+      get offset() {
+        return this.isValid ? +this.o : NaN;
+      }
+      /**
+       * Get the short human name for the zone's current offset, for example "EST" or "EDT".
+       * Defaults to the system's locale if no locale has been specified
+       * @type {string}
+       */
+      get offsetNameShort() {
+        if (this.isValid) {
+          return this.zone.offsetName(this.ts, {
+            format: "short",
+            locale: this.locale
+          });
+        } else {
+          return null;
+        }
+      }
+      /**
+       * Get the long human name for the zone's current offset, for example "Eastern Standard Time" or "Eastern Daylight Time".
+       * Defaults to the system's locale if no locale has been specified
+       * @type {string}
+       */
+      get offsetNameLong() {
+        if (this.isValid) {
+          return this.zone.offsetName(this.ts, {
+            format: "long",
+            locale: this.locale
+          });
+        } else {
+          return null;
+        }
+      }
+      /**
+       * Get whether this zone's offset ever changes, as in a DST.
+       * @type {boolean}
+       */
+      get isOffsetFixed() {
+        return this.isValid ? this.zone.isUniversal : null;
+      }
+      /**
+       * Get whether the DateTime is in a DST.
+       * @type {boolean}
+       */
+      get isInDST() {
+        if (this.isOffsetFixed) {
+          return false;
+        } else {
+          return this.offset > this.set({
+            month: 1,
+            day: 1
+          }).offset || this.offset > this.set({
+            month: 5
+          }).offset;
+        }
+      }
+      /**
+       * Get those DateTimes which have the same local time as this DateTime, but a different offset from UTC
+       * in this DateTime's zone. During DST changes local time can be ambiguous, for example
+       * `2023-10-29T02:30:00` in `Europe/Berlin` can have offset `+01:00` or `+02:00`.
+       * This method will return both possible DateTimes if this DateTime's local time is ambiguous.
+       * @returns {DateTime[]}
+       */
+      getPossibleOffsets() {
+        if (!this.isValid || this.isOffsetFixed) {
+          return [this];
+        }
+        const dayMs = 864e5;
+        const minuteMs = 6e4;
+        const localTS = objToLocalTS(this.c);
+        const oEarlier = this.zone.offset(localTS - dayMs);
+        const oLater = this.zone.offset(localTS + dayMs);
+        const o1 = this.zone.offset(localTS - oEarlier * minuteMs);
+        const o2 = this.zone.offset(localTS - oLater * minuteMs);
+        if (o1 === o2) {
+          return [this];
+        }
+        const ts1 = localTS - o1 * minuteMs;
+        const ts2 = localTS - o2 * minuteMs;
+        const c1 = tsToObj(ts1, o1);
+        const c2 = tsToObj(ts2, o2);
+        if (c1.hour === c2.hour && c1.minute === c2.minute && c1.second === c2.second && c1.millisecond === c2.millisecond) {
+          return [clone2(this, {
+            ts: ts1
+          }), clone2(this, {
+            ts: ts2
+          })];
+        }
+        return [this];
+      }
+      /**
+       * Returns true if this DateTime is in a leap year, false otherwise
+       * @example DateTime.local(2016).isInLeapYear //=> true
+       * @example DateTime.local(2013).isInLeapYear //=> false
+       * @type {boolean}
+       */
+      get isInLeapYear() {
+        return isLeapYear(this.year);
+      }
+      /**
+       * Returns the number of days in this DateTime's month
+       * @example DateTime.local(2016, 2).daysInMonth //=> 29
+       * @example DateTime.local(2016, 3).daysInMonth //=> 31
+       * @type {number}
+       */
+      get daysInMonth() {
+        return daysInMonth(this.year, this.month);
+      }
+      /**
+       * Returns the number of days in this DateTime's year
+       * @example DateTime.local(2016).daysInYear //=> 366
+       * @example DateTime.local(2013).daysInYear //=> 365
+       * @type {number}
+       */
+      get daysInYear() {
+        return this.isValid ? daysInYear(this.year) : NaN;
+      }
+      /**
+       * Returns the number of weeks in this DateTime's year
+       * @see https://en.wikipedia.org/wiki/ISO_week_date
+       * @example DateTime.local(2004).weeksInWeekYear //=> 53
+       * @example DateTime.local(2013).weeksInWeekYear //=> 52
+       * @type {number}
+       */
+      get weeksInWeekYear() {
+        return this.isValid ? weeksInWeekYear(this.weekYear) : NaN;
+      }
+      /**
+       * Returns the number of weeks in this DateTime's local week year
+       * @example DateTime.local(2020, 6, {locale: 'en-US'}).weeksInLocalWeekYear //=> 52
+       * @example DateTime.local(2020, 6, {locale: 'de-DE'}).weeksInLocalWeekYear //=> 53
+       * @type {number}
+       */
+      get weeksInLocalWeekYear() {
+        return this.isValid ? weeksInWeekYear(this.localWeekYear, this.loc.getMinDaysInFirstWeek(), this.loc.getStartOfWeek()) : NaN;
+      }
+      /**
+       * Returns the resolved Intl options for this DateTime.
+       * This is useful in understanding the behavior of formatting methods
+       * @param {Object} opts - the same options as toLocaleString
+       * @return {Object}
+       */
+      resolvedLocaleOptions(opts = {}) {
+        const {
+          locale,
+          numberingSystem,
+          calendar
+        } = Formatter.create(this.loc.clone(opts), opts).resolvedOptions(this);
+        return {
+          locale,
+          numberingSystem,
+          outputCalendar: calendar
+        };
+      }
+      // TRANSFORM
+      /**
+       * "Set" the DateTime's zone to UTC. Returns a newly-constructed DateTime.
+       *
+       * Equivalent to {@link DateTime#setZone}('utc')
+       * @param {number} [offset=0] - optionally, an offset from UTC in minutes
+       * @param {Object} [opts={}] - options to pass to `setZone()`
+       * @return {DateTime}
+       */
+      toUTC(offset2 = 0, opts = {}) {
+        return this.setZone(FixedOffsetZone.instance(offset2), opts);
+      }
+      /**
+       * "Set" the DateTime's zone to the host's local zone. Returns a newly-constructed DateTime.
+       *
+       * Equivalent to `setZone('local')`
+       * @return {DateTime}
+       */
+      toLocal() {
+        return this.setZone(Settings.defaultZone);
+      }
+      /**
+       * "Set" the DateTime's zone to specified zone. Returns a newly-constructed DateTime.
+       *
+       * By default, the setter keeps the underlying time the same (as in, the same timestamp), but the new instance will report different local times and consider DSTs when making computations, as with {@link DateTime#plus}. You may wish to use {@link DateTime#toLocal} and {@link DateTime#toUTC} which provide simple convenience wrappers for commonly used zones.
+       * @param {string|Zone} [zone='local'] - a zone identifier. As a string, that can be any IANA zone supported by the host environment, or a fixed-offset name of the form 'UTC+3', or the strings 'local' or 'utc'. You may also supply an instance of a {@link DateTime#Zone} class.
+       * @param {Object} opts - options
+       * @param {boolean} [opts.keepLocalTime=false] - If true, adjust the underlying time so that the local time stays the same, but in the target zone. You should rarely need this.
+       * @return {DateTime}
+       */
+      setZone(zone, {
+        keepLocalTime = false,
+        keepCalendarTime = false
+      } = {}) {
+        zone = normalizeZone(zone, Settings.defaultZone);
+        if (zone.equals(this.zone)) {
+          return this;
+        } else if (!zone.isValid) {
+          return _DateTime.invalid(unsupportedZone(zone));
+        } else {
+          let newTS = this.ts;
+          if (keepLocalTime || keepCalendarTime) {
+            const offsetGuess = zone.offset(this.ts);
+            const asObj = this.toObject();
+            [newTS] = objToTS(asObj, offsetGuess, zone);
+          }
+          return clone2(this, {
+            ts: newTS,
+            zone
+          });
+        }
+      }
+      /**
+       * "Set" the locale, numberingSystem, or outputCalendar. Returns a newly-constructed DateTime.
+       * @param {Object} properties - the properties to set
+       * @example DateTime.local(2017, 5, 25).reconfigure({ locale: 'en-GB' })
+       * @return {DateTime}
+       */
+      reconfigure({
+        locale,
+        numberingSystem,
+        outputCalendar
+      } = {}) {
+        const loc = this.loc.clone({
+          locale,
+          numberingSystem,
+          outputCalendar
+        });
+        return clone2(this, {
+          loc
+        });
+      }
+      /**
+       * "Set" the locale. Returns a newly-constructed DateTime.
+       * Just a convenient alias for reconfigure({ locale })
+       * @example DateTime.local(2017, 5, 25).setLocale('en-GB')
+       * @return {DateTime}
+       */
+      setLocale(locale) {
+        return this.reconfigure({
+          locale
+        });
+      }
+      /**
+       * "Set" the values of specified units. Returns a newly-constructed DateTime.
+       * You can only set units with this method; for "setting" metadata, see {@link DateTime#reconfigure} and {@link DateTime#setZone}.
+       *
+       * This method also supports setting locale-based week units, i.e. `localWeekday`, `localWeekNumber` and `localWeekYear`.
+       * They cannot be mixed with ISO-week units like `weekday`.
+       * @param {Object} values - a mapping of units to numbers
+       * @example dt.set({ year: 2017 })
+       * @example dt.set({ hour: 8, minute: 30 })
+       * @example dt.set({ weekday: 5 })
+       * @example dt.set({ year: 2005, ordinal: 234 })
+       * @return {DateTime}
+       */
+      set(values) {
+        if (!this.isValid) return this;
+        const normalized = normalizeObject(values, normalizeUnitWithLocalWeeks);
+        const {
+          minDaysInFirstWeek,
+          startOfWeek
+        } = usesLocalWeekValues(normalized, this.loc);
+        const settingWeekStuff = !isUndefined(normalized.weekYear) || !isUndefined(normalized.weekNumber) || !isUndefined(normalized.weekday), containsOrdinal = !isUndefined(normalized.ordinal), containsGregorYear = !isUndefined(normalized.year), containsGregorMD = !isUndefined(normalized.month) || !isUndefined(normalized.day), containsGregor = containsGregorYear || containsGregorMD, definiteWeekDef = normalized.weekYear || normalized.weekNumber;
+        if ((containsGregor || containsOrdinal) && definiteWeekDef) {
+          throw new ConflictingSpecificationError("Can't mix weekYear/weekNumber units with year/month/day or ordinals");
+        }
+        if (containsGregorMD && containsOrdinal) {
+          throw new ConflictingSpecificationError("Can't mix ordinal dates with month/day");
+        }
+        let mixed;
+        if (settingWeekStuff) {
+          mixed = weekToGregorian({
+            ...gregorianToWeek(this.c, minDaysInFirstWeek, startOfWeek),
+            ...normalized
+          }, minDaysInFirstWeek, startOfWeek);
+        } else if (!isUndefined(normalized.ordinal)) {
+          mixed = ordinalToGregorian({
+            ...gregorianToOrdinal(this.c),
+            ...normalized
+          });
+        } else {
+          mixed = {
+            ...this.toObject(),
+            ...normalized
+          };
+          if (isUndefined(normalized.day)) {
+            mixed.day = Math.min(daysInMonth(mixed.year, mixed.month), mixed.day);
+          }
+        }
+        const [ts, o] = objToTS(mixed, this.o, this.zone);
+        return clone2(this, {
+          ts,
+          o
+        });
+      }
+      /**
+       * Add a period of time to this DateTime and return the resulting DateTime
+       *
+       * Adding hours, minutes, seconds, or milliseconds increases the timestamp by the right number of milliseconds. Adding days, months, or years shifts the calendar, accounting for DSTs and leap years along the way. Thus, `dt.plus({ hours: 24 })` may result in a different time than `dt.plus({ days: 1 })` if there's a DST shift in between.
+       * @param {Duration|Object|number} duration - The amount to add. Either a Luxon Duration, a number of milliseconds, the object argument to Duration.fromObject()
+       * @example DateTime.now().plus(123) //~> in 123 milliseconds
+       * @example DateTime.now().plus({ minutes: 15 }) //~> in 15 minutes
+       * @example DateTime.now().plus({ days: 1 }) //~> this time tomorrow
+       * @example DateTime.now().plus({ days: -1 }) //~> this time yesterday
+       * @example DateTime.now().plus({ hours: 3, minutes: 13 }) //~> in 3 hr, 13 min
+       * @example DateTime.now().plus(Duration.fromObject({ hours: 3, minutes: 13 })) //~> in 3 hr, 13 min
+       * @return {DateTime}
+       */
+      plus(duration3) {
+        if (!this.isValid) return this;
+        const dur = Duration.fromDurationLike(duration3);
+        return clone2(this, adjustTime(this, dur));
+      }
+      /**
+       * Subtract a period of time to this DateTime and return the resulting DateTime
+       * See {@link DateTime#plus}
+       * @param {Duration|Object|number} duration - The amount to subtract. Either a Luxon Duration, a number of milliseconds, the object argument to Duration.fromObject()
+       @return {DateTime}
+       */
+      minus(duration3) {
+        if (!this.isValid) return this;
+        const dur = Duration.fromDurationLike(duration3).negate();
+        return clone2(this, adjustTime(this, dur));
+      }
+      /**
+       * "Set" this DateTime to the beginning of a unit of time.
+       * @param {string} unit - The unit to go to the beginning of. Can be 'year', 'quarter', 'month', 'week', 'day', 'hour', 'minute', 'second', or 'millisecond'.
+       * @param {Object} opts - options
+       * @param {boolean} [opts.useLocaleWeeks=false] - If true, use weeks based on the locale, i.e. use the locale-dependent start of the week
+       * @example DateTime.local(2014, 3, 3).startOf('month').toISODate(); //=> '2014-03-01'
+       * @example DateTime.local(2014, 3, 3).startOf('year').toISODate(); //=> '2014-01-01'
+       * @example DateTime.local(2014, 3, 3).startOf('week').toISODate(); //=> '2014-03-03', weeks always start on Mondays
+       * @example DateTime.local(2014, 3, 3, 5, 30).startOf('day').toISOTime(); //=> '00:00.000-05:00'
+       * @example DateTime.local(2014, 3, 3, 5, 30).startOf('hour').toISOTime(); //=> '05:00:00.000-05:00'
+       * @return {DateTime}
+       */
+      startOf(unit, {
+        useLocaleWeeks = false
+      } = {}) {
+        if (!this.isValid) return this;
+        const o = {}, normalizedUnit = Duration.normalizeUnit(unit);
+        switch (normalizedUnit) {
+          case "years":
+            o.month = 1;
+          // falls through
+          case "quarters":
+          case "months":
+            o.day = 1;
+          // falls through
+          case "weeks":
+          case "days":
+            o.hour = 0;
+          // falls through
+          case "hours":
+            o.minute = 0;
+          // falls through
+          case "minutes":
+            o.second = 0;
+          // falls through
+          case "seconds":
+            o.millisecond = 0;
+            break;
+        }
+        if (normalizedUnit === "weeks") {
+          if (useLocaleWeeks) {
+            const startOfWeek = this.loc.getStartOfWeek();
+            const {
+              weekday
+            } = this;
+            if (weekday < startOfWeek) {
+              o.weekNumber = this.weekNumber - 1;
+            }
+            o.weekday = startOfWeek;
+          } else {
+            o.weekday = 1;
+          }
+        }
+        if (normalizedUnit === "quarters") {
+          const q = Math.ceil(this.month / 3);
+          o.month = (q - 1) * 3 + 1;
+        }
+        return this.set(o);
+      }
+      /**
+       * "Set" this DateTime to the end (meaning the last millisecond) of a unit of time
+       * @param {string} unit - The unit to go to the end of. Can be 'year', 'quarter', 'month', 'week', 'day', 'hour', 'minute', 'second', or 'millisecond'.
+       * @param {Object} opts - options
+       * @param {boolean} [opts.useLocaleWeeks=false] - If true, use weeks based on the locale, i.e. use the locale-dependent start of the week
+       * @example DateTime.local(2014, 3, 3).endOf('month').toISO(); //=> '2014-03-31T23:59:59.999-05:00'
+       * @example DateTime.local(2014, 3, 3).endOf('year').toISO(); //=> '2014-12-31T23:59:59.999-05:00'
+       * @example DateTime.local(2014, 3, 3).endOf('week').toISO(); // => '2014-03-09T23:59:59.999-05:00', weeks start on Mondays
+       * @example DateTime.local(2014, 3, 3, 5, 30).endOf('day').toISO(); //=> '2014-03-03T23:59:59.999-05:00'
+       * @example DateTime.local(2014, 3, 3, 5, 30).endOf('hour').toISO(); //=> '2014-03-03T05:59:59.999-05:00'
+       * @return {DateTime}
+       */
+      endOf(unit, opts) {
+        return this.isValid ? this.plus({
+          [unit]: 1
+        }).startOf(unit, opts).minus(1) : this;
+      }
+      // OUTPUT
+      /**
+       * Returns a string representation of this DateTime formatted according to the specified format string.
+       * **You may not want this.** See {@link DateTime#toLocaleString} for a more flexible formatting tool. For a table of tokens and their interpretations, see [here](https://moment.github.io/luxon/#/formatting?id=table-of-tokens).
+       * Defaults to en-US if no locale has been specified, regardless of the system's locale.
+       * @param {string} fmt - the format string
+       * @param {Object} opts - opts to override the configuration options on this DateTime
+       * @example DateTime.now().toFormat('yyyy LLL dd') //=> '2017 Apr 22'
+       * @example DateTime.now().setLocale('fr').toFormat('yyyy LLL dd') //=> '2017 avr. 22'
+       * @example DateTime.now().toFormat('yyyy LLL dd', { locale: "fr" }) //=> '2017 avr. 22'
+       * @example DateTime.now().toFormat("HH 'hours and' mm 'minutes'") //=> '20 hours and 55 minutes'
+       * @return {string}
+       */
+      toFormat(fmt, opts = {}) {
+        return this.isValid ? Formatter.create(this.loc.redefaultToEN(opts)).formatDateTimeFromString(this, fmt) : INVALID;
+      }
+      /**
+       * Returns a localized string representing this date. Accepts the same options as the Intl.DateTimeFormat constructor and any presets defined by Luxon, such as `DateTime.DATE_FULL` or `DateTime.TIME_SIMPLE`.
+       * The exact behavior of this method is browser-specific, but in general it will return an appropriate representation
+       * of the DateTime in the assigned locale.
+       * Defaults to the system's locale if no locale has been specified
+       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DateTimeFormat
+       * @param formatOpts {Object} - Intl.DateTimeFormat constructor options and configuration options
+       * @param {Object} opts - opts to override the configuration options on this DateTime
+       * @example DateTime.now().toLocaleString(); //=> 4/20/2017
+       * @example DateTime.now().setLocale('en-gb').toLocaleString(); //=> '20/04/2017'
+       * @example DateTime.now().toLocaleString(DateTime.DATE_FULL); //=> 'April 20, 2017'
+       * @example DateTime.now().toLocaleString(DateTime.DATE_FULL, { locale: 'fr' }); //=> '28 août 2022'
+       * @example DateTime.now().toLocaleString(DateTime.TIME_SIMPLE); //=> '11:32 AM'
+       * @example DateTime.now().toLocaleString(DateTime.DATETIME_SHORT); //=> '4/20/2017, 11:32 AM'
+       * @example DateTime.now().toLocaleString({ weekday: 'long', month: 'long', day: '2-digit' }); //=> 'Thursday, April 20'
+       * @example DateTime.now().toLocaleString({ weekday: 'short', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }); //=> 'Thu, Apr 20, 11:27 AM'
+       * @example DateTime.now().toLocaleString({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }); //=> '11:32'
+       * @return {string}
+       */
+      toLocaleString(formatOpts = DATE_SHORT, opts = {}) {
+        return this.isValid ? Formatter.create(this.loc.clone(opts), formatOpts).formatDateTime(this) : INVALID;
+      }
+      /**
+       * Returns an array of format "parts", meaning individual tokens along with metadata. This is allows callers to post-process individual sections of the formatted output.
+       * Defaults to the system's locale if no locale has been specified
+       * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DateTimeFormat/formatToParts
+       * @param opts {Object} - Intl.DateTimeFormat constructor options, same as `toLocaleString`.
+       * @example DateTime.now().toLocaleParts(); //=> [
+       *                                   //=>   { type: 'day', value: '25' },
+       *                                   //=>   { type: 'literal', value: '/' },
+       *                                   //=>   { type: 'month', value: '05' },
+       *                                   //=>   { type: 'literal', value: '/' },
+       *                                   //=>   { type: 'year', value: '1982' }
+       *                                   //=> ]
+       */
+      toLocaleParts(opts = {}) {
+        return this.isValid ? Formatter.create(this.loc.clone(opts), opts).formatDateTimeParts(this) : [];
+      }
+      /**
+       * Returns an ISO 8601-compliant string representation of this DateTime
+       * @param {Object} opts - options
+       * @param {boolean} [opts.suppressMilliseconds=false] - exclude milliseconds from the format if they're 0
+       * @param {boolean} [opts.suppressSeconds=false] - exclude seconds from the format if they're 0
+       * @param {boolean} [opts.includeOffset=true] - include the offset, such as 'Z' or '-04:00'
+       * @param {boolean} [opts.extendedZone=false] - add the time zone format extension
+       * @param {string} [opts.format='extended'] - choose between the basic and extended format
+       * @param {string} [opts.precision='milliseconds'] - truncate output to desired presicion: 'years', 'months', 'days', 'hours', 'minutes', 'seconds' or 'milliseconds'. When precision and suppressSeconds or suppressMilliseconds are used together, precision sets the maximum unit shown in the output, however seconds or milliseconds will still be suppressed if they are 0.
+       * @example DateTime.utc(1983, 5, 25).toISO() //=> '1982-05-25T00:00:00.000Z'
+       * @example DateTime.now().toISO() //=> '2017-04-22T20:47:05.335-04:00'
+       * @example DateTime.now().toISO({ includeOffset: false }) //=> '2017-04-22T20:47:05.335'
+       * @example DateTime.now().toISO({ format: 'basic' }) //=> '20170422T204705.335-0400'
+       * @example DateTime.now().toISO({ precision: 'day' }) //=> '2017-04-22Z'
+       * @example DateTime.now().toISO({ precision: 'minute' }) //=> '2017-04-22T20:47Z'
+       * @return {string|null}
+       */
+      toISO({
+        format = "extended",
+        suppressSeconds = false,
+        suppressMilliseconds = false,
+        includeOffset = true,
+        extendedZone = false,
+        precision = "milliseconds"
+      } = {}) {
+        if (!this.isValid) {
+          return null;
+        }
+        precision = normalizeUnit(precision);
+        const ext = format === "extended";
+        let c = toISODate(this, ext, precision);
+        if (orderedUnits.indexOf(precision) >= 3) c += "T";
+        c += toISOTime(this, ext, suppressSeconds, suppressMilliseconds, includeOffset, extendedZone, precision);
+        return c;
+      }
+      /**
+       * Returns an ISO 8601-compliant string representation of this DateTime's date component
+       * @param {Object} opts - options
+       * @param {string} [opts.format='extended'] - choose between the basic and extended format
+       * @param {string} [opts.precision='day'] - truncate output to desired precision: 'years', 'months', or 'days'.
+       * @example DateTime.utc(1982, 5, 25).toISODate() //=> '1982-05-25'
+       * @example DateTime.utc(1982, 5, 25).toISODate({ format: 'basic' }) //=> '19820525'
+       * @example DateTime.utc(1982, 5, 25).toISODate({ precision: 'month' }) //=> '1982-05'
+       * @return {string|null}
+       */
+      toISODate({
+        format = "extended",
+        precision = "day"
+      } = {}) {
+        if (!this.isValid) {
+          return null;
+        }
+        return toISODate(this, format === "extended", normalizeUnit(precision));
+      }
+      /**
+       * Returns an ISO 8601-compliant string representation of this DateTime's week date
+       * @example DateTime.utc(1982, 5, 25).toISOWeekDate() //=> '1982-W21-2'
+       * @return {string}
+       */
+      toISOWeekDate() {
+        return toTechFormat(this, "kkkk-'W'WW-c");
+      }
+      /**
+       * Returns an ISO 8601-compliant string representation of this DateTime's time component
+       * @param {Object} opts - options
+       * @param {boolean} [opts.suppressMilliseconds=false] - exclude milliseconds from the format if they're 0
+       * @param {boolean} [opts.suppressSeconds=false] - exclude seconds from the format if they're 0
+       * @param {boolean} [opts.includeOffset=true] - include the offset, such as 'Z' or '-04:00'
+       * @param {boolean} [opts.extendedZone=true] - add the time zone format extension
+       * @param {boolean} [opts.includePrefix=false] - include the `T` prefix
+       * @param {string} [opts.format='extended'] - choose between the basic and extended format
+       * @param {string} [opts.precision='milliseconds'] - truncate output to desired presicion: 'hours', 'minutes', 'seconds' or 'milliseconds'. When precision and suppressSeconds or suppressMilliseconds are used together, precision sets the maximum unit shown in the output, however seconds or milliseconds will still be suppressed if they are 0.
+       * @example DateTime.utc().set({ hour: 7, minute: 34 }).toISOTime() //=> '07:34:19.361Z'
+       * @example DateTime.utc().set({ hour: 7, minute: 34, seconds: 0, milliseconds: 0 }).toISOTime({ suppressSeconds: true }) //=> '07:34Z'
+       * @example DateTime.utc().set({ hour: 7, minute: 34 }).toISOTime({ format: 'basic' }) //=> '073419.361Z'
+       * @example DateTime.utc().set({ hour: 7, minute: 34 }).toISOTime({ includePrefix: true }) //=> 'T07:34:19.361Z'
+       * @example DateTime.utc().set({ hour: 7, minute: 34, second: 56 }).toISOTime({ precision: 'minute' }) //=> '07:34Z'
+       * @return {string}
+       */
+      toISOTime({
+        suppressMilliseconds = false,
+        suppressSeconds = false,
+        includeOffset = true,
+        includePrefix = false,
+        extendedZone = false,
+        format = "extended",
+        precision = "milliseconds"
+      } = {}) {
+        if (!this.isValid) {
+          return null;
+        }
+        precision = normalizeUnit(precision);
+        let c = includePrefix && orderedUnits.indexOf(precision) >= 3 ? "T" : "";
+        return c + toISOTime(this, format === "extended", suppressSeconds, suppressMilliseconds, includeOffset, extendedZone, precision);
+      }
+      /**
+       * Returns an RFC 2822-compatible string representation of this DateTime
+       * @example DateTime.utc(2014, 7, 13).toRFC2822() //=> 'Sun, 13 Jul 2014 00:00:00 +0000'
+       * @example DateTime.local(2014, 7, 13).toRFC2822() //=> 'Sun, 13 Jul 2014 00:00:00 -0400'
+       * @return {string}
+       */
+      toRFC2822() {
+        return toTechFormat(this, "EEE, dd LLL yyyy HH:mm:ss ZZZ", false);
+      }
+      /**
+       * Returns a string representation of this DateTime appropriate for use in HTTP headers. The output is always expressed in GMT.
+       * Specifically, the string conforms to RFC 1123.
+       * @see https://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1
+       * @example DateTime.utc(2014, 7, 13).toHTTP() //=> 'Sun, 13 Jul 2014 00:00:00 GMT'
+       * @example DateTime.utc(2014, 7, 13, 19).toHTTP() //=> 'Sun, 13 Jul 2014 19:00:00 GMT'
+       * @return {string}
+       */
+      toHTTP() {
+        return toTechFormat(this.toUTC(), "EEE, dd LLL yyyy HH:mm:ss 'GMT'");
+      }
+      /**
+       * Returns a string representation of this DateTime appropriate for use in SQL Date
+       * @example DateTime.utc(2014, 7, 13).toSQLDate() //=> '2014-07-13'
+       * @return {string|null}
+       */
+      toSQLDate() {
+        if (!this.isValid) {
+          return null;
+        }
+        return toISODate(this, true);
+      }
+      /**
+       * Returns a string representation of this DateTime appropriate for use in SQL Time
+       * @param {Object} opts - options
+       * @param {boolean} [opts.includeZone=false] - include the zone, such as 'America/New_York'. Overrides includeOffset.
+       * @param {boolean} [opts.includeOffset=true] - include the offset, such as 'Z' or '-04:00'
+       * @param {boolean} [opts.includeOffsetSpace=true] - include the space between the time and the offset, such as '05:15:16.345 -04:00'
+       * @example DateTime.utc().toSQL() //=> '05:15:16.345'
+       * @example DateTime.now().toSQL() //=> '05:15:16.345 -04:00'
+       * @example DateTime.now().toSQL({ includeOffset: false }) //=> '05:15:16.345'
+       * @example DateTime.now().toSQL({ includeZone: false }) //=> '05:15:16.345 America/New_York'
+       * @return {string}
+       */
+      toSQLTime({
+        includeOffset = true,
+        includeZone = false,
+        includeOffsetSpace = true
+      } = {}) {
+        let fmt = "HH:mm:ss.SSS";
+        if (includeZone || includeOffset) {
+          if (includeOffsetSpace) {
+            fmt += " ";
+          }
+          if (includeZone) {
+            fmt += "z";
+          } else if (includeOffset) {
+            fmt += "ZZ";
+          }
+        }
+        return toTechFormat(this, fmt, true);
+      }
+      /**
+       * Returns a string representation of this DateTime appropriate for use in SQL DateTime
+       * @param {Object} opts - options
+       * @param {boolean} [opts.includeZone=false] - include the zone, such as 'America/New_York'. Overrides includeOffset.
+       * @param {boolean} [opts.includeOffset=true] - include the offset, such as 'Z' or '-04:00'
+       * @param {boolean} [opts.includeOffsetSpace=true] - include the space between the time and the offset, such as '05:15:16.345 -04:00'
+       * @example DateTime.utc(2014, 7, 13).toSQL() //=> '2014-07-13 00:00:00.000 Z'
+       * @example DateTime.local(2014, 7, 13).toSQL() //=> '2014-07-13 00:00:00.000 -04:00'
+       * @example DateTime.local(2014, 7, 13).toSQL({ includeOffset: false }) //=> '2014-07-13 00:00:00.000'
+       * @example DateTime.local(2014, 7, 13).toSQL({ includeZone: true }) //=> '2014-07-13 00:00:00.000 America/New_York'
+       * @return {string}
+       */
+      toSQL(opts = {}) {
+        if (!this.isValid) {
+          return null;
+        }
+        return `${this.toSQLDate()} ${this.toSQLTime(opts)}`;
+      }
+      /**
+       * Returns a string representation of this DateTime appropriate for debugging
+       * @return {string}
+       */
+      toString() {
+        return this.isValid ? this.toISO() : INVALID;
+      }
+      /**
+       * Returns a string representation of this DateTime appropriate for the REPL.
+       * @return {string}
+       */
+      [/* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom")]() {
+        if (this.isValid) {
+          return `DateTime { ts: ${this.toISO()}, zone: ${this.zone.name}, locale: ${this.locale} }`;
+        } else {
+          return `DateTime { Invalid, reason: ${this.invalidReason} }`;
+        }
+      }
+      /**
+       * Returns the epoch milliseconds of this DateTime. Alias of {@link DateTime#toMillis}
+       * @return {number}
+       */
+      valueOf() {
+        return this.toMillis();
+      }
+      /**
+       * Returns the epoch milliseconds of this DateTime.
+       * @return {number}
+       */
+      toMillis() {
+        return this.isValid ? this.ts : NaN;
+      }
+      /**
+       * Returns the epoch seconds (including milliseconds in the fractional part) of this DateTime.
+       * @return {number}
+       */
+      toSeconds() {
+        return this.isValid ? this.ts / 1e3 : NaN;
+      }
+      /**
+       * Returns the epoch seconds (as a whole number) of this DateTime.
+       * @return {number}
+       */
+      toUnixInteger() {
+        return this.isValid ? Math.floor(this.ts / 1e3) : NaN;
+      }
+      /**
+       * Returns an ISO 8601 representation of this DateTime appropriate for use in JSON.
+       * @return {string}
+       */
+      toJSON() {
+        return this.toISO();
+      }
+      /**
+       * Returns a BSON serializable equivalent to this DateTime.
+       * @return {Date}
+       */
+      toBSON() {
+        return this.toJSDate();
+      }
+      /**
+       * Returns a JavaScript object with this DateTime's year, month, day, and so on.
+       * @param opts - options for generating the object
+       * @param {boolean} [opts.includeConfig=false] - include configuration attributes in the output
+       * @example DateTime.now().toObject() //=> { year: 2017, month: 4, day: 22, hour: 20, minute: 49, second: 42, millisecond: 268 }
+       * @return {Object}
+       */
+      toObject(opts = {}) {
+        if (!this.isValid) return {};
+        const base = {
+          ...this.c
+        };
+        if (opts.includeConfig) {
+          base.outputCalendar = this.outputCalendar;
+          base.numberingSystem = this.loc.numberingSystem;
+          base.locale = this.loc.locale;
+        }
+        return base;
+      }
+      /**
+       * Returns a JavaScript Date equivalent to this DateTime.
+       * @return {Date}
+       */
+      toJSDate() {
+        return new Date(this.isValid ? this.ts : NaN);
+      }
+      // COMPARE
+      /**
+       * Return the difference between two DateTimes as a Duration.
+       * @param {DateTime} otherDateTime - the DateTime to compare this one to
+       * @param {string|string[]} [unit=['milliseconds']] - the unit or array of units (such as 'hours' or 'days') to include in the duration.
+       * @param {Object} opts - options that affect the creation of the Duration
+       * @param {string} [opts.conversionAccuracy='casual'] - the conversion system to use
+       * @example
+       * var i1 = DateTime.fromISO('1982-05-25T09:45'),
+       *     i2 = DateTime.fromISO('1983-10-14T10:30');
+       * i2.diff(i1).toObject() //=> { milliseconds: 43807500000 }
+       * i2.diff(i1, 'hours').toObject() //=> { hours: 12168.75 }
+       * i2.diff(i1, ['months', 'days']).toObject() //=> { months: 16, days: 19.03125 }
+       * i2.diff(i1, ['months', 'days', 'hours']).toObject() //=> { months: 16, days: 19, hours: 0.75 }
+       * @return {Duration}
+       */
+      diff(otherDateTime, unit = "milliseconds", opts = {}) {
+        if (!this.isValid || !otherDateTime.isValid) {
+          return Duration.invalid("created by diffing an invalid DateTime");
+        }
+        const durOpts = {
+          locale: this.locale,
+          numberingSystem: this.numberingSystem,
+          ...opts
+        };
+        const units = maybeArray(unit).map(Duration.normalizeUnit), otherIsLater = otherDateTime.valueOf() > this.valueOf(), earlier = otherIsLater ? this : otherDateTime, later = otherIsLater ? otherDateTime : this, diffed = diff(earlier, later, units, durOpts);
+        return otherIsLater ? diffed.negate() : diffed;
+      }
+      /**
+       * Return the difference between this DateTime and right now.
+       * See {@link DateTime#diff}
+       * @param {string|string[]} [unit=['milliseconds']] - the unit or units units (such as 'hours' or 'days') to include in the duration
+       * @param {Object} opts - options that affect the creation of the Duration
+       * @param {string} [opts.conversionAccuracy='casual'] - the conversion system to use
+       * @return {Duration}
+       */
+      diffNow(unit = "milliseconds", opts = {}) {
+        return this.diff(_DateTime.now(), unit, opts);
+      }
+      /**
+       * Return an Interval spanning between this DateTime and another DateTime
+       * @param {DateTime} otherDateTime - the other end point of the Interval
+       * @return {Interval|DateTime}
+       */
+      until(otherDateTime) {
+        return this.isValid ? Interval.fromDateTimes(this, otherDateTime) : this;
+      }
+      /**
+       * Return whether this DateTime is in the same unit of time as another DateTime.
+       * Higher-order units must also be identical for this function to return `true`.
+       * Note that time zones are **ignored** in this comparison, which compares the **local** calendar time. Use {@link DateTime#setZone} to convert one of the dates if needed.
+       * @param {DateTime} otherDateTime - the other DateTime
+       * @param {string} unit - the unit of time to check sameness on
+       * @param {Object} opts - options
+       * @param {boolean} [opts.useLocaleWeeks=false] - If true, use weeks based on the locale, i.e. use the locale-dependent start of the week; only the locale of this DateTime is used
+       * @example DateTime.now().hasSame(otherDT, 'day'); //~> true if otherDT is in the same current calendar day
+       * @return {boolean}
+       */
+      hasSame(otherDateTime, unit, opts) {
+        if (!this.isValid) return false;
+        const inputMs = otherDateTime.valueOf();
+        const adjustedToZone = this.setZone(otherDateTime.zone, {
+          keepLocalTime: true
+        });
+        return adjustedToZone.startOf(unit, opts) <= inputMs && inputMs <= adjustedToZone.endOf(unit, opts);
+      }
+      /**
+       * Equality check
+       * Two DateTimes are equal if and only if they represent the same millisecond, have the same zone and location, and are both valid.
+       * To compare just the millisecond values, use `+dt1 === +dt2`.
+       * @param {DateTime} other - the other DateTime
+       * @return {boolean}
+       */
+      equals(other) {
+        return this.isValid && other.isValid && this.valueOf() === other.valueOf() && this.zone.equals(other.zone) && this.loc.equals(other.loc);
+      }
+      /**
+       * Returns a string representation of a this time relative to now, such as "in two days". Can only internationalize if your
+       * platform supports Intl.RelativeTimeFormat. Rounds towards zero by default.
+       * @param {Object} options - options that affect the output
+       * @param {DateTime} [options.base=DateTime.now()] - the DateTime to use as the basis to which this time is compared. Defaults to now.
+       * @param {string} [options.style="long"] - the style of units, must be "long", "short", or "narrow"
+       * @param {string|string[]} options.unit - use a specific unit or array of units; if omitted, or an array, the method will pick the best unit. Use an array or one of "years", "quarters", "months", "weeks", "days", "hours", "minutes", or "seconds"
+       * @param {boolean} [options.round=true] - whether to round the numbers in the output.
+       * @param {string} [options.rounding="trunc"] - rounding method to use when rounding the numbers in the output. Can be "trunc" (toward zero), "expand" (away from zero), "round", "floor", or "ceil".
+       * @param {number} [options.padding=0] - padding in milliseconds. This allows you to round up the result if it fits inside the threshold. Don't use in combination with {round: false} because the decimal output will include the padding.
+       * @param {string} options.locale - override the locale of this DateTime
+       * @param {string} options.numberingSystem - override the numberingSystem of this DateTime. The Intl system may choose not to honor this
+       * @example DateTime.now().plus({ days: 1 }).toRelative() //=> "in 1 day"
+       * @example DateTime.now().setLocale("es").toRelative({ days: 1 }) //=> "dentro de 1 día"
+       * @example DateTime.now().plus({ days: 1 }).toRelative({ locale: "fr" }) //=> "dans 23 heures"
+       * @example DateTime.now().minus({ days: 2 }).toRelative() //=> "2 days ago"
+       * @example DateTime.now().minus({ days: 2 }).toRelative({ unit: "hours" }) //=> "48 hours ago"
+       * @example DateTime.now().minus({ hours: 36 }).toRelative({ round: false }) //=> "1.5 days ago"
+       */
+      toRelative(options = {}) {
+        if (!this.isValid) return null;
+        const base = options.base || _DateTime.fromObject({}, {
+          zone: this.zone
+        }), padding = options.padding ? this < base ? -options.padding : options.padding : 0;
+        let units = ["years", "months", "days", "hours", "minutes", "seconds"];
+        let unit = options.unit;
+        if (Array.isArray(options.unit)) {
+          units = options.unit;
+          unit = void 0;
+        }
+        return diffRelative(base, this.plus(padding), {
+          ...options,
+          numeric: "always",
+          units,
+          unit
+        });
+      }
+      /**
+       * Returns a string representation of this date relative to today, such as "yesterday" or "next month".
+       * Only internationalizes on platforms that supports Intl.RelativeTimeFormat.
+       * @param {Object} options - options that affect the output
+       * @param {DateTime} [options.base=DateTime.now()] - the DateTime to use as the basis to which this time is compared. Defaults to now.
+       * @param {string} options.locale - override the locale of this DateTime
+       * @param {string} options.unit - use a specific unit; if omitted, the method will pick the unit. Use one of "years", "quarters", "months", "weeks", or "days"
+       * @param {string} options.numberingSystem - override the numberingSystem of this DateTime. The Intl system may choose not to honor this
+       * @example DateTime.now().plus({ days: 1 }).toRelativeCalendar() //=> "tomorrow"
+       * @example DateTime.now().setLocale("es").plus({ days: 1 }).toRelative() //=> ""mañana"
+       * @example DateTime.now().plus({ days: 1 }).toRelativeCalendar({ locale: "fr" }) //=> "demain"
+       * @example DateTime.now().minus({ days: 2 }).toRelativeCalendar() //=> "2 days ago"
+       */
+      toRelativeCalendar(options = {}) {
+        if (!this.isValid) return null;
+        return diffRelative(options.base || _DateTime.fromObject({}, {
+          zone: this.zone
+        }), this, {
+          ...options,
+          numeric: "auto",
+          units: ["years", "months", "days"],
+          calendary: true
+        });
+      }
+      /**
+       * Return the min of several date times
+       * @param {...DateTime} dateTimes - the DateTimes from which to choose the minimum
+       * @return {DateTime} the min DateTime, or undefined if called with no argument
+       */
+      static min(...dateTimes) {
+        if (!dateTimes.every(_DateTime.isDateTime)) {
+          throw new InvalidArgumentError("min requires all arguments be DateTimes");
+        }
+        return bestBy(dateTimes, (i) => i.valueOf(), Math.min);
+      }
+      /**
+       * Return the max of several date times
+       * @param {...DateTime} dateTimes - the DateTimes from which to choose the maximum
+       * @return {DateTime} the max DateTime, or undefined if called with no argument
+       */
+      static max(...dateTimes) {
+        if (!dateTimes.every(_DateTime.isDateTime)) {
+          throw new InvalidArgumentError("max requires all arguments be DateTimes");
+        }
+        return bestBy(dateTimes, (i) => i.valueOf(), Math.max);
+      }
+      // MISC
+      /**
+       * Explain how a string would be parsed by fromFormat()
+       * @param {string} text - the string to parse
+       * @param {string} fmt - the format the string is expected to be in (see description)
+       * @param {Object} options - options taken by fromFormat()
+       * @return {Object}
+       */
+      static fromFormatExplain(text, fmt, options = {}) {
+        const {
+          locale = null,
+          numberingSystem = null
+        } = options, localeToUse = Locale.fromOpts({
+          locale,
+          numberingSystem,
+          defaultToEN: true
+        });
+        return explainFromTokens(localeToUse, text, fmt);
+      }
+      /**
+       * @deprecated use fromFormatExplain instead
+       */
+      static fromStringExplain(text, fmt, options = {}) {
+        return _DateTime.fromFormatExplain(text, fmt, options);
+      }
+      /**
+       * Build a parser for `fmt` using the given locale. This parser can be passed
+       * to {@link DateTime.fromFormatParser} to a parse a date in this format. This
+       * can be used to optimize cases where many dates need to be parsed in a
+       * specific format.
+       *
+       * @param {String} fmt - the format the string is expected to be in (see
+       * description)
+       * @param {Object} options - options used to set locale and numberingSystem
+       * for parser
+       * @returns {TokenParser} - opaque object to be used
+       */
+      static buildFormatParser(fmt, options = {}) {
+        const {
+          locale = null,
+          numberingSystem = null
+        } = options, localeToUse = Locale.fromOpts({
+          locale,
+          numberingSystem,
+          defaultToEN: true
+        });
+        return new TokenParser(localeToUse, fmt);
+      }
+      /**
+       * Create a DateTime from an input string and format parser.
+       *
+       * The format parser must have been created with the same locale as this call.
+       *
+       * @param {String} text - the string to parse
+       * @param {TokenParser} formatParser - parser from {@link DateTime.buildFormatParser}
+       * @param {Object} opts - options taken by fromFormat()
+       * @returns {DateTime}
+       */
+      static fromFormatParser(text, formatParser, opts = {}) {
+        if (isUndefined(text) || isUndefined(formatParser)) {
+          throw new InvalidArgumentError("fromFormatParser requires an input string and a format parser");
+        }
+        const {
+          locale = null,
+          numberingSystem = null
+        } = opts, localeToUse = Locale.fromOpts({
+          locale,
+          numberingSystem,
+          defaultToEN: true
+        });
+        if (!localeToUse.equals(formatParser.locale)) {
+          throw new InvalidArgumentError(`fromFormatParser called with a locale of ${localeToUse}, but the format parser was created for ${formatParser.locale}`);
+        }
+        const {
+          result,
+          zone,
+          specificOffset,
+          invalidReason
+        } = formatParser.explainFromTokens(text);
+        if (invalidReason) {
+          return _DateTime.invalid(invalidReason);
+        } else {
+          return parseDataToDateTime(result, zone, opts, `format ${formatParser.format}`, text, specificOffset);
+        }
+      }
+      // FORMAT PRESETS
+      /**
+       * {@link DateTime#toLocaleString} format like 10/14/1983
+       * @type {Object}
+       */
+      static get DATE_SHORT() {
+        return DATE_SHORT;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like 'Oct 14, 1983'
+       * @type {Object}
+       */
+      static get DATE_MED() {
+        return DATE_MED;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like 'Fri, Oct 14, 1983'
+       * @type {Object}
+       */
+      static get DATE_MED_WITH_WEEKDAY() {
+        return DATE_MED_WITH_WEEKDAY;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like 'October 14, 1983'
+       * @type {Object}
+       */
+      static get DATE_FULL() {
+        return DATE_FULL;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like 'Tuesday, October 14, 1983'
+       * @type {Object}
+       */
+      static get DATE_HUGE() {
+        return DATE_HUGE;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like '09:30 AM'. Only 12-hour if the locale is.
+       * @type {Object}
+       */
+      static get TIME_SIMPLE() {
+        return TIME_SIMPLE;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like '09:30:23 AM'. Only 12-hour if the locale is.
+       * @type {Object}
+       */
+      static get TIME_WITH_SECONDS() {
+        return TIME_WITH_SECONDS;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like '09:30:23 AM EDT'. Only 12-hour if the locale is.
+       * @type {Object}
+       */
+      static get TIME_WITH_SHORT_OFFSET() {
+        return TIME_WITH_SHORT_OFFSET;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like '09:30:23 AM Eastern Daylight Time'. Only 12-hour if the locale is.
+       * @type {Object}
+       */
+      static get TIME_WITH_LONG_OFFSET() {
+        return TIME_WITH_LONG_OFFSET;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like '09:30', always 24-hour.
+       * @type {Object}
+       */
+      static get TIME_24_SIMPLE() {
+        return TIME_24_SIMPLE;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like '09:30:23', always 24-hour.
+       * @type {Object}
+       */
+      static get TIME_24_WITH_SECONDS() {
+        return TIME_24_WITH_SECONDS;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like '09:30:23 EDT', always 24-hour.
+       * @type {Object}
+       */
+      static get TIME_24_WITH_SHORT_OFFSET() {
+        return TIME_24_WITH_SHORT_OFFSET;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like '09:30:23 Eastern Daylight Time', always 24-hour.
+       * @type {Object}
+       */
+      static get TIME_24_WITH_LONG_OFFSET() {
+        return TIME_24_WITH_LONG_OFFSET;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like '10/14/1983, 9:30 AM'. Only 12-hour if the locale is.
+       * @type {Object}
+       */
+      static get DATETIME_SHORT() {
+        return DATETIME_SHORT;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like '10/14/1983, 9:30:33 AM'. Only 12-hour if the locale is.
+       * @type {Object}
+       */
+      static get DATETIME_SHORT_WITH_SECONDS() {
+        return DATETIME_SHORT_WITH_SECONDS;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like 'Oct 14, 1983, 9:30 AM'. Only 12-hour if the locale is.
+       * @type {Object}
+       */
+      static get DATETIME_MED() {
+        return DATETIME_MED;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like 'Oct 14, 1983, 9:30:33 AM'. Only 12-hour if the locale is.
+       * @type {Object}
+       */
+      static get DATETIME_MED_WITH_SECONDS() {
+        return DATETIME_MED_WITH_SECONDS;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like 'Fri, 14 Oct 1983, 9:30 AM'. Only 12-hour if the locale is.
+       * @type {Object}
+       */
+      static get DATETIME_MED_WITH_WEEKDAY() {
+        return DATETIME_MED_WITH_WEEKDAY;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like 'October 14, 1983, 9:30 AM EDT'. Only 12-hour if the locale is.
+       * @type {Object}
+       */
+      static get DATETIME_FULL() {
+        return DATETIME_FULL;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like 'October 14, 1983, 9:30:33 AM EDT'. Only 12-hour if the locale is.
+       * @type {Object}
+       */
+      static get DATETIME_FULL_WITH_SECONDS() {
+        return DATETIME_FULL_WITH_SECONDS;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like 'Friday, October 14, 1983, 9:30 AM Eastern Daylight Time'. Only 12-hour if the locale is.
+       * @type {Object}
+       */
+      static get DATETIME_HUGE() {
+        return DATETIME_HUGE;
+      }
+      /**
+       * {@link DateTime#toLocaleString} format like 'Friday, October 14, 1983, 9:30:33 AM Eastern Daylight Time'. Only 12-hour if the locale is.
+       * @type {Object}
+       */
+      static get DATETIME_HUGE_WITH_SECONDS() {
+        return DATETIME_HUGE_WITH_SECONDS;
+      }
+    };
+    function friendlyDateTime(dateTimeish) {
+      if (DateTime.isDateTime(dateTimeish)) {
+        return dateTimeish;
+      } else if (dateTimeish && dateTimeish.valueOf && isNumber(dateTimeish.valueOf())) {
+        return DateTime.fromJSDate(dateTimeish);
+      } else if (dateTimeish && typeof dateTimeish === "object") {
+        return DateTime.fromObject(dateTimeish);
+      } else {
+        throw new InvalidArgumentError(`Unknown datetime argument: ${dateTimeish}, of type ${typeof dateTimeish}`);
+      }
+    }
+    var VERSION = "3.7.2";
+    exports.DateTime = DateTime;
+    exports.Duration = Duration;
+    exports.FixedOffsetZone = FixedOffsetZone;
+    exports.IANAZone = IANAZone;
+    exports.Info = Info;
+    exports.Interval = Interval;
+    exports.InvalidZone = InvalidZone;
+    exports.Settings = Settings;
+    exports.SystemZone = SystemZone;
+    exports.VERSION = VERSION;
+    exports.Zone = Zone;
+  }
+});
+
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/CronDate.js
+var require_CronDate = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/CronDate.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CronDate = exports.DAYS_IN_MONTH = exports.DateMathOp = exports.TimeUnit = void 0;
+    var luxon_1 = require_luxon();
+    var TimeUnit;
+    (function(TimeUnit2) {
+      TimeUnit2["Second"] = "Second";
+      TimeUnit2["Minute"] = "Minute";
+      TimeUnit2["Hour"] = "Hour";
+      TimeUnit2["Day"] = "Day";
+      TimeUnit2["Month"] = "Month";
+      TimeUnit2["Year"] = "Year";
+    })(TimeUnit || (exports.TimeUnit = TimeUnit = {}));
+    var DateMathOp;
+    (function(DateMathOp2) {
+      DateMathOp2["Add"] = "Add";
+      DateMathOp2["Subtract"] = "Subtract";
+    })(DateMathOp || (exports.DateMathOp = DateMathOp = {}));
+    exports.DAYS_IN_MONTH = Object.freeze([31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]);
+    var CronDate = class _CronDate {
+      #date;
+      #dstStart = null;
+      #dstEnd = null;
+      /**
+       * Maps the verb to the appropriate method
+       */
+      #verbMap = {
+        add: {
+          [TimeUnit.Year]: this.addYear.bind(this),
+          [TimeUnit.Month]: this.addMonth.bind(this),
+          [TimeUnit.Day]: this.addDay.bind(this),
+          [TimeUnit.Hour]: this.addHour.bind(this),
+          [TimeUnit.Minute]: this.addMinute.bind(this),
+          [TimeUnit.Second]: this.addSecond.bind(this)
+        },
+        subtract: {
+          [TimeUnit.Year]: this.subtractYear.bind(this),
+          [TimeUnit.Month]: this.subtractMonth.bind(this),
+          [TimeUnit.Day]: this.subtractDay.bind(this),
+          [TimeUnit.Hour]: this.subtractHour.bind(this),
+          [TimeUnit.Minute]: this.subtractMinute.bind(this),
+          [TimeUnit.Second]: this.subtractSecond.bind(this)
+        }
+      };
+      /**
+       * Constructs a new CronDate instance.
+       * @param {CronDate | Date | number | string} [timestamp] - The timestamp to initialize the CronDate with.
+       * @param {string} [tz] - The timezone to use for the CronDate.
+       */
+      constructor(timestamp, tz) {
+        const dateOpts = { zone: tz };
+        if (!timestamp) {
+          this.#date = luxon_1.DateTime.local();
+        } else if (timestamp instanceof _CronDate) {
+          this.#date = timestamp.#date;
+          this.#dstStart = timestamp.#dstStart;
+          this.#dstEnd = timestamp.#dstEnd;
+        } else if (timestamp instanceof Date) {
+          this.#date = luxon_1.DateTime.fromJSDate(timestamp, dateOpts);
+        } else if (typeof timestamp === "number") {
+          this.#date = luxon_1.DateTime.fromMillis(timestamp, dateOpts);
+        } else {
+          this.#date = luxon_1.DateTime.fromISO(timestamp, dateOpts);
+          this.#date.isValid || (this.#date = luxon_1.DateTime.fromRFC2822(timestamp, dateOpts));
+          this.#date.isValid || (this.#date = luxon_1.DateTime.fromSQL(timestamp, dateOpts));
+          this.#date.isValid || (this.#date = luxon_1.DateTime.fromFormat(timestamp, "EEE, d MMM yyyy HH:mm:ss", dateOpts));
+        }
+        if (!this.#date.isValid) {
+          throw new Error(`CronDate: unhandled timestamp: ${timestamp}`);
+        }
+        if (tz && tz !== this.#date.zoneName) {
+          this.#date = this.#date.setZone(tz);
+        }
+      }
+      /**
+       * Determines if the given year is a leap year.
+       * @param {number} year - The year to check
+       * @returns {boolean} - True if the year is a leap year, false otherwise
+       * @private
+       */
+      static #isLeapYear(year) {
+        return year % 4 === 0 && year % 100 !== 0 || year % 400 === 0;
+      }
+      /**
+       * Returns daylight savings start time.
+       * @returns {number | null}
+       */
+      get dstStart() {
+        return this.#dstStart;
+      }
+      /**
+       * Sets daylight savings start time.
+       * @param {number | null} value
+       */
+      set dstStart(value) {
+        this.#dstStart = value;
+      }
+      /**
+       * Returns daylight savings end time.
+       * @returns {number | null}
+       */
+      get dstEnd() {
+        return this.#dstEnd;
+      }
+      /**
+       * Sets daylight savings end time.
+       * @param {number | null} value
+       */
+      set dstEnd(value) {
+        this.#dstEnd = value;
+      }
+      /**
+       * Adds one year to the current CronDate.
+       */
+      addYear() {
+        this.#date = this.#date.plus({ years: 1 });
+      }
+      /**
+       * Adds one month to the current CronDate.
+       */
+      addMonth() {
+        this.#date = this.#date.plus({ months: 1 }).startOf("month");
+      }
+      /**
+       * Adds one day to the current CronDate.
+       */
+      addDay() {
+        this.#date = this.#date.plus({ days: 1 }).startOf("day");
+      }
+      /**
+       * Adds one hour to the current CronDate.
+       */
+      addHour() {
+        this.#date = this.#date.plus({ hours: 1 }).startOf("hour");
+      }
+      /**
+       * Adds one minute to the current CronDate.
+       */
+      addMinute() {
+        this.#date = this.#date.plus({ minutes: 1 }).startOf("minute");
+      }
+      /**
+       * Adds one second to the current CronDate.
+       */
+      addSecond() {
+        this.#date = this.#date.plus({ seconds: 1 });
+      }
+      /**
+       * Subtracts one year from the current CronDate.
+       */
+      subtractYear() {
+        this.#date = this.#date.minus({ years: 1 });
+      }
+      /**
+       * Subtracts one month from the current CronDate.
+       * If the month is 1, it will subtract one year instead.
+       */
+      subtractMonth() {
+        this.#date = this.#date.minus({ months: 1 }).endOf("month").startOf("second");
+      }
+      /**
+       * Subtracts one day from the current CronDate.
+       * If the day is 1, it will subtract one month instead.
+       */
+      subtractDay() {
+        this.#date = this.#date.minus({ days: 1 }).endOf("day").startOf("second");
+      }
+      /**
+       * Subtracts one hour from the current CronDate.
+       * If the hour is 0, it will subtract one day instead.
+       */
+      subtractHour() {
+        this.#date = this.#date.minus({ hours: 1 }).endOf("hour").startOf("second");
+      }
+      /**
+       * Subtracts one minute from the current CronDate.
+       * If the minute is 0, it will subtract one hour instead.
+       */
+      subtractMinute() {
+        this.#date = this.#date.minus({ minutes: 1 }).endOf("minute").startOf("second");
+      }
+      /**
+       * Subtracts one second from the current CronDate.
+       * If the second is 0, it will subtract one minute instead.
+       */
+      subtractSecond() {
+        this.#date = this.#date.minus({ seconds: 1 });
+      }
+      /**
+       * Adds a unit of time to the current CronDate.
+       * @param {TimeUnit} unit
+       */
+      addUnit(unit) {
+        this.#verbMap.add[unit]();
+      }
+      /**
+       * Subtracts a unit of time from the current CronDate.
+       * @param {TimeUnit} unit
+       */
+      subtractUnit(unit) {
+        this.#verbMap.subtract[unit]();
+      }
+      /**
+       * Handles a math operation.
+       * @param {DateMathOp} verb - {'add' | 'subtract'}
+       * @param {TimeUnit} unit - {'year' | 'month' | 'day' | 'hour' | 'minute' | 'second'}
+       */
+      invokeDateOperation(verb, unit) {
+        if (verb === DateMathOp.Add) {
+          this.addUnit(unit);
+          return;
+        }
+        if (verb === DateMathOp.Subtract) {
+          this.subtractUnit(unit);
+          return;
+        }
+        throw new Error(`Invalid verb: ${verb}`);
+      }
+      /**
+       * Returns the day.
+       * @returns {number}
+       */
+      getDate() {
+        return this.#date.day;
+      }
+      /**
+       * Returns the year.
+       * @returns {number}
+       */
+      getFullYear() {
+        return this.#date.year;
+      }
+      /**
+       * Returns the day of the week.
+       * @returns {number}
+       */
+      getDay() {
+        const weekday = this.#date.weekday;
+        return weekday === 7 ? 0 : weekday;
+      }
+      /**
+       * Returns the month.
+       * @returns {number}
+       */
+      getMonth() {
+        return this.#date.month - 1;
+      }
+      /**
+       * Returns the hour.
+       * @returns {number}
+       */
+      getHours() {
+        return this.#date.hour;
+      }
+      /**
+       * Returns the minutes.
+       * @returns {number}
+       */
+      getMinutes() {
+        return this.#date.minute;
+      }
+      /**
+       * Returns the seconds.
+       * @returns {number}
+       */
+      getSeconds() {
+        return this.#date.second;
+      }
+      /**
+       * Returns the milliseconds.
+       * @returns {number}
+       */
+      getMilliseconds() {
+        return this.#date.millisecond;
+      }
+      /**
+       * Returns the timezone offset from UTC in minutes (e.g. UTC+2 => 120).
+       * Useful for detecting DST transition days.
+       *
+       * @returns {number} UTC offset in minutes
+       */
+      getUTCOffset() {
+        return this.#date.offset;
+      }
+      /**
+       * Sets the time to the start of the day (00:00:00.000) in the current timezone.
+       */
+      setStartOfDay() {
+        this.#date = this.#date.startOf("day");
+      }
+      /**
+       * Sets the time to the end of the day (23:59:59.999) in the current timezone.
+       */
+      setEndOfDay() {
+        this.#date = this.#date.endOf("day");
+      }
+      /**
+       * Returns the time.
+       * @returns {number}
+       */
+      getTime() {
+        return this.#date.valueOf();
+      }
+      /**
+       * Returns the UTC day.
+       * @returns {number}
+       */
+      getUTCDate() {
+        return this.#getUTC().day;
+      }
+      /**
+       * Returns the UTC year.
+       * @returns {number}
+       */
+      getUTCFullYear() {
+        return this.#getUTC().year;
+      }
+      /**
+       * Returns the UTC day of the week.
+       * @returns {number}
+       */
+      getUTCDay() {
+        const weekday = this.#getUTC().weekday;
+        return weekday === 7 ? 0 : weekday;
+      }
+      /**
+       * Returns the UTC month.
+       * @returns {number}
+       */
+      getUTCMonth() {
+        return this.#getUTC().month - 1;
+      }
+      /**
+       * Returns the UTC hour.
+       * @returns {number}
+       */
+      getUTCHours() {
+        return this.#getUTC().hour;
+      }
+      /**
+       * Returns the UTC minutes.
+       * @returns {number}
+       */
+      getUTCMinutes() {
+        return this.#getUTC().minute;
+      }
+      /**
+       * Returns the UTC seconds.
+       * @returns {number}
+       */
+      getUTCSeconds() {
+        return this.#getUTC().second;
+      }
+      /**
+       * Returns the UTC milliseconds.
+       * @returns {string | null}
+       */
+      toISOString() {
+        return this.#date.toUTC().toISO();
+      }
+      /**
+       * Returns the date as a JSON string.
+       * @returns {string | null}
+       */
+      toJSON() {
+        return this.#date.toJSON();
+      }
+      /**
+       * Sets the day.
+       * @param d
+       */
+      setDate(d) {
+        this.#date = this.#date.set({ day: d });
+      }
+      /**
+       * Sets the year.
+       * @param y
+       */
+      setFullYear(y) {
+        this.#date = this.#date.set({ year: y });
+      }
+      /**
+       * Sets the day of the week.
+       * @param d
+       */
+      setDay(d) {
+        this.#date = this.#date.set({ weekday: d });
+      }
+      /**
+       * Sets the month.
+       * @param m
+       */
+      setMonth(m) {
+        this.#date = this.#date.set({ month: m + 1 });
+      }
+      /**
+       * Sets the hour.
+       * @param h
+       */
+      setHours(h) {
+        this.#date = this.#date.set({ hour: h });
+      }
+      /**
+       * Sets the minutes.
+       * @param m
+       */
+      setMinutes(m) {
+        this.#date = this.#date.set({ minute: m });
+      }
+      /**
+       * Sets the seconds.
+       * @param s
+       */
+      setSeconds(s) {
+        this.#date = this.#date.set({ second: s });
+      }
+      /**
+       * Sets the milliseconds.
+       * @param s
+       */
+      setMilliseconds(s) {
+        this.#date = this.#date.set({ millisecond: s });
+      }
+      /**
+       * Returns the date as a string.
+       * @returns {string}
+       */
+      toString() {
+        return this.toDate().toString();
+      }
+      /**
+       * Returns the date as a Date object.
+       * @returns {Date}
+       */
+      toDate() {
+        return this.#date.toJSDate();
+      }
+      /**
+       * Returns true if the day is the last day of the month.
+       * @returns {boolean}
+       */
+      isLastDayOfMonth() {
+        const { day, month } = this.#date;
+        if (month === 2) {
+          const isLeap = _CronDate.#isLeapYear(this.#date.year);
+          return day === exports.DAYS_IN_MONTH[month - 1] - (isLeap ? 0 : 1);
+        }
+        return day === exports.DAYS_IN_MONTH[month - 1];
+      }
+      /**
+       * Returns true if the day is the last weekday of the month.
+       * @returns {boolean}
+       */
+      isLastWeekdayOfMonth() {
+        const { day, month } = this.#date;
+        let lastDay;
+        if (month === 2) {
+          lastDay = exports.DAYS_IN_MONTH[month - 1] - (_CronDate.#isLeapYear(this.#date.year) ? 0 : 1);
+        } else {
+          lastDay = exports.DAYS_IN_MONTH[month - 1];
+        }
+        return day > lastDay - 7;
+      }
+      /**
+       * Primarily for internal use.
+       * @param {DateMathOp} op - The operation to perform.
+       * @param {TimeUnit} unit - The unit of time to use.
+       * @param {number} [hoursLength] - The length of the hours. Required when unit is not month or day.
+       */
+      applyDateOperation(op, unit, hoursLength) {
+        if (unit === TimeUnit.Month || unit === TimeUnit.Day) {
+          this.invokeDateOperation(op, unit);
+          return;
+        }
+        const previousHour = this.getHours();
+        this.invokeDateOperation(op, unit);
+        const currentHour = this.getHours();
+        const diff = currentHour - previousHour;
+        if (diff === 2) {
+          if (hoursLength !== 24) {
+            this.dstStart = currentHour;
+          }
+        } else if (diff === 0 && this.getMinutes() === 0 && this.getSeconds() === 0) {
+          if (hoursLength !== 24) {
+            this.dstEnd = currentHour;
+          }
+        }
+      }
+      /**
+       * Returns the UTC date.
+       * @private
+       * @returns {DateTime}
+       */
+      #getUTC() {
+        return this.#date.toUTC();
+      }
+    };
+    exports.CronDate = CronDate;
+    exports.default = CronDate;
+  }
+});
+
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/CronMonth.js
+var require_CronMonth = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/CronMonth.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CronMonth = void 0;
+    var CronDate_1 = require_CronDate();
+    var CronField_1 = require_CronField();
+    var MIN_MONTH = 1;
+    var MAX_MONTH = 12;
+    var MONTH_CHARS = Object.freeze([]);
+    var CronMonth = class extends CronField_1.CronField {
+      static get min() {
+        return MIN_MONTH;
+      }
+      static get max() {
+        return MAX_MONTH;
+      }
+      static get chars() {
+        return MONTH_CHARS;
+      }
+      static get daysInMonth() {
+        return CronDate_1.DAYS_IN_MONTH;
+      }
+      /**
+       * CronDayOfMonth constructor. Initializes the "day of the month" field with the provided values.
+       * @param {MonthRange[]} values - Values for the "day of the month" field
+       * @param {CronFieldOptions} [options] - Options provided by the parser
+       */
+      constructor(values, options) {
+        super(values, options);
+        this.validate();
+      }
+      /**
+       * Returns an array of allowed values for the "day of the month" field.
+       * @returns {MonthRange[]}
+       */
+      get values() {
+        return super.values;
+      }
+    };
+    exports.CronMonth = CronMonth;
+  }
+});
+
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/CronSecond.js
+var require_CronSecond = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/CronSecond.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CronSecond = void 0;
+    var CronField_1 = require_CronField();
+    var MIN_SECOND = 0;
+    var MAX_SECOND = 59;
+    var SECOND_CHARS = Object.freeze([]);
+    var CronSecond = class extends CronField_1.CronField {
+      static get min() {
+        return MIN_SECOND;
+      }
+      static get max() {
+        return MAX_SECOND;
+      }
+      static get chars() {
+        return SECOND_CHARS;
+      }
+      /**
+       * CronSecond constructor. Initializes the "second" field with the provided values.
+       * @param {SixtyRange[]} values - Values for the "second" field
+       * @param {CronFieldOptions} [options] - Options provided by the parser
+       */
+      constructor(values, options) {
+        super(values, options);
+        this.validate();
+      }
+      /**
+       * Returns an array of allowed values for the "second" field.
+       * @returns {SixtyRange[]}
+       */
+      get values() {
+        return super.values;
+      }
+    };
+    exports.CronSecond = CronSecond;
+  }
+});
+
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/index.js
+var require_fields = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/fields/index.js"(exports) {
+    "use strict";
+    var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    }) : (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      o[k2] = m[k];
+    }));
+    var __exportStar = exports && exports.__exportStar || function(m, exports2) {
+      for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports2, p)) __createBinding(exports2, m, p);
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    __exportStar(require_types(), exports);
+    __exportStar(require_CronDayOfMonth(), exports);
+    __exportStar(require_CronDayOfWeek(), exports);
+    __exportStar(require_CronField(), exports);
+    __exportStar(require_CronHour(), exports);
+    __exportStar(require_CronMinute(), exports);
+    __exportStar(require_CronMonth(), exports);
+    __exportStar(require_CronSecond(), exports);
+  }
+});
+
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/CronFieldCollection.js
+var require_CronFieldCollection = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/CronFieldCollection.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CronFieldCollection = void 0;
+    var fields_1 = require_fields();
+    var CronFieldCollection = class _CronFieldCollection {
+      #second;
+      #minute;
+      #hour;
+      #dayOfMonth;
+      #month;
+      #dayOfWeek;
+      /**
+       * Creates a new CronFieldCollection instance by partially overriding fields from an existing one.
+       * @param {CronFieldCollection} base - The base CronFieldCollection to copy fields from
+       * @param {CronFieldOverride} fields - The fields to override, can be CronField instances or raw values
+       * @returns {CronFieldCollection} A new CronFieldCollection instance
+       * @example
+       * const base = new CronFieldCollection({
+       *   second: new CronSecond([0]),
+       *   minute: new CronMinute([0]),
+       *   hour: new CronHour([12]),
+       *   dayOfMonth: new CronDayOfMonth([1]),
+       *   month: new CronMonth([1]),
+       *   dayOfWeek: new CronDayOfWeek([1])
+       * });
+       *
+       * // Using CronField instances
+       * const modified1 = CronFieldCollection.from(base, {
+       *   hour: new CronHour([15]),
+       *   minute: new CronMinute([30])
+       * });
+       *
+       * // Using raw values
+       * const modified2 = CronFieldCollection.from(base, {
+       *   hour: [15],        // Will create new CronHour
+       *   minute: [30]       // Will create new CronMinute
+       * });
+       */
+      static from(base, fields) {
+        return new _CronFieldCollection({
+          second: this.resolveField(fields_1.CronSecond, base.second, fields.second),
+          minute: this.resolveField(fields_1.CronMinute, base.minute, fields.minute),
+          hour: this.resolveField(fields_1.CronHour, base.hour, fields.hour),
+          dayOfMonth: this.resolveField(fields_1.CronDayOfMonth, base.dayOfMonth, fields.dayOfMonth),
+          month: this.resolveField(fields_1.CronMonth, base.month, fields.month),
+          dayOfWeek: this.resolveField(fields_1.CronDayOfWeek, base.dayOfWeek, fields.dayOfWeek)
+        });
+      }
+      /**
+       * Resolves a field value, either using the provided CronField instance or creating a new one from raw values.
+       * @param constructor - The constructor for creating new field instances
+       * @param baseField - The base field to use if no override is provided
+       * @param fieldValue - The override value, either a CronField instance or raw values
+       * @returns The resolved CronField instance
+       * @private
+       */
+      static resolveField(constructor, baseField, fieldValue) {
+        if (!fieldValue) {
+          return baseField;
+        }
+        if (fieldValue instanceof fields_1.CronField) {
+          return fieldValue;
+        }
+        return new constructor(fieldValue);
+      }
+      /**
+       * CronFieldCollection constructor. Initializes the cron fields with the provided values.
+       * @param {CronFields} param0 - The cron fields values
+       * @throws {Error} if validation fails
+       * @example
+       * const cronFields = new CronFieldCollection({
+       *   second: new CronSecond([0]),
+       *   minute: new CronMinute([0, 30]),
+       *   hour: new CronHour([9]),
+       *   dayOfMonth: new CronDayOfMonth([15]),
+       *   month: new CronMonth([1]),
+       *   dayOfWeek: new CronDayOfTheWeek([1, 2, 3, 4, 5]),
+       * })
+       *
+       * console.log(cronFields.second.values); // [0]
+       * console.log(cronFields.minute.values); // [0, 30]
+       * console.log(cronFields.hour.values); // [9]
+       * console.log(cronFields.dayOfMonth.values); // [15]
+       * console.log(cronFields.month.values); // [1]
+       * console.log(cronFields.dayOfWeek.values); // [1, 2, 3, 4, 5]
+       */
+      constructor({ second, minute, hour, dayOfMonth, month, dayOfWeek }) {
+        if (!second) {
+          throw new Error("Validation error, Field second is missing");
+        }
+        if (!minute) {
+          throw new Error("Validation error, Field minute is missing");
+        }
+        if (!hour) {
+          throw new Error("Validation error, Field hour is missing");
+        }
+        if (!dayOfMonth) {
+          throw new Error("Validation error, Field dayOfMonth is missing");
+        }
+        if (!month) {
+          throw new Error("Validation error, Field month is missing");
+        }
+        if (!dayOfWeek) {
+          throw new Error("Validation error, Field dayOfWeek is missing");
+        }
+        if (month.values.length === 1 && !dayOfMonth.hasLastChar) {
+          if (!(parseInt(dayOfMonth.values[0], 10) <= fields_1.CronMonth.daysInMonth[month.values[0] - 1])) {
+            throw new Error("Invalid explicit day of month definition");
+          }
+        }
+        this.#second = second;
+        this.#minute = minute;
+        this.#hour = hour;
+        this.#month = month;
+        this.#dayOfWeek = dayOfWeek;
+        this.#dayOfMonth = dayOfMonth;
+      }
+      /**
+       * Returns the second field.
+       * @returns {CronSecond}
+       */
+      get second() {
+        return this.#second;
+      }
+      /**
+       * Returns the minute field.
+       * @returns {CronMinute}
+       */
+      get minute() {
+        return this.#minute;
+      }
+      /**
+       * Returns the hour field.
+       * @returns {CronHour}
+       */
+      get hour() {
+        return this.#hour;
+      }
+      /**
+       * Returns the day of the month field.
+       * @returns {CronDayOfMonth}
+       */
+      get dayOfMonth() {
+        return this.#dayOfMonth;
+      }
+      /**
+       * Returns the month field.
+       * @returns {CronMonth}
+       */
+      get month() {
+        return this.#month;
+      }
+      /**
+       * Returns the day of the week field.
+       * @returns {CronDayOfWeek}
+       */
+      get dayOfWeek() {
+        return this.#dayOfWeek;
+      }
+      /**
+       * Returns a string representation of the cron fields.
+       * @param {(number | CronChars)[]} input - The cron fields values
+       * @static
+       * @returns {FieldRange[]} - The compacted cron fields
+       */
+      static compactField(input) {
+        if (input.length === 0) {
+          return [];
+        }
+        const output = [];
+        let current = void 0;
+        input.forEach((item, i, arr) => {
+          if (current === void 0) {
+            current = { start: item, count: 1 };
+            return;
+          }
+          const prevItem = arr[i - 1] || current.start;
+          const nextItem = arr[i + 1];
+          if (item === "L" || item === "W") {
+            output.push(current);
+            output.push({ start: item, count: 1 });
+            current = void 0;
+            return;
+          }
+          if (current.step === void 0 && nextItem !== void 0) {
+            const step = item - prevItem;
+            const nextStep = nextItem - item;
+            if (step <= nextStep) {
+              current = { ...current, count: 2, end: item, step };
+              return;
+            }
+            current.step = 1;
+          }
+          if (item - (current.end ?? 0) === current.step) {
+            current.count++;
+            current.end = item;
+          } else {
+            if (current.count === 1) {
+              output.push({ start: current.start, count: 1 });
+            } else if (current.count === 2) {
+              output.push({ start: current.start, count: 1 });
+              output.push({
+                start: current.end ?? /* istanbul ignore next - see above */
+                prevItem,
+                count: 1
+              });
+            } else {
+              output.push(current);
+            }
+            current = { start: item, count: 1 };
           }
         });
-        if (high.operator === comp || high.operator === ecomp) {
-          return false;
+        if (current) {
+          output.push(current);
         }
-        if ((!low.operator || low.operator === comp) && ltefn(version2, low.semver)) {
-          return false;
-        } else if (low.operator === ecomp && ltfn(version2, low.semver)) {
-          return false;
+        return output;
+      }
+      /**
+       * Handles a single range.
+       * @param {CronField} field - The cron field to stringify
+       * @param {FieldRange} range {start: number, end: number, step: number, count: number} The range to handle.
+       * @param {number} max The maximum value for the field.
+       * @returns {string | null} The stringified range or null if it cannot be stringified.
+       * @private
+       */
+      static #handleSingleRange(field, range, max) {
+        const step = range.step;
+        if (!step) {
+          return null;
         }
-      }
-      return true;
-    };
-    module.exports = outside;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/gtr.js
-var require_gtr = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/gtr.js"(exports, module) {
-    "use strict";
-    var outside = require_outside();
-    var gtr = (version2, range, options) => outside(version2, range, ">", options);
-    module.exports = gtr;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/ltr.js
-var require_ltr = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/ltr.js"(exports, module) {
-    "use strict";
-    var outside = require_outside();
-    var ltr = (version2, range, options) => outside(version2, range, "<", options);
-    module.exports = ltr;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/intersects.js
-var require_intersects = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/intersects.js"(exports, module) {
-    "use strict";
-    var Range = require_range();
-    var intersects = (r1, r2, options) => {
-      r1 = new Range(r1, options);
-      r2 = new Range(r2, options);
-      return r1.intersects(r2, options);
-    };
-    module.exports = intersects;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/simplify.js
-var require_simplify = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/simplify.js"(exports, module) {
-    "use strict";
-    var satisfies = require_satisfies();
-    var compare2 = require_compare();
-    module.exports = (versions, range, options) => {
-      const set2 = [];
-      let first = null;
-      let prev = null;
-      const v = versions.sort((a, b) => compare2(a, b, options));
-      for (const version2 of v) {
-        const included = satisfies(version2, range, options);
-        if (included) {
-          prev = version2;
-          if (!first) {
-            first = version2;
-          }
-        } else {
-          if (prev) {
-            set2.push([first, prev]);
-          }
-          prev = null;
-          first = null;
+        if (step === 1 && range.start === field.min && range.end && range.end >= max) {
+          return field.hasQuestionMarkChar ? "?" : "*";
         }
-      }
-      if (first) {
-        set2.push([first, null]);
-      }
-      const ranges = [];
-      for (const [min, max] of set2) {
-        if (min === max) {
-          ranges.push(min);
-        } else if (!max && min === v[0]) {
-          ranges.push("*");
-        } else if (!max) {
-          ranges.push(`>=${min}`);
-        } else if (min === v[0]) {
-          ranges.push(`<=${max}`);
-        } else {
-          ranges.push(`${min} - ${max}`);
+        if (step !== 1 && range.start === field.min && range.end && range.end >= max - step + 1) {
+          return `*/${step}`;
         }
-      }
-      const simplified = ranges.join(" || ");
-      const original = typeof range.raw === "string" ? range.raw : String(range);
-      return simplified.length < original.length ? simplified : range;
-    };
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/subset.js
-var require_subset = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/ranges/subset.js"(exports, module) {
-    "use strict";
-    var Range = require_range();
-    var Comparator = require_comparator();
-    var { ANY } = Comparator;
-    var satisfies = require_satisfies();
-    var compare2 = require_compare();
-    var subset = (sub, dom, options = {}) => {
-      if (sub === dom) {
-        return true;
-      }
-      sub = new Range(sub, options);
-      dom = new Range(dom, options);
-      let sawNonNull = false;
-      OUTER: for (const simpleSub of sub.set) {
-        for (const simpleDom of dom.set) {
-          const isSub = simpleSubset(simpleSub, simpleDom, options);
-          sawNonNull = sawNonNull || isSub !== null;
-          if (isSub) {
-            continue OUTER;
-          }
-        }
-        if (sawNonNull) {
-          return false;
-        }
-      }
-      return true;
-    };
-    var minimumVersionWithPreRelease = [new Comparator(">=0.0.0-0")];
-    var minimumVersion = [new Comparator(">=0.0.0")];
-    var simpleSubset = (sub, dom, options) => {
-      if (sub === dom) {
-        return true;
-      }
-      if (sub.length === 1 && sub[0].semver === ANY) {
-        if (dom.length === 1 && dom[0].semver === ANY) {
-          return true;
-        } else if (options.includePrerelease) {
-          sub = minimumVersionWithPreRelease;
-        } else {
-          sub = minimumVersion;
-        }
-      }
-      if (dom.length === 1 && dom[0].semver === ANY) {
-        if (options.includePrerelease) {
-          return true;
-        } else {
-          dom = minimumVersion;
-        }
-      }
-      const eqSet = /* @__PURE__ */ new Set();
-      let gt, lt;
-      for (const c of sub) {
-        if (c.operator === ">" || c.operator === ">=") {
-          gt = higherGT(gt, c, options);
-        } else if (c.operator === "<" || c.operator === "<=") {
-          lt = lowerLT(lt, c, options);
-        } else {
-          eqSet.add(c.semver);
-        }
-      }
-      if (eqSet.size > 1) {
         return null;
       }
-      let gtltComp;
-      if (gt && lt) {
-        gtltComp = compare2(gt.semver, lt.semver, options);
-        if (gtltComp > 0) {
-          return null;
-        } else if (gtltComp === 0 && (gt.operator !== ">=" || lt.operator !== "<=")) {
-          return null;
+      /**
+       * Handles multiple ranges.
+       * @param {FieldRange} range {start: number, end: number, step: number, count: number} The range to handle.
+       * @param {number} max The maximum value for the field.
+       * @returns {string} The stringified range.
+       * @private
+       */
+      static #handleMultipleRanges(range, max) {
+        const step = range.step;
+        if (step === 1) {
+          return `${range.start}-${range.end}`;
+        }
+        const multiplier = range.start === 0 ? range.count - 1 : range.count;
+        if (!step) {
+          throw new Error("Unexpected range step");
+        }
+        if (!range.end) {
+          throw new Error("Unexpected range end");
+        }
+        if (step * multiplier > range.end) {
+          const mapFn = (_, index) => {
+            if (typeof range.start !== "number") {
+              throw new Error("Unexpected range start");
+            }
+            return index % step === 0 ? range.start + index : null;
+          };
+          if (typeof range.start !== "number") {
+            throw new Error("Unexpected range start");
+          }
+          const seed = { length: range.end - range.start + 1 };
+          return Array.from(seed, mapFn).filter((value) => value !== null).join(",");
+        }
+        return range.end === max - step + 1 ? `${range.start}/${step}` : `${range.start}-${range.end}/${step}`;
+      }
+      /**
+       * Returns a string representation of the cron fields.
+       * @param {CronField} field - The cron field to stringify
+       * @static
+       * @returns {string} - The stringified cron field
+       */
+      stringifyField(field) {
+        let max = field.max;
+        let values = field.values;
+        if (field instanceof fields_1.CronDayOfWeek) {
+          max = 6;
+          const dayOfWeek = this.#dayOfWeek.values;
+          values = dayOfWeek[dayOfWeek.length - 1] === 7 ? dayOfWeek.slice(0, -1) : dayOfWeek;
+        }
+        if (field instanceof fields_1.CronDayOfMonth) {
+          max = this.#month.values.length === 1 ? fields_1.CronMonth.daysInMonth[this.#month.values[0] - 1] : field.max;
+        }
+        const ranges = _CronFieldCollection.compactField(values);
+        if (ranges.length === 1) {
+          const singleRangeResult = _CronFieldCollection.#handleSingleRange(field, ranges[0], max);
+          if (singleRangeResult) {
+            return singleRangeResult;
+          }
+        }
+        return ranges.map((range) => {
+          const value = range.count === 1 ? range.start.toString() : _CronFieldCollection.#handleMultipleRanges(range, max);
+          if (field instanceof fields_1.CronDayOfWeek && field.nthDay > 0) {
+            return `${value}#${field.nthDay}`;
+          }
+          return value;
+        }).join(",");
+      }
+      /**
+       * Returns a string representation of the cron field values.
+       * @param {boolean} includeSeconds - Whether to include seconds in the output
+       * @returns {string} The formatted cron string
+       */
+      stringify(includeSeconds = false) {
+        const arr = [];
+        if (includeSeconds) {
+          arr.push(this.stringifyField(this.#second));
+        }
+        arr.push(
+          this.stringifyField(this.#minute),
+          // minute
+          this.stringifyField(this.#hour),
+          // hour
+          this.stringifyField(this.#dayOfMonth),
+          // dayOfMonth
+          this.stringifyField(this.#month),
+          // month
+          this.stringifyField(this.#dayOfWeek)
+        );
+        return arr.join(" ");
+      }
+      /**
+       * Returns a serialized representation of the cron fields values.
+       * @returns {SerializedCronFields} An object containing the cron field values
+       */
+      serialize() {
+        return {
+          second: this.#second.serialize(),
+          minute: this.#minute.serialize(),
+          hour: this.#hour.serialize(),
+          dayOfMonth: this.#dayOfMonth.serialize(),
+          month: this.#month.serialize(),
+          dayOfWeek: this.#dayOfWeek.serialize()
+        };
+      }
+    };
+    exports.CronFieldCollection = CronFieldCollection;
+  }
+});
+
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/CronExpression.js
+var require_CronExpression = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/CronExpression.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CronExpression = exports.LOOPS_LIMIT_EXCEEDED_ERROR_MESSAGE = exports.TIME_SPAN_OUT_OF_BOUNDS_ERROR_MESSAGE = void 0;
+    var CronDate_1 = require_CronDate();
+    exports.TIME_SPAN_OUT_OF_BOUNDS_ERROR_MESSAGE = "Out of the time span range";
+    exports.LOOPS_LIMIT_EXCEEDED_ERROR_MESSAGE = "Invalid expression, loop limit exceeded";
+    var LOOP_LIMIT = 1e4;
+    var CronExpression = class _CronExpression {
+      #options;
+      #tz;
+      #currentDate;
+      #startDate;
+      #endDate;
+      #fields;
+      #dstTransitionDayKey = null;
+      #isDstTransitionDay = false;
+      /**
+       * Creates a new CronExpression instance.
+       *
+       * @param {CronFieldCollection} fields - Cron fields.
+       * @param {CronExpressionOptions} options - Parser options.
+       */
+      constructor(fields, options) {
+        this.#options = options;
+        this.#tz = options.tz;
+        this.#startDate = options.startDate ? new CronDate_1.CronDate(options.startDate, this.#tz) : null;
+        this.#endDate = options.endDate ? new CronDate_1.CronDate(options.endDate, this.#tz) : null;
+        let currentDateValue = options.currentDate ?? options.startDate;
+        if (currentDateValue) {
+          const tempCurrentDate = new CronDate_1.CronDate(currentDateValue, this.#tz);
+          if (this.#startDate && tempCurrentDate.getTime() < this.#startDate.getTime()) {
+            currentDateValue = this.#startDate;
+          } else if (this.#endDate && tempCurrentDate.getTime() > this.#endDate.getTime()) {
+            currentDateValue = this.#endDate;
+          }
+        }
+        this.#currentDate = new CronDate_1.CronDate(currentDateValue, this.#tz);
+        this.#fields = fields;
+      }
+      /**
+       * Getter for the cron fields.
+       *
+       * @returns {CronFieldCollection} Cron fields.
+       */
+      get fields() {
+        return this.#fields;
+      }
+      /**
+       * Converts cron fields back to a CronExpression instance.
+       *
+       * @public
+       * @param {Record<string, number[]>} fields - The input cron fields object.
+       * @param {CronExpressionOptions} [options] - Optional parsing options.
+       * @returns {CronExpression} - A new CronExpression instance.
+       */
+      static fieldsToExpression(fields, options) {
+        return new _CronExpression(fields, options || {});
+      }
+      /**
+       * Checks if the given value matches any element in the sequence.
+       *
+       * @param {number} value - The value to be matched.
+       * @param {number[]} sequence - The sequence to be checked against.
+       * @returns {boolean} - True if the value matches an element in the sequence; otherwise, false.
+       * @memberof CronExpression
+       * @private
+       */
+      static #matchSchedule(value, sequence) {
+        return sequence.some((element) => element === value);
+      }
+      /**
+       * Returns the minimum or maximum value from the given array of numbers.
+       *
+       * @param {number[]} values - An array of numbers.
+       * @param {boolean} reverse - If true, returns the maximum value; otherwise, returns the minimum value.
+       * @returns {number} - The minimum or maximum value.
+       */
+      #getMinOrMax(values, reverse) {
+        return values[reverse ? values.length - 1 : 0];
+      }
+      /**
+       * Checks whether the given date falls on a DST transition day in its timezone.
+       *
+       * This is used to disable certain “direct set” fast paths on DST days, because setting the hour
+       * directly may land on a non-existent or repeated local time. We cache the result per calendar day
+       * to keep iteration overhead low.
+       *
+       * @param {CronDate} currentDate - Date to check (in the cron timezone)
+       * @returns {boolean} True when the day has a DST transition
+       * @private
+       */
+      #checkDstTransition(currentDate) {
+        const key = `${currentDate.getFullYear()}-${currentDate.getMonth() + 1}-${currentDate.getDate()}`;
+        if (this.#dstTransitionDayKey === key) {
+          return this.#isDstTransitionDay;
+        }
+        const startOfDay = new CronDate_1.CronDate(currentDate);
+        startOfDay.setStartOfDay();
+        const endOfDay = new CronDate_1.CronDate(currentDate);
+        endOfDay.setEndOfDay();
+        this.#dstTransitionDayKey = key;
+        this.#isDstTransitionDay = startOfDay.getUTCOffset() !== endOfDay.getUTCOffset();
+        return this.#isDstTransitionDay;
+      }
+      /**
+       * Moves the date to the next/previous allowed second value. If there is no remaining allowed second
+       * within the current minute, rolls to the next/previous minute and resets seconds to the min/max allowed.
+       *
+       * @param {CronDate} currentDate - Mutable date being iterated
+       * @param {DateMathOp} dateMathVerb - Add/Subtract depending on direction
+       * @param {boolean} reverse - When true, iterating backwards
+       * @private
+       */
+      #moveToNextSecond(currentDate, dateMathVerb, reverse) {
+        const seconds = this.#fields.second.values;
+        const currentSecond = currentDate.getSeconds();
+        const nextSecond = this.#fields.second.findNearestValue(currentSecond, reverse);
+        if (nextSecond !== null) {
+          currentDate.setSeconds(nextSecond);
+          return;
+        }
+        currentDate.applyDateOperation(dateMathVerb, CronDate_1.TimeUnit.Minute, this.#fields.hour.values.length);
+        currentDate.setSeconds(this.#getMinOrMax(seconds, reverse));
+      }
+      /**
+       * Moves the date to the next/previous allowed minute value and resets seconds to the min/max allowed.
+       * If there is no remaining allowed minute within the current hour, rolls to the next/previous hour and
+       * resets minutes/seconds to their extrema.
+       *
+       * @param {CronDate} currentDate - Mutable date being iterated
+       * @param {DateMathOp} dateMathVerb - Add/Subtract depending on direction
+       * @param {boolean} reverse - When true, iterating backwards
+       * @private
+       */
+      #moveToNextMinute(currentDate, dateMathVerb, reverse) {
+        const minutes = this.#fields.minute.values;
+        const seconds = this.#fields.second.values;
+        const currentMinute = currentDate.getMinutes();
+        const nextMinute = this.#fields.minute.findNearestValue(currentMinute, reverse);
+        if (nextMinute !== null) {
+          currentDate.setMinutes(nextMinute);
+          currentDate.setSeconds(this.#getMinOrMax(seconds, reverse));
+          return;
+        }
+        currentDate.applyDateOperation(dateMathVerb, CronDate_1.TimeUnit.Hour, this.#fields.hour.values.length);
+        currentDate.setMinutes(this.#getMinOrMax(minutes, reverse));
+        currentDate.setSeconds(this.#getMinOrMax(seconds, reverse));
+      }
+      /**
+       * Determines if the current date matches the last specified weekday of the month.
+       *
+       * @param {Array<(number|string)>} expressions - An array of expressions containing weekdays and "L" for the last weekday.
+       * @param {CronDate} currentDate - The current date object.
+       * @returns {boolean} - True if the current date matches the last specified weekday of the month; otherwise, false.
+       * @memberof CronExpression
+       * @private
+       */
+      static #isLastWeekdayOfMonthMatch(expressions, currentDate) {
+        const isLastWeekdayOfMonth = currentDate.isLastWeekdayOfMonth();
+        return expressions.some((expression) => {
+          const weekday = parseInt(expression.toString().charAt(0), 10) % 7;
+          if (Number.isNaN(weekday)) {
+            throw new Error(`Invalid last weekday of the month expression: ${expression}`);
+          }
+          return currentDate.getDay() === weekday && isLastWeekdayOfMonth;
+        });
+      }
+      /**
+       * Find the next scheduled date based on the cron expression.
+       * @returns {CronDate} - The next scheduled date or an ES6 compatible iterator object.
+       * @memberof CronExpression
+       * @public
+       */
+      next() {
+        return this.#findSchedule();
+      }
+      /**
+       * Find the previous scheduled date based on the cron expression.
+       * @returns {CronDate} - The previous scheduled date or an ES6 compatible iterator object.
+       * @memberof CronExpression
+       * @public
+       */
+      prev() {
+        return this.#findSchedule(true);
+      }
+      /**
+       * Check if there is a next scheduled date based on the current date and cron expression.
+       * @returns {boolean} - Returns true if there is a next scheduled date, false otherwise.
+       * @memberof CronExpression
+       * @public
+       */
+      hasNext() {
+        const current = this.#currentDate;
+        try {
+          this.#findSchedule();
+          return true;
+        } catch {
+          return false;
+        } finally {
+          this.#currentDate = current;
         }
       }
-      for (const eq of eqSet) {
-        if (gt && !satisfies(eq, String(gt), options)) {
-          return null;
+      /**
+       * Check if there is a previous scheduled date based on the current date and cron expression.
+       * @returns {boolean} - Returns true if there is a previous scheduled date, false otherwise.
+       * @memberof CronExpression
+       * @public
+       */
+      hasPrev() {
+        const current = this.#currentDate;
+        try {
+          this.#findSchedule(true);
+          return true;
+        } catch {
+          return false;
+        } finally {
+          this.#currentDate = current;
         }
-        if (lt && !satisfies(eq, String(lt), options)) {
-          return null;
+      }
+      /**
+       * Iterate over a specified number of steps and optionally execute a callback function for each step.
+       * @param {number} steps - The number of steps to iterate. Positive value iterates forward, negative value iterates backward.
+       * @returns {CronDate[]} - An array of iterator fields or CronDate objects.
+       * @memberof CronExpression
+       * @public
+       */
+      take(limit) {
+        const items = [];
+        if (limit >= 0) {
+          for (let i = 0; i < limit; i++) {
+            try {
+              items.push(this.next());
+            } catch {
+              return items;
+            }
+          }
+        } else {
+          for (let i = 0; i > limit; i--) {
+            try {
+              items.push(this.prev());
+            } catch {
+              return items;
+            }
+          }
         }
-        for (const c of dom) {
-          if (!satisfies(eq, String(c), options)) {
+        return items;
+      }
+      /**
+       * Reset the iterators current date to a new date or the initial date.
+       * @param {Date | CronDate} [newDate] - Optional new date to reset to. If not provided, it will reset to the initial date.
+       * @memberof CronExpression
+       * @public
+       */
+      reset(newDate) {
+        this.#currentDate = new CronDate_1.CronDate(newDate || this.#options.currentDate);
+      }
+      /**
+       * Generate a string representation of the cron expression.
+       * @param {boolean} [includeSeconds=false] - Whether to include the seconds field in the string representation.
+       * @returns {string} - The string representation of the cron expression.
+       * @memberof CronExpression
+       * @public
+       */
+      stringify(includeSeconds = false) {
+        return this.#fields.stringify(includeSeconds);
+      }
+      /**
+       * Check if the cron expression includes the given date
+       * @param {Date|CronDate} date
+       * @returns {boolean}
+       */
+      includesDate(date5) {
+        const { second, minute, hour, month } = this.#fields;
+        const dt = new CronDate_1.CronDate(date5, this.#tz);
+        if (!second.values.includes(dt.getSeconds()) || !minute.values.includes(dt.getMinutes()) || !hour.values.includes(dt.getHours()) || !month.values.includes(dt.getMonth() + 1)) {
+          return false;
+        }
+        if (!this.#matchDayOfMonth(dt)) {
+          return false;
+        }
+        if (this.#fields.dayOfWeek.nthDay > 0) {
+          const weekInMonth = Math.ceil(dt.getDate() / 7);
+          if (weekInMonth !== this.#fields.dayOfWeek.nthDay) {
             return false;
           }
         }
         return true;
       }
-      let higher, lower;
-      let hasDomLT, hasDomGT;
-      let needDomLTPre = lt && !options.includePrerelease && lt.semver.prerelease.length ? lt.semver : false;
-      let needDomGTPre = gt && !options.includePrerelease && gt.semver.prerelease.length ? gt.semver : false;
-      if (needDomLTPre && needDomLTPre.prerelease.length === 1 && lt.operator === "<" && needDomLTPre.prerelease[0] === 0) {
-        needDomLTPre = false;
+      /**
+       * Returns the string representation of the cron expression.
+       * @returns {CronDate} - The next schedule date.
+       */
+      toString() {
+        return this.#options.expression || this.stringify(true);
       }
-      for (const c of dom) {
-        hasDomGT = hasDomGT || c.operator === ">" || c.operator === ">=";
-        hasDomLT = hasDomLT || c.operator === "<" || c.operator === "<=";
-        if (gt) {
-          if (needDomGTPre) {
-            if (c.semver.prerelease && c.semver.prerelease.length && c.semver.major === needDomGTPre.major && c.semver.minor === needDomGTPre.minor && c.semver.patch === needDomGTPre.patch) {
-              needDomGTPre = false;
-            }
-          }
-          if (c.operator === ">" || c.operator === ">=") {
-            higher = higherGT(gt, c, options);
-            if (higher === c && higher !== gt) {
-              return false;
-            }
-          } else if (gt.operator === ">=" && !c.test(gt.semver)) {
-            return false;
-          }
+      /**
+       * Determines if the given date matches the cron expression's day of month and day of week fields.
+       *
+       * The function checks the following rules:
+       * Rule 1: If both "day of month" and "day of week" are restricted (not wildcard), then one or both must match the current day.
+       * Rule 2: If "day of month" is restricted and "day of week" is not restricted, then "day of month" must match the current day.
+       * Rule 3: If "day of month" is a wildcard, "day of week" is not a wildcard, and "day of week" matches the current day, then the match is accepted.
+       * If none of the rules match, the match is rejected.
+       *
+       * @param {CronDate} currentDate - The current date to be evaluated against the cron expression.
+       * @returns {boolean} Returns true if the current date matches the cron expression's day of month and day of week fields, otherwise false.
+       * @memberof CronExpression
+       * @private
+       */
+      #matchDayOfMonth(currentDate) {
+        const isDayOfMonthWildcardMatch = this.#fields.dayOfMonth.isWildcard;
+        const isRestrictedDayOfMonth = !isDayOfMonthWildcardMatch;
+        const isDayOfWeekWildcardMatch = this.#fields.dayOfWeek.isWildcard;
+        const isRestrictedDayOfWeek = !isDayOfWeekWildcardMatch;
+        const matchedDOM = _CronExpression.#matchSchedule(currentDate.getDate(), this.#fields.dayOfMonth.values) || this.#fields.dayOfMonth.hasLastChar && currentDate.isLastDayOfMonth();
+        const matchedDOW = _CronExpression.#matchSchedule(currentDate.getDay(), this.#fields.dayOfWeek.values) || this.#fields.dayOfWeek.hasLastChar && _CronExpression.#isLastWeekdayOfMonthMatch(this.#fields.dayOfWeek.values, currentDate);
+        if (isRestrictedDayOfMonth && isRestrictedDayOfWeek && (matchedDOM || matchedDOW)) {
+          return true;
         }
-        if (lt) {
-          if (needDomLTPre) {
-            if (c.semver.prerelease && c.semver.prerelease.length && c.semver.major === needDomLTPre.major && c.semver.minor === needDomLTPre.minor && c.semver.patch === needDomLTPre.patch) {
-              needDomLTPre = false;
-            }
-          }
-          if (c.operator === "<" || c.operator === "<=") {
-            lower = lowerLT(lt, c, options);
-            if (lower === c && lower !== lt) {
-              return false;
-            }
-          } else if (lt.operator === "<=" && !c.test(lt.semver)) {
-            return false;
-          }
+        if (matchedDOM && !isRestrictedDayOfWeek) {
+          return true;
         }
-        if (!c.operator && (lt || gt) && gtltComp !== 0) {
+        if (isDayOfMonthWildcardMatch && !isDayOfWeekWildcardMatch && matchedDOW) {
+          return true;
+        }
+        return false;
+      }
+      /**
+       * Determines if the current hour matches the cron expression.
+       *
+       * @param {CronDate} currentDate - The current date object.
+       * @param {DateMathOp} dateMathVerb - The date math operation enumeration value.
+       * @param {boolean} reverse - A flag indicating whether the matching should be done in reverse order.
+       * @returns {boolean} - True if the current hour matches the cron expression; otherwise, false.
+       */
+      #matchHour(currentDate, dateMathVerb, reverse) {
+        const hourValues = this.#fields.hour.values;
+        const hours = hourValues;
+        const currentHour = currentDate.getHours();
+        const isMatch = _CronExpression.#matchSchedule(currentHour, hourValues);
+        const isDstStart = currentDate.dstStart === currentHour;
+        const isDstEnd = currentDate.dstEnd === currentHour;
+        if (isDstStart) {
+          if (_CronExpression.#matchSchedule(currentHour - 1, hourValues)) {
+            return true;
+          }
+          currentDate.invokeDateOperation(dateMathVerb, CronDate_1.TimeUnit.Hour);
           return false;
         }
-      }
-      if (gt && hasDomLT && !lt && gtltComp !== 0) {
+        if (isDstEnd && !reverse) {
+          currentDate.dstEnd = null;
+          currentDate.applyDateOperation(CronDate_1.DateMathOp.Add, CronDate_1.TimeUnit.Hour, hours.length);
+          return false;
+        }
+        if (isMatch) {
+          return true;
+        }
+        currentDate.dstStart = null;
+        const nextHour = this.#fields.hour.findNearestValue(currentHour, reverse);
+        if (nextHour === null) {
+          currentDate.applyDateOperation(dateMathVerb, CronDate_1.TimeUnit.Day, hours.length);
+          return false;
+        }
+        if (this.#checkDstTransition(currentDate)) {
+          const steps = reverse ? currentHour - nextHour : nextHour - currentHour;
+          for (let i = 0; i < steps; i++) {
+            currentDate.applyDateOperation(dateMathVerb, CronDate_1.TimeUnit.Hour, hours.length);
+          }
+        } else {
+          currentDate.setHours(nextHour);
+        }
+        currentDate.setMinutes(this.#getMinOrMax(this.#fields.minute.values, reverse));
+        currentDate.setSeconds(this.#getMinOrMax(this.#fields.second.values, reverse));
         return false;
       }
-      if (lt && hasDomGT && !gt && gtltComp !== 0) {
-        return false;
+      /**
+       * Validates the current date against the start and end dates of the cron expression.
+       * If the current date is outside the specified time span, an error is thrown.
+       *
+       * @param currentDate {CronDate} - The current date to validate.
+       * @throws {Error} If the current date is outside the specified time span.
+       * @private
+       */
+      #validateTimeSpan(currentDate) {
+        if (!this.#startDate && !this.#endDate) {
+          return;
+        }
+        const currentTime = currentDate.getTime();
+        if (this.#startDate && currentTime < this.#startDate.getTime()) {
+          throw new Error(exports.TIME_SPAN_OUT_OF_BOUNDS_ERROR_MESSAGE);
+        }
+        if (this.#endDate && currentTime > this.#endDate.getTime()) {
+          throw new Error(exports.TIME_SPAN_OUT_OF_BOUNDS_ERROR_MESSAGE);
+        }
       }
-      if (needDomGTPre || needDomLTPre) {
-        return false;
+      /**
+       * Finds the next or previous schedule based on the cron expression.
+       *
+       * @param {boolean} [reverse=false] - If true, finds the previous schedule; otherwise, finds the next schedule.
+       * @returns {CronDate} - The next or previous schedule date.
+       * @private
+       */
+      #findSchedule(reverse = false) {
+        const dateMathVerb = reverse ? CronDate_1.DateMathOp.Subtract : CronDate_1.DateMathOp.Add;
+        const currentDate = new CronDate_1.CronDate(this.#currentDate);
+        const startTimestamp = currentDate.getTime();
+        let stepCount = 0;
+        while (++stepCount < LOOP_LIMIT) {
+          this.#validateTimeSpan(currentDate);
+          if (!this.#matchDayOfMonth(currentDate)) {
+            currentDate.applyDateOperation(dateMathVerb, CronDate_1.TimeUnit.Day, this.#fields.hour.values.length);
+            continue;
+          }
+          if (!(this.#fields.dayOfWeek.nthDay <= 0 || Math.ceil(currentDate.getDate() / 7) === this.#fields.dayOfWeek.nthDay)) {
+            currentDate.applyDateOperation(dateMathVerb, CronDate_1.TimeUnit.Day, this.#fields.hour.values.length);
+            continue;
+          }
+          if (!_CronExpression.#matchSchedule(currentDate.getMonth() + 1, this.#fields.month.values)) {
+            currentDate.applyDateOperation(dateMathVerb, CronDate_1.TimeUnit.Month, this.#fields.hour.values.length);
+            continue;
+          }
+          if (!this.#matchHour(currentDate, dateMathVerb, reverse)) {
+            continue;
+          }
+          if (!_CronExpression.#matchSchedule(currentDate.getMinutes(), this.#fields.minute.values)) {
+            this.#moveToNextMinute(currentDate, dateMathVerb, reverse);
+            continue;
+          }
+          if (!_CronExpression.#matchSchedule(currentDate.getSeconds(), this.#fields.second.values)) {
+            this.#moveToNextSecond(currentDate, dateMathVerb, reverse);
+            continue;
+          }
+          if (startTimestamp === currentDate.getTime()) {
+            if (dateMathVerb === "Add" || currentDate.getMilliseconds() === 0) {
+              currentDate.applyDateOperation(dateMathVerb, CronDate_1.TimeUnit.Second, this.#fields.hour.values.length);
+            }
+            continue;
+          }
+          break;
+        }
+        if (stepCount > LOOP_LIMIT) {
+          throw new Error(exports.LOOPS_LIMIT_EXCEEDED_ERROR_MESSAGE);
+        }
+        if (currentDate.getMilliseconds() !== 0) {
+          currentDate.setMilliseconds(0);
+        }
+        this.#currentDate = currentDate;
+        return currentDate;
       }
-      return true;
+      /**
+       * Returns an iterator for iterating through future CronDate instances
+       *
+       * @name Symbol.iterator
+       * @memberof CronExpression
+       * @returns {Iterator<CronDate>} An iterator object for CronExpression that returns CronDate values.
+       */
+      [Symbol.iterator]() {
+        return {
+          next: () => {
+            const schedule = this.#findSchedule();
+            return { value: schedule, done: !this.hasNext() };
+          }
+        };
+      }
     };
-    var higherGT = (a, b, options) => {
-      if (!a) {
-        return b;
-      }
-      const comp = compare2(a.semver, b.semver, options);
-      return comp > 0 ? a : comp < 0 ? b : b.operator === ">" && a.operator === ">=" ? b : a;
-    };
-    var lowerLT = (a, b, options) => {
-      if (!a) {
-        return b;
-      }
-      const comp = compare2(a.semver, b.semver, options);
-      return comp < 0 ? a : comp > 0 ? b : b.operator === "<" && a.operator === "<=" ? b : a;
-    };
-    module.exports = subset;
+    exports.CronExpression = CronExpression;
+    exports.default = CronExpression;
   }
 });
 
-// ../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/index.js
-var require_semver2 = __commonJS({
-  "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/index.js"(exports, module) {
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/utils/random.js
+var require_random = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/utils/random.js"(exports) {
     "use strict";
-    var internalRe = require_re();
-    var constants4 = require_constants();
-    var SemVer = require_semver();
-    var identifiers = require_identifiers();
-    var parse4 = require_parse();
-    var valid4 = require_valid();
-    var clean = require_clean();
-    var inc = require_inc();
-    var diff = require_diff();
-    var major = require_major();
-    var minor = require_minor();
-    var patch = require_patch();
-    var prerelease = require_prerelease();
-    var compare2 = require_compare();
-    var rcompare = require_rcompare();
-    var compareLoose = require_compare_loose();
-    var compareBuild = require_compare_build();
-    var sort = require_sort();
-    var rsort = require_rsort();
-    var gt = require_gt();
-    var lt = require_lt();
-    var eq = require_eq();
-    var neq = require_neq();
-    var gte = require_gte();
-    var lte = require_lte();
-    var cmp = require_cmp();
-    var coerce = require_coerce();
-    var truncate = require_truncate();
-    var Comparator = require_comparator();
-    var Range = require_range();
-    var satisfies = require_satisfies();
-    var toComparators = require_to_comparators();
-    var maxSatisfying = require_max_satisfying();
-    var minSatisfying = require_min_satisfying();
-    var minVersion = require_min_version();
-    var validRange = require_valid2();
-    var outside = require_outside();
-    var gtr = require_gtr();
-    var ltr = require_ltr();
-    var intersects = require_intersects();
-    var simplifyRange = require_simplify();
-    var subset = require_subset();
-    module.exports = {
-      parse: parse4,
-      valid: valid4,
-      clean,
-      inc,
-      diff,
-      major,
-      minor,
-      patch,
-      prerelease,
-      compare: compare2,
-      rcompare,
-      compareLoose,
-      compareBuild,
-      sort,
-      rsort,
-      gt,
-      lt,
-      eq,
-      neq,
-      gte,
-      lte,
-      cmp,
-      coerce,
-      truncate,
-      Comparator,
-      Range,
-      satisfies,
-      toComparators,
-      maxSatisfying,
-      minSatisfying,
-      minVersion,
-      validRange,
-      outside,
-      gtr,
-      ltr,
-      intersects,
-      simplifyRange,
-      subset,
-      SemVer,
-      re: internalRe.re,
-      src: internalRe.src,
-      tokens: internalRe.t,
-      SEMVER_SPEC_VERSION: constants4.SEMVER_SPEC_VERSION,
-      RELEASE_TYPES: constants4.RELEASE_TYPES,
-      compareIdentifiers: identifiers.compareIdentifiers,
-      rcompareIdentifiers: identifiers.rcompareIdentifiers
-    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.seededRandom = seededRandom;
+    function xfnv1a(str) {
+      let h = 2166136261 >>> 0;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return () => h >>> 0;
+    }
+    function mulberry32(seed) {
+      return () => {
+        let t = seed += 1831565813;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+    function seededRandom(str) {
+      const seed = str ? xfnv1a(str)() : Math.floor(Math.random() * 1e10);
+      return mulberry32(seed);
+    }
   }
 });
 
-// ../.bundled-stage-iyajRG/src/contract.ts
-import { defineRpcContract } from "@get-bb/plugin-sdk";
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/CronExpressionParser.js
+var require_CronExpressionParser = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/CronExpressionParser.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CronExpressionParser = exports.DayOfWeek = exports.Months = exports.CronUnit = exports.PredefinedExpressions = void 0;
+    var CronFieldCollection_1 = require_CronFieldCollection();
+    var CronExpression_1 = require_CronExpression();
+    var random_1 = require_random();
+    var fields_1 = require_fields();
+    var PredefinedExpressions;
+    (function(PredefinedExpressions2) {
+      PredefinedExpressions2["@yearly"] = "0 0 0 1 1 *";
+      PredefinedExpressions2["@annually"] = "0 0 0 1 1 *";
+      PredefinedExpressions2["@monthly"] = "0 0 0 1 * *";
+      PredefinedExpressions2["@weekly"] = "0 0 0 * * 0";
+      PredefinedExpressions2["@daily"] = "0 0 0 * * *";
+      PredefinedExpressions2["@hourly"] = "0 0 * * * *";
+      PredefinedExpressions2["@minutely"] = "0 * * * * *";
+      PredefinedExpressions2["@secondly"] = "* * * * * *";
+      PredefinedExpressions2["@weekdays"] = "0 0 0 * * 1-5";
+      PredefinedExpressions2["@weekends"] = "0 0 0 * * 0,6";
+    })(PredefinedExpressions || (exports.PredefinedExpressions = PredefinedExpressions = {}));
+    var CronUnit;
+    (function(CronUnit2) {
+      CronUnit2["Second"] = "Second";
+      CronUnit2["Minute"] = "Minute";
+      CronUnit2["Hour"] = "Hour";
+      CronUnit2["DayOfMonth"] = "DayOfMonth";
+      CronUnit2["Month"] = "Month";
+      CronUnit2["DayOfWeek"] = "DayOfWeek";
+    })(CronUnit || (exports.CronUnit = CronUnit = {}));
+    var Months;
+    (function(Months2) {
+      Months2[Months2["jan"] = 1] = "jan";
+      Months2[Months2["feb"] = 2] = "feb";
+      Months2[Months2["mar"] = 3] = "mar";
+      Months2[Months2["apr"] = 4] = "apr";
+      Months2[Months2["may"] = 5] = "may";
+      Months2[Months2["jun"] = 6] = "jun";
+      Months2[Months2["jul"] = 7] = "jul";
+      Months2[Months2["aug"] = 8] = "aug";
+      Months2[Months2["sep"] = 9] = "sep";
+      Months2[Months2["oct"] = 10] = "oct";
+      Months2[Months2["nov"] = 11] = "nov";
+      Months2[Months2["dec"] = 12] = "dec";
+    })(Months || (exports.Months = Months = {}));
+    var DayOfWeek;
+    (function(DayOfWeek2) {
+      DayOfWeek2[DayOfWeek2["sun"] = 0] = "sun";
+      DayOfWeek2[DayOfWeek2["mon"] = 1] = "mon";
+      DayOfWeek2[DayOfWeek2["tue"] = 2] = "tue";
+      DayOfWeek2[DayOfWeek2["wed"] = 3] = "wed";
+      DayOfWeek2[DayOfWeek2["thu"] = 4] = "thu";
+      DayOfWeek2[DayOfWeek2["fri"] = 5] = "fri";
+      DayOfWeek2[DayOfWeek2["sat"] = 6] = "sat";
+    })(DayOfWeek || (exports.DayOfWeek = DayOfWeek = {}));
+    var CronExpressionParser2 = class _CronExpressionParser {
+      /**
+       * Parses a cron expression and returns a CronExpression object.
+       * @param {string} expression - The cron expression to parse.
+       * @param {CronExpressionOptions} [options={}] - The options to use when parsing the expression.
+       * @param {boolean} [options.strict=false] - If true, will throw an error if the expression contains both dayOfMonth and dayOfWeek.
+       * @param {CronDate} [options.currentDate=new CronDate(undefined, 'UTC')] - The date to use when calculating the next/previous occurrence.
+       *
+       * @returns {CronExpression} A CronExpression object.
+       */
+      static parse(expression, options = {}) {
+        const { strict = false, hashSeed } = options;
+        const rand = (0, random_1.seededRandom)(hashSeed);
+        expression = PredefinedExpressions[expression] || expression;
+        const rawFields = _CronExpressionParser.#getRawFields(expression, strict);
+        if (!(rawFields.dayOfMonth === "*" || rawFields.dayOfWeek === "*" || !strict)) {
+          throw new Error("Cannot use both dayOfMonth and dayOfWeek together in strict mode!");
+        }
+        const second = _CronExpressionParser.#parseField(CronUnit.Second, rawFields.second, fields_1.CronSecond.constraints, rand);
+        const minute = _CronExpressionParser.#parseField(CronUnit.Minute, rawFields.minute, fields_1.CronMinute.constraints, rand);
+        const hour = _CronExpressionParser.#parseField(CronUnit.Hour, rawFields.hour, fields_1.CronHour.constraints, rand);
+        const month = _CronExpressionParser.#parseField(CronUnit.Month, rawFields.month, fields_1.CronMonth.constraints, rand);
+        const dayOfMonth = _CronExpressionParser.#parseField(CronUnit.DayOfMonth, rawFields.dayOfMonth, fields_1.CronDayOfMonth.constraints, rand);
+        const { dayOfWeek: _dayOfWeek, nthDayOfWeek } = _CronExpressionParser.#parseNthDay(rawFields.dayOfWeek);
+        const dayOfWeek = _CronExpressionParser.#parseField(CronUnit.DayOfWeek, _dayOfWeek, fields_1.CronDayOfWeek.constraints, rand);
+        const fields = new CronFieldCollection_1.CronFieldCollection({
+          second: new fields_1.CronSecond(second, { rawValue: rawFields.second }),
+          minute: new fields_1.CronMinute(minute, { rawValue: rawFields.minute }),
+          hour: new fields_1.CronHour(hour, { rawValue: rawFields.hour }),
+          dayOfMonth: new fields_1.CronDayOfMonth(dayOfMonth, { rawValue: rawFields.dayOfMonth }),
+          month: new fields_1.CronMonth(month, { rawValue: rawFields.month }),
+          dayOfWeek: new fields_1.CronDayOfWeek(dayOfWeek, { rawValue: rawFields.dayOfWeek, nthDayOfWeek })
+        });
+        return new CronExpression_1.CronExpression(fields, { ...options, expression });
+      }
+      /**
+       * Get the raw fields from a cron expression.
+       * @param {string} expression - The cron expression to parse.
+       * @param {boolean} strict - If true, will throw an error if the expression contains both dayOfMonth and dayOfWeek.
+       * @private
+       * @returns {RawCronFields} The raw fields.
+       */
+      static #getRawFields(expression, strict) {
+        if (strict && !expression.length) {
+          throw new Error("Invalid cron expression");
+        }
+        expression = expression || "0 * * * * *";
+        const atoms = expression.trim().split(/\s+/);
+        if (strict && atoms.length < 6) {
+          throw new Error("Invalid cron expression, expected 6 fields");
+        }
+        if (atoms.length > 6) {
+          throw new Error("Invalid cron expression, too many fields");
+        }
+        const defaults = ["*", "*", "*", "*", "*", "0"];
+        if (atoms.length < defaults.length) {
+          atoms.unshift(...defaults.slice(atoms.length));
+        }
+        const [second, minute, hour, dayOfMonth, month, dayOfWeek] = atoms;
+        return { second, minute, hour, dayOfMonth, month, dayOfWeek };
+      }
+      /**
+       * Parse a field from a cron expression.
+       * @param {CronUnit} field - The field to parse.
+       * @param {string} value - The value of the field.
+       * @param {CronConstraints} constraints - The constraints for the field.
+       * @private
+       * @returns {(number | string)[]} The parsed field.
+       */
+      static #parseField(field, value, constraints, rand) {
+        if (field === CronUnit.Month || field === CronUnit.DayOfWeek) {
+          value = value.replace(/[a-z]{3}/gi, (match) => {
+            match = match.toLowerCase();
+            const replacer = Months[match] || DayOfWeek[match];
+            if (replacer === void 0) {
+              throw new Error(`Validation error, cannot resolve alias "${match}"`);
+            }
+            return replacer.toString();
+          });
+        }
+        if (!constraints.validChars.test(value)) {
+          throw new Error(`Invalid characters, got value: ${value}`);
+        }
+        value = this.#parseWildcard(value, constraints);
+        value = this.#parseHashed(value, constraints, rand);
+        return this.#parseSequence(field, value, constraints);
+      }
+      /**
+       * Parse a wildcard from a cron expression.
+       * @param {string} value - The value to parse.
+       * @param {CronConstraints} constraints - The constraints for the field.
+       * @private
+       */
+      static #parseWildcard(value, constraints) {
+        return value.replace(/[*?]/g, constraints.min + "-" + constraints.max);
+      }
+      /**
+       * Parse a hashed value from a cron expression.
+       * @param {string} value - The value to parse.
+       * @param {CronConstraints} constraints - The constraints for the field.
+       * @param {PRNG} rand - The random number generator to use.
+       * @private
+       */
+      static #parseHashed(value, constraints, rand) {
+        const randomValue = rand();
+        return value.replace(/H(?:\((\d+)-(\d+)\))?(?:\/(\d+))?/g, (_, min, max, step) => {
+          if (min && max && step) {
+            const minNum = parseInt(min, 10);
+            const maxNum = parseInt(max, 10);
+            const stepNum = parseInt(step, 10);
+            if (minNum > maxNum) {
+              throw new Error(`Invalid range: ${minNum}-${maxNum}, min > max`);
+            }
+            if (stepNum <= 0) {
+              throw new Error(`Invalid step: ${stepNum}, must be positive`);
+            }
+            const minStart = Math.max(minNum, constraints.min);
+            const offset = Math.floor(randomValue * stepNum);
+            const values = [];
+            for (let i = Math.floor(minStart / stepNum) * stepNum + offset; i <= maxNum; i += stepNum) {
+              if (i >= minStart) {
+                values.push(i);
+              }
+            }
+            return values.join(",");
+          } else if (min && max) {
+            const minNum = parseInt(min, 10);
+            const maxNum = parseInt(max, 10);
+            if (minNum > maxNum) {
+              throw new Error(`Invalid range: ${minNum}-${maxNum}, min > max`);
+            }
+            return String(Math.floor(randomValue * (maxNum - minNum + 1)) + minNum);
+          } else if (step) {
+            const stepNum = parseInt(step, 10);
+            if (stepNum <= 0) {
+              throw new Error(`Invalid step: ${stepNum}, must be positive`);
+            }
+            const offset = Math.floor(randomValue * stepNum);
+            const values = [];
+            for (let i = Math.floor(constraints.min / stepNum) * stepNum + offset; i <= constraints.max; i += stepNum) {
+              if (i >= constraints.min) {
+                values.push(i);
+              }
+            }
+            return values.join(",");
+          } else {
+            return String(Math.floor(randomValue * (constraints.max - constraints.min + 1) + constraints.min));
+          }
+        });
+      }
+      /**
+       * Parse a sequence from a cron expression.
+       * @param {CronUnit} field - The field to parse.
+       * @param {string} val - The sequence to parse.
+       * @param {CronConstraints} constraints - The constraints for the field.
+       * @private
+       */
+      static #parseSequence(field, val, constraints) {
+        const stack = [];
+        function handleResult(result, constraints2) {
+          if (Array.isArray(result)) {
+            stack.push(...result);
+          } else {
+            if (_CronExpressionParser.#isValidConstraintChar(constraints2, result)) {
+              stack.push(result);
+            } else {
+              const v = parseInt(result.toString(), 10);
+              const isValid = v >= constraints2.min && v <= constraints2.max;
+              if (!isValid) {
+                throw new Error(`Constraint error, got value ${result} expected range ${constraints2.min}-${constraints2.max}`);
+              }
+              stack.push(field === CronUnit.DayOfWeek ? v % 7 : result);
+            }
+          }
+        }
+        const atoms = val.split(",");
+        atoms.forEach((atom) => {
+          if (!(atom.length > 0)) {
+            throw new Error("Invalid list value format");
+          }
+          handleResult(_CronExpressionParser.#parseRepeat(field, atom, constraints), constraints);
+        });
+        return stack;
+      }
+      /**
+       * Parse repeat from a cron expression.
+       * @param {CronUnit} field - The field to parse.
+       * @param {string} val - The repeat to parse.
+       * @param {CronConstraints} constraints - The constraints for the field.
+       * @private
+       * @returns {(number | string)[]} The parsed repeat.
+       */
+      static #parseRepeat(field, val, constraints) {
+        const atoms = val.split("/");
+        if (atoms.length > 2) {
+          throw new Error(`Invalid repeat: ${val}`);
+        }
+        if (atoms.length === 2) {
+          if (!isNaN(parseInt(atoms[0], 10))) {
+            atoms[0] = `${atoms[0]}-${constraints.max}`;
+          }
+          return _CronExpressionParser.#parseRange(field, atoms[0], parseInt(atoms[1], 10), constraints);
+        }
+        return _CronExpressionParser.#parseRange(field, val, 1, constraints);
+      }
+      /**
+       * Validate a cron range.
+       * @param {number} min - The minimum value of the range.
+       * @param {number} max - The maximum value of the range.
+       * @param {CronConstraints} constraints - The constraints for the field.
+       * @private
+       * @returns {void}
+       * @throws {Error} Throws an error if the range is invalid.
+       */
+      static #validateRange(min, max, constraints) {
+        const isValid = !isNaN(min) && !isNaN(max) && min >= constraints.min && max <= constraints.max;
+        if (!isValid) {
+          throw new Error(`Constraint error, got range ${min}-${max} expected range ${constraints.min}-${constraints.max}`);
+        }
+        if (min > max) {
+          throw new Error(`Invalid range: ${min}-${max}, min(${min}) > max(${max})`);
+        }
+      }
+      /**
+       * Validate a cron repeat interval.
+       * @param {number} repeatInterval - The repeat interval to validate.
+       * @private
+       * @returns {void}
+       * @throws {Error} Throws an error if the repeat interval is invalid.
+       */
+      static #validateRepeatInterval(repeatInterval) {
+        if (!(!isNaN(repeatInterval) && repeatInterval > 0)) {
+          throw new Error(`Constraint error, cannot repeat at every ${repeatInterval} time.`);
+        }
+      }
+      /**
+       * Create a range from a cron expression.
+       * @param {CronUnit} field - The field to parse.
+       * @param {number} min - The minimum value of the range.
+       * @param {number} max - The maximum value of the range.
+       * @param {number} repeatInterval - The repeat interval of the range.
+       * @private
+       * @returns {number[]} The created range.
+       */
+      static #createRange(field, min, max, repeatInterval) {
+        const stack = [];
+        if (field === CronUnit.DayOfWeek && max % 7 === 0) {
+          stack.push(0);
+        }
+        for (let index = min; index <= max; index += repeatInterval) {
+          if (stack.indexOf(index) === -1) {
+            stack.push(index);
+          }
+        }
+        return stack;
+      }
+      /**
+       * Parse a range from a cron expression.
+       * @param {CronUnit} field - The field to parse.
+       * @param {string} val - The range to parse.
+       * @param {number} repeatInterval - The repeat interval of the range.
+       * @param {CronConstraints} constraints - The constraints for the field.
+       * @private
+       * @returns {number[] | string[] | number | string} The parsed range.
+       */
+      static #parseRange(field, val, repeatInterval, constraints) {
+        const atoms = val.split("-");
+        if (atoms.length <= 1) {
+          return isNaN(+val) ? val : +val;
+        }
+        const [min, max] = atoms.map((num) => parseInt(num, 10));
+        this.#validateRange(min, max, constraints);
+        this.#validateRepeatInterval(repeatInterval);
+        return this.#createRange(field, min, max, repeatInterval);
+      }
+      /**
+       * Parse a cron expression.
+       * @param {string} val - The cron expression to parse.
+       * @private
+       * @returns {string} The parsed cron expression.
+       */
+      static #parseNthDay(val) {
+        const atoms = val.split("#");
+        if (atoms.length <= 1) {
+          return { dayOfWeek: atoms[0] };
+        }
+        const nthValue = +atoms[atoms.length - 1];
+        const matches = val.match(/([,-/])/);
+        if (matches !== null) {
+          throw new Error(`Constraint error, invalid dayOfWeek \`#\` and \`${matches?.[0]}\` special characters are incompatible`);
+        }
+        if (!(atoms.length <= 2 && !isNaN(nthValue) && nthValue >= 1 && nthValue <= 5)) {
+          throw new Error("Constraint error, invalid dayOfWeek occurrence number (#)");
+        }
+        return { dayOfWeek: atoms[0], nthDayOfWeek: nthValue };
+      }
+      /**
+       * Checks if a character is valid for a field.
+       * @param {CronConstraints} constraints - The constraints for the field.
+       * @param {string | number} value - The value to check.
+       * @private
+       * @returns {boolean} Whether the character is valid for the field.
+       */
+      static #isValidConstraintChar(constraints, value) {
+        return constraints.chars.some((char) => value.toString().includes(char));
+      }
+    };
+    exports.CronExpressionParser = CronExpressionParser2;
+  }
+});
+
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/CronFileParser.js
+var require_CronFileParser = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/CronFileParser.js"(exports) {
+    "use strict";
+    var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    }) : (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      o[k2] = m[k];
+    }));
+    var __setModuleDefault = exports && exports.__setModuleDefault || (Object.create ? (function(o, v) {
+      Object.defineProperty(o, "default", { enumerable: true, value: v });
+    }) : function(o, v) {
+      o["default"] = v;
+    });
+    var __importStar = exports && exports.__importStar || /* @__PURE__ */ (function() {
+      var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function(o2) {
+          var ar = [];
+          for (var k in o2) if (Object.prototype.hasOwnProperty.call(o2, k)) ar[ar.length] = k;
+          return ar;
+        };
+        return ownKeys(o);
+      };
+      return function(mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) {
+          for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        }
+        __setModuleDefault(result, mod);
+        return result;
+      };
+    })();
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CronFileParser = void 0;
+    var CronExpressionParser_1 = require_CronExpressionParser();
+    var CronFileParser = class _CronFileParser {
+      /**
+       * Parse a crontab file asynchronously
+       * @param filePath Path to crontab file
+       * @returns Promise resolving to parse results
+       * @throws If file cannot be read
+       */
+      static async parseFile(filePath) {
+        const { readFile: readFile3 } = await Promise.resolve().then(() => __importStar(__require("fs/promises")));
+        const data = await readFile3(filePath, "utf8");
+        return _CronFileParser.#parseContent(data);
+      }
+      /**
+       * Parse a crontab file synchronously
+       * @param filePath Path to crontab file
+       * @returns Parse results
+       * @throws If file cannot be read
+       */
+      static parseFileSync(filePath) {
+        const { readFileSync } = __require("fs");
+        const data = readFileSync(filePath, "utf8");
+        return _CronFileParser.#parseContent(data);
+      }
+      /**
+       * Internal method to parse crontab file content
+       * @private
+       */
+      static #parseContent(data) {
+        const blocks = data.split("\n");
+        const result = {
+          variables: {},
+          expressions: [],
+          errors: {}
+        };
+        for (const block of blocks) {
+          const entry = block.trim();
+          if (entry.length === 0 || entry.startsWith("#")) {
+            continue;
+          }
+          const variableMatch = entry.match(/^(.*)=(.*)$/);
+          if (variableMatch) {
+            const [, key, value] = variableMatch;
+            result.variables[key] = value.replace(/["']/g, "");
+            continue;
+          }
+          try {
+            const parsedEntry = _CronFileParser.#parseEntry(entry);
+            result.expressions.push(parsedEntry.interval);
+          } catch (err) {
+            result.errors[entry] = err;
+          }
+        }
+        return result;
+      }
+      /**
+       * Parse a single crontab entry
+       * @private
+       */
+      static #parseEntry(entry) {
+        const atoms = entry.split(" ");
+        return {
+          interval: CronExpressionParser_1.CronExpressionParser.parse(atoms.slice(0, 5).join(" ")),
+          command: atoms.slice(5, atoms.length)
+        };
+      }
+    };
+    exports.CronFileParser = CronFileParser;
+  }
+});
+
+// ../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/index.js
+var require_dist = __commonJS({
+  "../../node_modules/.pnpm/cron-parser@5.5.0/node_modules/cron-parser/dist/index.js"(exports) {
+    "use strict";
+    var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    }) : (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      o[k2] = m[k];
+    }));
+    var __exportStar = exports && exports.__exportStar || function(m, exports2) {
+      for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports2, p)) __createBinding(exports2, m, p);
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CronFileParser = exports.CronExpressionParser = exports.CronExpression = exports.CronFieldCollection = exports.CronDate = void 0;
+    var CronExpressionParser_1 = require_CronExpressionParser();
+    var CronDate_1 = require_CronDate();
+    Object.defineProperty(exports, "CronDate", { enumerable: true, get: function() {
+      return CronDate_1.CronDate;
+    } });
+    var CronFieldCollection_1 = require_CronFieldCollection();
+    Object.defineProperty(exports, "CronFieldCollection", { enumerable: true, get: function() {
+      return CronFieldCollection_1.CronFieldCollection;
+    } });
+    var CronExpression_1 = require_CronExpression();
+    Object.defineProperty(exports, "CronExpression", { enumerable: true, get: function() {
+      return CronExpression_1.CronExpression;
+    } });
+    var CronExpressionParser_2 = require_CronExpressionParser();
+    Object.defineProperty(exports, "CronExpressionParser", { enumerable: true, get: function() {
+      return CronExpressionParser_2.CronExpressionParser;
+    } });
+    var CronFileParser_1 = require_CronFileParser();
+    Object.defineProperty(exports, "CronFileParser", { enumerable: true, get: function() {
+      return CronFileParser_1.CronFileParser;
+    } });
+    __exportStar(require_fields(), exports);
+    exports.default = CronExpressionParser_1.CronExpressionParser;
+  }
+});
+
+// ../.bundled-stage-7tjiRO/src/ids.ts
+import { randomBytes } from "node:crypto";
+function createId(prefix) {
+  return `${prefix}_${randomBytes(8).toString("base64url").toLowerCase()}`;
+}
+function createAutomationId() {
+  return createId("auto");
+}
+function createAutomationRunId() {
+  return createId("arun");
+}
 
 // ../../node_modules/.pnpm/zod@4.3.6/node_modules/zod/v4/classic/external.js
 var external_exports = {};
@@ -3623,8 +10809,8 @@ function emoji() {
 }
 var ipv4 = /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$/;
 var ipv6 = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))$/;
-var mac = (delimiter) => {
-  const escapedDelim = escapeRegex(delimiter ?? ":");
+var mac = (delimiter2) => {
+  const escapedDelim = escapeRegex(delimiter2 ?? ":");
   return new RegExp(`^(?:[0-9A-F]{2}${escapedDelim}){5}[0-9A-F]{2}$|^(?:[0-9a-f]{2}${escapedDelim}){5}[0-9a-f]{2}$`);
 };
 var cidrv4 = /^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/([0-9]|[1-2][0-9]|3[0-2])$/;
@@ -15803,4321 +22989,4138 @@ function date4(params) {
 // ../../node_modules/.pnpm/zod@4.3.6/node_modules/zod/v4/classic/external.js
 config(en_default());
 
-// ../.bundled-stage-iyajRG/src/contract.ts
-var arcAgentIdSchema = external_exports.enum(["codex", "claude-code", "omp"]);
-var arcRuntimeStateSchema = external_exports.enum([
-  "not-prepared",
-  "preparing",
-  "ready",
-  "ready-with-warning",
-  "broken",
-  "unsupported",
-  "unavailable"
+// ../.bundled-stage-7tjiRO/src/limits.ts
+var AUTOMATION_NAME_MAX_LENGTH = 200;
+var AUTOMATION_SCRIPT_MAX_LENGTH = 262144;
+var AUTOMATION_SCRIPT_FILE_MAX_LENGTH = 200;
+var AUTOMATION_SCRIPT_WORKING_DIRECTORY_MAX_LENGTH = 4096;
+function isPrintableWorkingDirectoryPath(value) {
+  return !new RegExp("\\p{Cc}", "u").test(value);
+}
+var SCHEDULE_CRON_MAX_LENGTH = 100;
+var SCHEDULE_TIMEZONE_MAX_LENGTH = 100;
+var AUTOMATION_IDEMPOTENCY_KEY_MAX_LENGTH = 200;
+var AUTOMATION_SCRIPT_TIMEOUT_DEFAULT_MS = 12e4;
+var AUTOMATION_SCRIPT_TIMEOUT_MAX_MS = 9e5;
+var AUTOMATION_RUNS_LIMIT_DEFAULT = 50;
+var AUTOMATION_RUNS_LIMIT_MAX = 200;
+
+// ../.bundled-stage-7tjiRO/src/rpc-types.ts
+var permissionModeSchema = external_exports.enum(["accept-edits", "auto", "full"]);
+var reasoningLevelSchema = external_exports.enum([
+  "none",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "ultracode",
+  "max",
+  "ultra"
 ]);
-var arcAgentProviderStateSchema = external_exports.enum([
-  "unknown",
-  "ready",
-  "unavailable",
-  "error"
+var serviceTierSchema = external_exports.enum(["default", "fast"]);
+var unmanagedBranchSpecSchema = external_exports.discriminatedUnion("kind", [
+  external_exports.object({ kind: external_exports.literal("existing"), name: external_exports.string().min(1) }).strict(),
+  external_exports.object({ kind: external_exports.literal("new"), baseBranch: external_exports.string().min(1) }).strict()
 ]);
-var arcAgentAccountStateSchema = external_exports.enum([
-  "unknown",
-  "not-connected",
-  "connected",
-  "expired",
-  "error"
-]);
-var arcAgentOverallStateSchema = external_exports.enum([
-  "not-prepared",
-  "preparing",
-  "runtime-ready",
-  "account-required",
-  "ready",
-  "broken",
-  "unsupported",
-  "unavailable"
-]);
-var arcAgentActionSchema = external_exports.object({
-  id: external_exports.enum(["prepare", "repair", "open-settings", "connect-account", "update", "rollback"]),
-  available: external_exports.boolean(),
-  // Omitted (not null) when the action is available — mirrors the domain
-  // type's optional reason.
-  reason: external_exports.string().optional()
-}).strict();
-var arcAgentRuntimeStatusSchema = external_exports.object({
-  state: arcRuntimeStateSchema,
-  version: external_exports.string().nullable(),
-  compatibility: external_exports.enum(["supported", "untested", "blocked"]).nullable(),
-  compatibilityReason: external_exports.string().nullable(),
-  source: external_exports.enum([
-    "arc-bundled",
-    "arc-managed-download",
-    "official-managed-install",
-    "external-override"
-  ]).nullable()
-}).strict();
-var arcAgentStatusSchema = external_exports.object({
-  id: arcAgentIdSchema,
-  displayName: external_exports.string(),
-  runtimeId: external_exports.enum(["codex", "claude-code", "omp"]),
-  providerId: external_exports.string(),
-  runtime: arcAgentRuntimeStatusSchema,
-  provider: external_exports.object({ state: arcAgentProviderStateSchema }).strict(),
-  account: external_exports.object({ state: arcAgentAccountStateSchema }).strict(),
-  overallState: arcAgentOverallStateSchema,
-  actions: external_exports.array(arcAgentActionSchema),
-  observedAt: external_exports.number()
-}).strict();
-var arcAccountAuthStateSchema = external_exports.enum([
-  "connected",
-  "expired",
-  "disabled",
-  "error",
-  "unknown"
-]);
-var arcAccountSchema = external_exports.object({
-  id: external_exports.string(),
-  sourceId: external_exports.string(),
-  sourceKind: external_exports.enum(["pool", "omp"]),
-  providerFamily: external_exports.string(),
-  providerLabel: external_exports.string(),
-  accountKey: external_exports.string().nullable(),
-  email: external_exports.string().nullable(),
-  planLabel: external_exports.string().nullable(),
-  authState: arcAccountAuthStateSchema,
-  enabled: external_exports.boolean(),
-  availableThrough: external_exports.array(arcAgentIdSchema),
-  observedAt: external_exports.number()
-}).strict();
-var arcAccountSourceStatusSchema = external_exports.object({
-  kind: external_exports.enum(["pool", "omp"]),
-  state: external_exports.enum(["ready", "unavailable"]),
-  detail: external_exports.string().nullable(),
-  checkedAt: external_exports.number()
-}).strict();
-var arcAccountLoginChallengeSchema = external_exports.discriminatedUnion("provider", [
+var workspaceArgsSchema = external_exports.discriminatedUnion("type", [
   external_exports.object({
-    provider: external_exports.literal("openai"),
-    sessionId: external_exports.string(),
-    verificationUri: external_exports.string(),
-    userCode: external_exports.string(),
-    expiresAt: external_exports.number(),
-    intervalMs: external_exports.number()
+    type: external_exports.literal("unmanaged"),
+    path: external_exports.string().min(1).nullable(),
+    branch: unmanagedBranchSpecSchema.optional()
   }).strict(),
   external_exports.object({
-    provider: external_exports.literal("anthropic"),
-    sessionId: external_exports.string(),
-    authorizeUrl: external_exports.string(),
-    expiresAt: external_exports.number().nullable()
-  }).strict()
+    type: external_exports.literal("managed-worktree"),
+    baseBranch: external_exports.discriminatedUnion("kind", [
+      external_exports.object({ kind: external_exports.literal("named"), name: external_exports.string().min(1) }).strict(),
+      external_exports.object({ kind: external_exports.literal("default") }).strict()
+    ])
+  }).strict(),
+  external_exports.object({ type: external_exports.literal("personal") }).strict()
 ]);
-var arcAccountLoginStateSchema = external_exports.enum([
-  "idle",
-  "starting",
-  "waiting-for-user",
-  "authorizing",
-  "connected",
-  "failed",
-  "expired",
-  "cancelled"
-]);
-var arcOpenAiLoginPollSchema = external_exports.object({
-  state: external_exports.enum(["waiting-for-user", "connected", "failed"]),
-  account: arcAccountSchema.nullable(),
-  message: external_exports.string().nullable()
+var reuseEnvironmentSchema = external_exports.object({
+  type: external_exports.literal("reuse"),
+  environmentId: external_exports.string().min(1)
 }).strict();
-var arcOmpProviderSchema = external_exports.object({
-  id: external_exports.string(),
-  displayName: external_exports.string(),
-  authMethod: external_exports.enum(["oauth", "api-key", "unknown"]),
-  connectionState: external_exports.enum(["connected", "not-connected", "unknown"]),
-  hasAccounts: external_exports.boolean()
-}).strict();
-var arcOmpLoginChallengeSchema = external_exports.object({
-  provider: external_exports.string(),
-  sessionId: external_exports.string(),
-  kind: external_exports.enum(["oauth", "api-key"]),
-  // Classified from the live broker output: browser redirect vs OAuth
-  // device code (verification URL + one-time user code).
-  flow: external_exports.enum(["browser", "device"]),
-  userCode: external_exports.string().nullable(),
-  authorizeUrl: external_exports.string().nullable(),
-  instructions: external_exports.string().nullable(),
-  expiresAt: external_exports.number().nullable()
-}).strict();
-var arcOmpLoginPollSchema = external_exports.object({
-  state: external_exports.enum(["waiting-for-user", "connected", "failed"]),
-  account: arcAccountSchema.nullable(),
-  message: external_exports.string().nullable()
-}).strict();
-var arcUsageSourceKindSchema = external_exports.enum(["pool", "omp", "thread"]);
-var arcUsageResourceStatusSchema = external_exports.enum([
-  "available",
-  "unavailable",
-  "error",
-  "unknown"
-]);
-var arcUsageUnavailableReasonSchema = external_exports.enum([
-  "not-exposed",
-  "not-connected",
-  "disabled"
-]);
-var arcUsageWindowKindSchema = external_exports.enum([
-  "five-hour",
-  "daily",
-  "weekly",
-  "monthly",
-  "custom"
-]);
-var arcUsageWindowStatusSchema = external_exports.enum([
-  "ok",
-  "warning",
-  "exhausted",
-  "unknown"
-]);
-var arcUsageUnitSchema = external_exports.enum([
-  "percent",
-  "tokens",
-  "requests",
-  "credits",
-  "usd",
-  "minutes",
-  "bytes",
-  "unknown"
-]);
-var arcUsageWindowSchema = external_exports.object({
-  id: external_exports.string(),
-  label: external_exports.string(),
-  kind: arcUsageWindowKindSchema,
-  status: arcUsageWindowStatusSchema.nullable(),
-  usedPercent: external_exports.number().nullable(),
-  remainingPercent: external_exports.number().nullable(),
-  usedAmount: external_exports.number().nullable(),
-  limitAmount: external_exports.number().nullable(),
-  remainingAmount: external_exports.number().nullable(),
-  unit: arcUsageUnitSchema.nullable(),
-  resetsAt: external_exports.number().nullable(),
-  observedAt: external_exports.number().nullable(),
-  source: arcUsageSourceKindSchema.nullable()
-}).strict();
-var arcUsageResourceSchema = external_exports.object({
-  id: external_exports.string(),
-  sourceKind: arcUsageSourceKindSchema,
-  accountKey: external_exports.string().nullable(),
-  accountSourceId: external_exports.string().nullable(),
-  providerFamily: external_exports.string().nullable(),
-  providerLabel: external_exports.string(),
-  accountEmail: external_exports.string().nullable(),
-  planLabel: external_exports.string().nullable(),
-  modelLabel: external_exports.string().nullable(),
-  agentIds: external_exports.array(arcAgentIdSchema),
-  windows: external_exports.array(arcUsageWindowSchema),
-  observedAt: external_exports.number().nullable(),
-  fetchedAt: external_exports.number().nullable(),
-  stale: external_exports.boolean(),
-  status: arcUsageResourceStatusSchema,
-  unavailableReason: arcUsageUnavailableReasonSchema.nullable(),
-  credentialDisabled: external_exports.boolean(),
-  message: external_exports.string().nullable(),
-  sources: external_exports.array(arcUsageSourceKindSchema)
-}).strict();
-var arcUsageSourceStatusSchema = external_exports.object({
-  kind: arcUsageSourceKindSchema,
-  state: external_exports.enum(["ready", "unavailable"]),
-  detail: external_exports.string().nullable(),
-  checkedAt: external_exports.number()
-}).strict();
-var arcUsageSnapshotSchema = external_exports.object({
-  generatedAt: external_exports.number(),
-  resources: external_exports.array(arcUsageResourceSchema),
-  sources: external_exports.array(arcUsageSourceStatusSchema)
-}).strict();
-var arcCurrentAgentUsageSchema = external_exports.object({
-  agentId: arcAgentIdSchema,
-  thread: arcUsageResourceSchema.nullable(),
-  resources: external_exports.array(arcUsageResourceSchema),
-  activeAccountUnknown: external_exports.boolean()
-}).strict();
-var arcStatusSchema = external_exports.object({
-  arcAvailable: external_exports.boolean(),
-  reason: external_exports.string().nullable()
-}).strict();
-var arcRpcContract = defineRpcContract({
-  "arc.status": {
-    input: external_exports.null(),
-    output: arcStatusSchema
-  },
-  "arc.agents.list": {
-    input: external_exports.null(),
-    output: external_exports.object({ agents: external_exports.array(arcAgentStatusSchema) }).strict()
-  },
-  "arc.agents.get": {
-    input: external_exports.object({ id: arcAgentIdSchema }).strict(),
-    output: external_exports.object({ agent: arcAgentStatusSchema }).strict()
-  },
-  "arc.agents.prepare": {
-    input: external_exports.object({ id: arcAgentIdSchema }).strict(),
-    output: external_exports.object({ agent: arcAgentStatusSchema }).strict()
-  },
-  "arc.agents.repair": {
-    input: external_exports.object({ id: arcAgentIdSchema }).strict(),
-    output: external_exports.object({ agent: arcAgentStatusSchema }).strict()
-  },
-  "arc.accounts.list": {
-    input: external_exports.null(),
-    output: external_exports.object({
-      accounts: external_exports.array(arcAccountSchema),
-      sources: external_exports.array(arcAccountSourceStatusSchema)
-    }).strict()
-  },
-  "arc.accounts.setEnabled": {
-    input: external_exports.object({ id: external_exports.string(), enabled: external_exports.boolean() }).strict(),
-    output: external_exports.object({ account: arcAccountSchema }).strict()
-  },
-  "arc.accounts.remove": {
-    input: external_exports.object({ id: external_exports.string() }).strict(),
-    output: external_exports.object({ ok: external_exports.literal(true) }).strict()
-  },
-  "arc.accounts.reorder": {
-    input: external_exports.object({ family: external_exports.string(), orderedIds: external_exports.array(external_exports.string()) }).strict(),
-    output: external_exports.object({ ok: external_exports.literal(true) }).strict()
-  },
-  "arc.login.openai.start": {
-    input: external_exports.null(),
-    output: external_exports.object({ challenge: arcAccountLoginChallengeSchema }).strict()
-  },
-  "arc.login.openai.poll": {
-    input: external_exports.object({ sessionId: external_exports.string() }).strict(),
-    output: external_exports.object({ poll: arcOpenAiLoginPollSchema, state: arcAccountLoginStateSchema }).strict()
-  },
-  "arc.login.openai.cancel": {
-    input: external_exports.object({ sessionId: external_exports.string() }).strict(),
-    output: external_exports.object({ ok: external_exports.literal(true) }).strict()
-  },
-  "arc.login.claude.start": {
-    input: external_exports.null(),
-    output: external_exports.object({ challenge: arcAccountLoginChallengeSchema }).strict()
-  },
-  "arc.login.claude.complete": {
-    input: external_exports.object({ sessionId: external_exports.string(), code: external_exports.string() }).strict(),
-    output: external_exports.object({ account: arcAccountSchema }).strict()
-  },
-  "arc.omp.providers": {
-    input: external_exports.null(),
-    output: external_exports.object({ providers: external_exports.array(arcOmpProviderSchema) }).strict()
-  },
-  "arc.omp.login.start": {
-    input: external_exports.object({ provider: external_exports.string() }).strict(),
-    output: external_exports.object({ challenge: arcOmpLoginChallengeSchema }).strict()
-  },
-  "arc.omp.login.poll": {
-    input: external_exports.object({ sessionId: external_exports.string() }).strict(),
-    output: external_exports.object({ poll: arcOmpLoginPollSchema }).strict()
-  },
-  "arc.omp.login.cancel": {
-    input: external_exports.object({ sessionId: external_exports.string() }).strict(),
-    output: external_exports.object({ ok: external_exports.literal(true) }).strict()
-  },
-  "arc.omp.login.submitKey": {
-    input: external_exports.object({ sessionId: external_exports.string(), key: external_exports.string() }).strict(),
-    output: external_exports.object({ ok: external_exports.literal(true) }).strict()
-  },
-  "arc.usage.snapshot": {
-    input: external_exports.null(),
-    output: arcUsageSnapshotSchema
-  },
-  "arc.usage.current": {
-    input: external_exports.object({
-      agentId: arcAgentIdSchema,
-      activeAccountKey: external_exports.string().nullable().optional()
-    }).strict(),
-    output: arcCurrentAgentUsageSchema
-  },
-  "arc.usage.refresh": {
-    input: external_exports.object({ resourceId: external_exports.string().optional() }).strict(),
-    output: arcUsageSnapshotSchema
+var hostEnvironmentSchema = external_exports.object({
+  type: external_exports.literal("host"),
+  hostId: external_exports.string().min(1).optional(),
+  workspace: workspaceArgsSchema
+}).strict().superRefine((value, ctx) => {
+  if (value.workspace.type !== "personal" && value.hostId === void 0) {
+    ctx.addIssue({
+      code: "custom",
+      message: "hostId is required unless workspace.type is personal",
+      path: ["hostId"]
+    });
   }
 });
-
-// ../../packages/arc-domains/src/arc-account/types.ts
-var ARC_ACCOUNT_PROVIDER_LABELS = {
-  openai: "ChatGPT",
-  anthropic: "Claude"
+var projectDefaultEnvironmentSchema = external_exports.object({ type: external_exports.literal("project-default") }).strict();
+var agentEnvironmentSchema = external_exports.discriminatedUnion("type", [
+  reuseEnvironmentSchema,
+  hostEnvironmentSchema,
+  projectDefaultEnvironmentSchema
+]);
+var automationOriginSchema = external_exports.enum(["human", "app", "agent"]);
+var automationRunModeSchema = external_exports.enum(["agent", "script"]);
+var automationRunStatusSchema = external_exports.enum([
+  "running",
+  "succeeded",
+  "failed",
+  "skipped"
+]);
+var automationRunTriggerSchema = external_exports.enum(["schedule", "manual"]);
+var automationScriptInterpreterSchema = external_exports.enum([
+  "bash",
+  "sh",
+  "node",
+  "python3"
+]);
+var WORKING_DIRECTORY_CONTROL_CHARACTER_MESSAGE = "A script working directory path must not contain control characters";
+var automationScriptWorkingDirectorySchema = external_exports.discriminatedUnion(
+  "type",
+  [
+    external_exports.object({ type: external_exports.literal("automation-storage") }).strict(),
+    external_exports.object({ type: external_exports.literal("project") }).strict(),
+    external_exports.object({
+      type: external_exports.literal("path"),
+      path: external_exports.string().min(1).max(AUTOMATION_SCRIPT_WORKING_DIRECTORY_MAX_LENGTH).refine(isPrintableWorkingDirectoryPath, {
+        message: WORKING_DIRECTORY_CONTROL_CHARACTER_MESSAGE
+      })
+    }).strict()
+  ]
+);
+var automationScheduleTriggerSchema = external_exports.object({
+  triggerType: external_exports.literal("schedule"),
+  cron: external_exports.string().min(1).max(SCHEDULE_CRON_MAX_LENGTH),
+  timezone: external_exports.string().min(1).max(SCHEDULE_TIMEZONE_MAX_LENGTH)
+}).strict();
+var automationOnceTriggerSchema = external_exports.object({
+  triggerType: external_exports.literal("once"),
+  runAt: external_exports.number().int().positive()
+}).strict();
+var automationTriggerSchema = external_exports.discriminatedUnion("triggerType", [
+  automationScheduleTriggerSchema,
+  automationOnceTriggerSchema
+]);
+var automationAgentExecutionSchema = external_exports.object({
+  mode: external_exports.literal("agent"),
+  prompt: external_exports.string().min(1),
+  providerId: external_exports.string().min(1),
+  model: external_exports.string().min(1),
+  reasoningLevel: reasoningLevelSchema.default("medium"),
+  serviceTier: serviceTierSchema.optional(),
+  permissionMode: permissionModeSchema,
+  environment: agentEnvironmentSchema,
+  targetThreadId: external_exports.string().min(1).optional()
+}).strict();
+var automationScriptExecutionFields = {
+  mode: external_exports.literal("script"),
+  script: external_exports.string().min(1).max(AUTOMATION_SCRIPT_MAX_LENGTH).optional(),
+  scriptFile: external_exports.string().min(1).max(AUTOMATION_SCRIPT_FILE_MAX_LENGTH).optional(),
+  interpreter: automationScriptInterpreterSchema.optional(),
+  timeoutMs: external_exports.number().int().positive().max(AUTOMATION_SCRIPT_TIMEOUT_MAX_MS).default(AUTOMATION_SCRIPT_TIMEOUT_DEFAULT_MS),
+  env: external_exports.record(external_exports.string(), external_exports.string()).optional()
 };
-var ArcAccountError = class extends Error {
-  code;
-  detail;
-  constructor(code, detail) {
-    super(`${code}: ${detail}`);
-    this.name = "ArcAccountError";
-    this.code = code;
-    this.detail = detail;
+var automationScriptExecutionSchema = external_exports.object({
+  ...automationScriptExecutionFields,
+  workingDirectory: automationScriptWorkingDirectorySchema
+}).strict();
+var storedAutomationScriptExecutionSchema = external_exports.object({
+  ...automationScriptExecutionFields,
+  workingDirectory: automationScriptWorkingDirectorySchema.optional()
+}).strict().transform((execution) => ({
+  ...execution,
+  workingDirectory: execution.workingDirectory ?? { type: "automation-storage" }
+}));
+var automationScriptExecutionRequestSchema = external_exports.object({
+  ...automationScriptExecutionFields,
+  workingDirectory: automationScriptWorkingDirectorySchema.optional()
+}).strict();
+var automationExecutionSchema = external_exports.discriminatedUnion("mode", [
+  automationAgentExecutionSchema,
+  automationScriptExecutionSchema
+]);
+var legacyEmptyPromptAgentExecutionSchema = automationAgentExecutionSchema.extend({ prompt: external_exports.literal("") });
+var persistedAutomationExecutionSchema = external_exports.union([
+  automationExecutionSchema,
+  storedAutomationScriptExecutionSchema
+]);
+var repairableAutomationExecutionSchema = external_exports.union([
+  persistedAutomationExecutionSchema,
+  legacyEmptyPromptAgentExecutionSchema
+]);
+function requireExactlyOneScriptSource(exec, ctx) {
+  if (exec.mode === "script" && exec.script != null === (exec.scriptFile != null)) {
+    ctx.addIssue({
+      code: "custom",
+      message: "provide exactly one of script | scriptFile",
+      path: ["script"]
+    });
   }
-};
+}
+var automationExecutionRequestBaseSchema = external_exports.discriminatedUnion("mode", [
+  automationAgentExecutionSchema,
+  automationScriptExecutionRequestSchema
+]);
+var automationExecutionRequestSchema = automationExecutionRequestBaseSchema.superRefine(
+  requireExactlyOneScriptSource
+);
+var automationScriptResponseExecutionSchema = automationScriptExecutionSchema.extend({ storedScriptPath: external_exports.string().min(1).optional() }).strict();
+var automationResponseExecutionSchema = external_exports.discriminatedUnion("mode", [
+  automationAgentExecutionSchema,
+  automationScriptResponseExecutionSchema
+]);
+var automationDetailExecutionSchema = external_exports.discriminatedUnion("mode", [
+  automationAgentExecutionSchema,
+  automationScriptResponseExecutionSchema.extend({ resolvedWorkingDirectory: external_exports.string().min(1).nullable() }).strict()
+]);
+var agentExecutionTargetSchema = external_exports.discriminatedUnion("type", [
+  external_exports.object({
+    type: external_exports.literal("target-thread"),
+    threadId: external_exports.string().min(1)
+  }).strict(),
+  external_exports.object({
+    type: external_exports.literal("environment"),
+    environment: agentEnvironmentSchema
+  }).strict()
+]);
+var agentExecutionUpdateSchema = external_exports.object({
+  prompt: external_exports.string().min(1).optional(),
+  providerId: external_exports.string().min(1).optional(),
+  model: external_exports.string().min(1).optional(),
+  reasoningLevel: reasoningLevelSchema.optional(),
+  serviceTier: serviceTierSchema.nullable().optional(),
+  permissionMode: permissionModeSchema.optional(),
+  target: agentExecutionTargetSchema.optional()
+}).strict().refine(
+  (value) => value.prompt !== void 0 || value.providerId !== void 0 || value.model !== void 0 || value.reasoningLevel !== void 0 || value.serviceTier !== void 0 || value.permissionMode !== void 0 || value.target !== void 0,
+  { message: "at least one agent execution field is required" }
+);
+var scriptExecutionUpdateSchema = external_exports.object({
+  workingDirectory: automationScriptWorkingDirectorySchema
+}).strict();
+var automationResponseSchema = external_exports.object({
+  id: external_exports.string(),
+  projectId: external_exports.string(),
+  name: external_exports.string(),
+  enabled: external_exports.boolean(),
+  trigger: automationTriggerSchema,
+  execution: automationResponseExecutionSchema,
+  origin: automationOriginSchema,
+  createdByThreadId: external_exports.string().min(1).nullable(),
+  nextRunAt: external_exports.number().nullable(),
+  lastRunAt: external_exports.number().nullable(),
+  runCount: external_exports.number().int().min(0),
+  allowVoiceOutput: external_exports.boolean(),
+  lastRunStatus: automationRunStatusSchema.nullable(),
+  lastRunThreadId: external_exports.string().min(1).nullable(),
+  lastError: external_exports.string().nullable(),
+  createdAt: external_exports.number(),
+  updatedAt: external_exports.number()
+}).strict();
+var automationDetailResponseSchema = automationResponseSchema.extend({
+  execution: automationDetailExecutionSchema
+});
+var legacyEmptyPromptAutomationResponseSchema = automationResponseSchema.extend({
+  execution: legacyEmptyPromptAgentExecutionSchema
+});
+var invalidStoredAutomationReadProblemSchema = external_exports.object({
+  id: external_exports.string(),
+  projectId: external_exports.string(),
+  name: external_exports.string(),
+  problem: external_exports.literal("invalid-stored-data")
+}).strict();
+var missingAgentPromptAutomationReadProblemSchema = legacyEmptyPromptAutomationResponseSchema.extend({
+  problem: external_exports.literal("missing-agent-prompt")
+});
+var automationReadProblemSchema = external_exports.discriminatedUnion("problem", [
+  missingAgentPromptAutomationReadProblemSchema,
+  invalidStoredAutomationReadProblemSchema
+]);
+var automationReadResultSchema = external_exports.union([
+  automationResponseSchema,
+  automationReadProblemSchema
+]);
+var automationDetailReadResultSchema = external_exports.union([
+  automationDetailResponseSchema,
+  automationReadProblemSchema
+]);
+var automationRunResponseSchema = external_exports.object({
+  id: external_exports.string(),
+  automationId: external_exports.string(),
+  runMode: automationRunModeSchema,
+  threadId: external_exports.string().min(1).nullable(),
+  status: automationRunStatusSchema,
+  trigger: automationRunTriggerSchema,
+  skipReason: external_exports.string().nullable(),
+  error: external_exports.string().nullable(),
+  output: external_exports.string().nullable(),
+  exitCode: external_exports.number().int().nullable(),
+  scheduledFor: external_exports.number(),
+  startedAt: external_exports.number(),
+  finishedAt: external_exports.number().nullable()
+}).strict();
+var projectAutomationInputSchema = external_exports.object({
+  projectId: external_exports.string().min(1),
+  automationId: external_exports.string().min(1)
+}).strict();
+var listAutomationsInputSchema = external_exports.object({ projectId: external_exports.string().min(1) }).strict();
+var createAutomationInputSchema = external_exports.object({
+  projectId: external_exports.string().min(1),
+  name: external_exports.string().min(1).max(AUTOMATION_NAME_MAX_LENGTH),
+  enabled: external_exports.boolean().default(true),
+  allowVoiceOutput: external_exports.boolean().default(false),
+  trigger: automationTriggerSchema,
+  execution: automationExecutionRequestSchema,
+  origin: automationOriginSchema,
+  createdByThreadId: external_exports.string().min(1).optional()
+}).strict();
+var updateAutomationInputSchema = external_exports.object({
+  projectId: external_exports.string().min(1),
+  automationId: external_exports.string().min(1),
+  name: external_exports.string().min(1).max(AUTOMATION_NAME_MAX_LENGTH).optional(),
+  allowVoiceOutput: external_exports.boolean().optional(),
+  trigger: automationTriggerSchema.optional(),
+  execution: automationExecutionRequestSchema.optional(),
+  agent: agentExecutionUpdateSchema.optional(),
+  script: scriptExecutionUpdateSchema.optional()
+}).strict().refine(
+  (value) => value.name !== void 0 || value.allowVoiceOutput !== void 0 || value.trigger !== void 0 || value.execution !== void 0 || value.agent !== void 0 || value.script !== void 0,
+  { message: "at least one field is required" }
+).refine(
+  (value) => [value.execution, value.agent, value.script].filter(
+    (entry) => entry !== void 0
+  ).length <= 1,
+  {
+    message: "execution, agent, and script updates cannot be combined"
+  }
+);
+var runAutomationInputSchema = projectAutomationInputSchema.extend({
+  idempotencyKey: external_exports.string().min(1).max(AUTOMATION_IDEMPOTENCY_KEY_MAX_LENGTH).optional()
+}).strict();
+var automationRunsInputSchema = projectAutomationInputSchema.extend({
+  limit: external_exports.number().int().positive().max(AUTOMATION_RUNS_LIMIT_MAX).default(AUTOMATION_RUNS_LIMIT_DEFAULT),
+  cursor: external_exports.string().min(1).optional()
+}).strict();
+var automationListResponseSchema = external_exports.array(automationReadResultSchema);
+var automationRunListResponseSchema = external_exports.object({
+  runs: external_exports.array(automationRunResponseSchema),
+  nextCursor: external_exports.string().nullable()
+}).strict();
+var automationRunRpcResponseSchema = external_exports.object({ run: automationRunResponseSchema }).strict();
+var automationsOverviewEntrySchema = external_exports.object({
+  automation: automationReadResultSchema,
+  project: external_exports.object({ id: external_exports.string(), name: external_exports.string() }).strict()
+}).strict();
+var automationsOverviewResponseSchema = external_exports.object({ automations: external_exports.array(automationsOverviewEntrySchema) }).strict();
 
-// ../../packages/arc-domains/src/arc-account/account-pool-source.ts
-var RPC_BASE_PATH = "/api/v1/plugins/account-pool/rpc/";
-function createAccountPoolHttpRpcClient(args) {
-  const fetchImpl = args.fetchImpl ?? fetch;
-  const base = args.serverUrl.replace(/\/+$/u, "") + RPC_BASE_PATH;
+// ../.bundled-stage-7tjiRO/src/data.ts
+var AUTOMATION_COLUMNS = `id, project_id AS projectId, target_thread_id AS targetThreadId,
+  name, enabled, trigger_type AS triggerType,
+  trigger_config AS triggerConfig, run_mode AS runMode, execution, origin,
+  created_by_thread_id AS createdByThreadId,
+  allow_voice_output AS allowVoiceOutput,
+  next_run_at AS nextRunAt, last_run_at AS lastRunAt,
+  run_count AS runCount, consecutive_failures AS consecutiveFailures,
+  last_run_status AS lastRunStatus,
+  last_run_thread_id AS lastRunThreadId, last_error AS lastError,
+  created_at AS createdAt, updated_at AS updatedAt`;
+var AUTOMATION_RUN_COLUMNS = `id, automation_id AS automationId, run_mode AS runMode,
+  thread_id AS threadId, status, trigger, skip_reason AS skipReason,
+  error, output, exit_code AS exitCode,
+  idempotency_key AS idempotencyKey, scheduled_for AS scheduledFor,
+  started_at AS startedAt, finished_at AS finishedAt`;
+var AUTOMATION_MAX_CONSECUTIVE_FAILURES = 3;
+var AUTOMATION_RETRY_BASE_MS = 3e4;
+function boolToInt(value) {
+  return value ? 1 : 0;
+}
+function automationRow(raw) {
   return {
-    async call(method, input) {
-      let response;
-      try {
-        response = await fetchImpl(base + method, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: input === void 0 ? "" : JSON.stringify(input)
-        });
-      } catch (error48) {
-        throw new ArcAccountError(
-          "account-source-unavailable",
-          `account pool RPC transport failed: ${error48 instanceof Error ? error48.message : String(error48)}`
-        );
+    ...raw,
+    enabled: raw.enabled === 1,
+    allowVoiceOutput: raw.allowVoiceOutput === 1
+  };
+}
+function requiredAutomationRow(value) {
+  return automationRow(value);
+}
+function optionalAutomationRow(value) {
+  return value === void 0 ? null : requiredAutomationRow(value);
+}
+function requiredRunRow(value) {
+  return value;
+}
+function optionalRunRow(value) {
+  return value === void 0 ? null : requiredRunRow(value);
+}
+var migrations = [
+  `CREATE TABLE IF NOT EXISTS automations (
+     id TEXT PRIMARY KEY,
+     project_id TEXT NOT NULL,
+     target_thread_id TEXT,
+     name TEXT NOT NULL,
+     enabled INTEGER NOT NULL DEFAULT 1,
+     trigger_type TEXT NOT NULL,
+     trigger_config TEXT NOT NULL,
+     run_mode TEXT NOT NULL,
+     execution TEXT NOT NULL,
+     -- Legacy compatibility only. The plugin accepts legacy exports carrying
+     -- autoArchive but no longer reads or writes this accepted-but-ignored
+     -- contract field.
+     auto_archive INTEGER NOT NULL DEFAULT 0,
+     origin TEXT NOT NULL,
+     created_by_thread_id TEXT,
+     next_run_at INTEGER,
+     last_run_at INTEGER,
+     run_count INTEGER NOT NULL DEFAULT 0,
+     last_run_status TEXT,
+     last_run_thread_id TEXT,
+     last_error TEXT,
+     created_at INTEGER NOT NULL,
+     updated_at INTEGER NOT NULL
+   );
+   CREATE INDEX IF NOT EXISTS automations_project_idx
+     ON automations(project_id);
+   CREATE INDEX IF NOT EXISTS automations_due_idx
+     ON automations(enabled, trigger_type, next_run_at);
+   CREATE INDEX IF NOT EXISTS automations_target_thread_idx
+     ON automations(target_thread_id);
+   CREATE TABLE IF NOT EXISTS automation_runs (
+     id TEXT PRIMARY KEY,
+     automation_id TEXT NOT NULL REFERENCES automations(id) ON DELETE CASCADE,
+     run_mode TEXT NOT NULL,
+     thread_id TEXT,
+     status TEXT NOT NULL,
+     trigger TEXT NOT NULL,
+     skip_reason TEXT,
+     error TEXT,
+     output TEXT,
+     exit_code INTEGER,
+     idempotency_key TEXT,
+     scheduled_for INTEGER NOT NULL,
+     started_at INTEGER NOT NULL,
+     finished_at INTEGER
+   );
+   CREATE INDEX IF NOT EXISTS automation_runs_automation_started_idx
+     ON automation_runs(automation_id, started_at, id);
+   CREATE INDEX IF NOT EXISTS automation_runs_thread_idx
+     ON automation_runs(thread_id);
+   CREATE UNIQUE INDEX IF NOT EXISTS automation_runs_idempotency_idx
+     ON automation_runs(automation_id, idempotency_key)
+     WHERE idempotency_key IS NOT NULL;
+   CREATE TABLE IF NOT EXISTS automation_thread_marks (
+     thread_id TEXT PRIMARY KEY,
+     automation_id TEXT NOT NULL,
+     run_id TEXT NOT NULL,
+     created_at INTEGER NOT NULL
+   );`,
+  `UPDATE automations
+   SET execution = json_set(
+     execution,
+     '$.permissionMode',
+     CASE json_extract(execution, '$.permissionMode')
+       WHEN 'workspace-write' THEN 'accept-edits'
+       WHEN 'readonly' THEN 'accept-edits'
+     END
+   )
+   WHERE run_mode = 'agent'
+     AND json_extract(execution, '$.permissionMode') IN (
+       'workspace-write',
+       'readonly'
+     );`,
+  `ALTER TABLE automations
+     ADD COLUMN consecutive_failures INTEGER NOT NULL DEFAULT 0;
+   -- Databases from before single-flight can hold several running rows for
+   -- one automation (manual runs never checked). Keep the newest as the one
+   -- live run and settle the rest as interrupted, deterministically, so the
+   -- unique index below can be created and startup never fails closed on
+   -- history. Startup reconciliation then decides the survivor's fate.
+   UPDATE automation_runs
+      SET status = 'skipped',
+          skip_reason = 'interrupted: another run of this automation was already running when single-flight was introduced',
+          finished_at = CAST(strftime('%s', 'now') AS INTEGER) * 1000
+    WHERE status = 'running'
+      AND id IN (
+        SELECT id FROM (
+          SELECT id,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY automation_id
+                   ORDER BY started_at DESC, id DESC
+                 ) AS position
+            FROM automation_runs
+           WHERE status = 'running'
+        )
+        WHERE position > 1
+      );
+   CREATE UNIQUE INDEX IF NOT EXISTS automation_runs_single_flight_idx
+     ON automation_runs(automation_id)
+     WHERE status = 'running';`,
+  `ALTER TABLE automations
+     ADD COLUMN allow_voice_output INTEGER NOT NULL DEFAULT 0;`
+];
+function automationRetryDelayMs(consecutiveFailures) {
+  const exponent = Math.max(0, consecutiveFailures - 1);
+  return AUTOMATION_RETRY_BASE_MS * 2 ** exponent;
+}
+function serializeTrigger(trigger) {
+  return JSON.stringify(trigger);
+}
+function serializeExecution(execution) {
+  return JSON.stringify(automationExecutionSchema.parse(execution));
+}
+function resolveAutomationUpdate(existing, patch) {
+  const trigger = patch.trigger ?? parseAutomationTrigger(existing.triggerConfig);
+  const execution = patch.execution ?? parseAutomationExecution(existing.execution);
+  return {
+    name: patch.name ?? existing.name,
+    allowVoiceOutput: patch.allowVoiceOutput ?? existing.allowVoiceOutput,
+    trigger,
+    execution,
+    targetThreadId: patch.targetThreadId !== void 0 ? patch.targetThreadId : execution.mode === "agent" ? execution.targetThreadId ?? null : null,
+    nextRunAt: patch.nextRunAt !== void 0 ? patch.nextRunAt : existing.nextRunAt
+  };
+}
+function parseAutomationTrigger(triggerConfig) {
+  return automationTriggerSchema.parse(JSON.parse(triggerConfig));
+}
+function parseAutomationExecution(execution) {
+  return persistedAutomationExecutionSchema.parse(JSON.parse(execution));
+}
+function parseRepairableAutomationExecution(execution) {
+  return repairableAutomationExecutionSchema.parse(JSON.parse(execution));
+}
+function automationResponseValue(row, trigger, execution) {
+  return {
+    id: row.id,
+    projectId: row.projectId,
+    name: row.name,
+    enabled: row.enabled,
+    trigger,
+    execution,
+    origin: row.origin,
+    createdByThreadId: row.createdByThreadId,
+    allowVoiceOutput: row.allowVoiceOutput,
+    nextRunAt: row.nextRunAt,
+    lastRunAt: row.lastRunAt,
+    runCount: row.runCount,
+    lastRunStatus: row.lastRunStatus,
+    lastRunThreadId: row.lastRunThreadId,
+    lastError: row.lastError,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt
+  };
+}
+function invalidAutomationRow(row, error48) {
+  return {
+    automation: {
+      id: row.id,
+      projectId: row.projectId,
+      name: row.name,
+      problem: "invalid-stored-data"
+    },
+    error: error48
+  };
+}
+function assertAutomationStoredFields(row, trigger, execution) {
+  if (row.triggerType !== trigger.triggerType) {
+    throw new Error(`Automation ${row.id} has inconsistent trigger data`);
+  }
+  if (row.runMode !== execution.mode) {
+    throw new Error(`Automation ${row.id} has inconsistent execution mode`);
+  }
+  const targetThreadId = execution.mode === "agent" ? execution.targetThreadId ?? null : null;
+  if (row.targetThreadId !== targetThreadId) {
+    throw new Error(`Automation ${row.id} has inconsistent target thread`);
+  }
+}
+function decodeAutomationRow(row) {
+  let value;
+  try {
+    const trigger = parseAutomationTrigger(row.triggerConfig);
+    const execution = parseRepairableAutomationExecution(row.execution);
+    assertAutomationStoredFields(row, trigger, execution);
+    value = automationResponseValue(row, trigger, execution);
+  } catch (error48) {
+    return invalidAutomationRow(
+      row,
+      error48 instanceof Error ? error48 : new Error(String(error48))
+    );
+  }
+  const canonical = automationResponseSchema.safeParse(value);
+  if (canonical.success) {
+    return { automation: canonical.data };
+  }
+  const missingPrompt = legacyEmptyPromptAutomationResponseSchema.safeParse(value);
+  return missingPrompt.success ? {
+    automation: {
+      ...missingPrompt.data,
+      problem: "missing-agent-prompt"
+    },
+    error: canonical.error
+  } : invalidAutomationRow(row, canonical.error);
+}
+function toAutomationResponse(row) {
+  const decoded = decodeAutomationRow(row);
+  if ("error" in decoded) throw decoded.error;
+  return decoded.automation;
+}
+function toAutomationRunResponse(row) {
+  return automationRunResponseSchema.parse({
+    id: row.id,
+    automationId: row.automationId,
+    runMode: row.runMode,
+    threadId: row.threadId,
+    status: row.status,
+    trigger: row.trigger,
+    skipReason: row.skipReason,
+    error: row.error,
+    output: row.output,
+    exitCode: row.exitCode,
+    scheduledFor: row.scheduledFor,
+    startedAt: row.startedAt,
+    finishedAt: row.finishedAt
+  });
+}
+function createAutomation(db, input) {
+  const now = Date.now();
+  const id = input.id ?? createAutomationId();
+  db.prepare(
+    `INSERT INTO automations (
+       id, project_id, target_thread_id, name, enabled, trigger_type,
+       trigger_config, run_mode, execution, origin,
+       created_by_thread_id, allow_voice_output, next_run_at, last_run_at,
+       run_count, last_run_status, last_run_thread_id, last_error,
+       created_at, updated_at
+     ) VALUES (
+       @id, @projectId, @targetThreadId, @name, @enabled, @triggerType,
+       @triggerConfig, @runMode, @execution, @origin,
+       @createdByThreadId, @allowVoiceOutput, @nextRunAt, NULL, 0, NULL,
+       NULL, NULL, @now, @now
+     )`
+  ).run({
+    id,
+    projectId: input.projectId,
+    targetThreadId: input.execution.mode === "agent" ? input.execution.targetThreadId ?? null : null,
+    name: input.name,
+    enabled: boolToInt(input.enabled),
+    triggerType: input.trigger.triggerType,
+    triggerConfig: serializeTrigger(input.trigger),
+    runMode: input.runMode,
+    execution: serializeExecution(input.execution),
+    origin: input.origin,
+    createdByThreadId: input.createdByThreadId,
+    allowVoiceOutput: boolToInt(input.allowVoiceOutput ?? false),
+    nextRunAt: input.nextRunAt,
+    now
+  });
+  const created = getAutomation(db, id);
+  if (!created) throw new Error("failed to create automation");
+  return created;
+}
+function getAutomation(db, id) {
+  return optionalAutomationRow(
+    db.prepare(
+      `SELECT
+           ${AUTOMATION_COLUMNS}
+         FROM automations WHERE id = ?`
+    ).get(id)
+  );
+}
+function getAutomationForProject(db, args) {
+  const row = getAutomation(db, args.automationId);
+  return row?.projectId === args.projectId ? row : null;
+}
+function listAutomationsForProject(db, projectId) {
+  return db.prepare(
+    `SELECT
+         ${AUTOMATION_COLUMNS}
+       FROM automations
+       WHERE project_id = ?
+       ORDER BY created_at DESC, id DESC`
+  ).all(projectId).map(requiredAutomationRow);
+}
+function listAllAutomations(db) {
+  return db.prepare(
+    `SELECT
+         ${AUTOMATION_COLUMNS}
+       FROM automations
+       ORDER BY created_at DESC, id DESC`
+  ).all().map(requiredAutomationRow);
+}
+function updateAutomation(db, args) {
+  const existing = getAutomationForProject(db, args);
+  if (!existing) return null;
+  const next = resolveAutomationUpdate(existing, args.patch);
+  const now = Date.now();
+  const updated = {
+    ...existing,
+    name: next.name,
+    allowVoiceOutput: next.allowVoiceOutput,
+    triggerType: next.trigger.triggerType,
+    triggerConfig: serializeTrigger(next.trigger),
+    runMode: next.execution.mode,
+    execution: serializeExecution(next.execution),
+    targetThreadId: next.targetThreadId,
+    nextRunAt: next.nextRunAt,
+    updatedAt: now
+  };
+  toAutomationResponse(updated);
+  db.prepare(
+    `UPDATE automations SET
+       name = @name,
+       allow_voice_output = @allowVoiceOutput,
+       trigger_type = @triggerType,
+       trigger_config = @triggerConfig,
+       run_mode = @runMode,
+       execution = @execution,
+       target_thread_id = @targetThreadId,
+       next_run_at = @nextRunAt,
+       updated_at = @now
+     WHERE id = @automationId AND project_id = @projectId`
+  ).run({
+    automationId: updated.id,
+    projectId: updated.projectId,
+    name: updated.name,
+    allowVoiceOutput: boolToInt(updated.allowVoiceOutput),
+    triggerType: updated.triggerType,
+    triggerConfig: updated.triggerConfig,
+    runMode: updated.runMode,
+    execution: updated.execution,
+    targetThreadId: updated.targetThreadId,
+    nextRunAt: updated.nextRunAt,
+    now: updated.updatedAt
+  });
+  return updated;
+}
+function setAutomationEnabled(db, args) {
+  db.prepare(
+    `UPDATE automations SET
+       enabled = @enabled,
+       next_run_at = @nextRunAt,
+       last_error = CASE WHEN @hasLastError THEN @lastError ELSE last_error END,
+       consecutive_failures = CASE
+         WHEN @resetConsecutiveFailures = 1 THEN 0
+         ELSE consecutive_failures
+       END,
+       updated_at = @now
+     WHERE id = @automationId AND project_id = @projectId`
+  ).run({
+    automationId: args.automationId,
+    projectId: args.projectId,
+    enabled: boolToInt(args.enabled),
+    nextRunAt: args.nextRunAt,
+    hasLastError: args.lastError === void 0 ? 0 : 1,
+    lastError: args.lastError ?? null,
+    resetConsecutiveFailures: boolToInt(args.resetConsecutiveFailures ?? false),
+    now: Date.now()
+  });
+  return getAutomationForProject(db, args);
+}
+function deleteAutomation(db, args) {
+  const existing = getAutomationForProject(db, args);
+  if (!existing) return false;
+  db.prepare(`DELETE FROM automation_runs WHERE automation_id = ?`).run(
+    args.automationId
+  );
+  db.prepare(`DELETE FROM automation_thread_marks WHERE automation_id = ?`).run(
+    args.automationId
+  );
+  db.prepare(`DELETE FROM automations WHERE id = ? AND project_id = ?`).run(
+    args.automationId,
+    args.projectId
+  );
+  return true;
+}
+function listDueAutomations(db, args) {
+  if (args.limit <= 0) return [];
+  const pageSize = Math.max(args.limit, 100);
+  const query = db.prepare(
+    `SELECT
+       ${AUTOMATION_COLUMNS}
+     FROM automations
+     WHERE enabled = 1
+       AND trigger_type IN ('schedule', 'once')
+       AND next_run_at IS NOT NULL
+       AND next_run_at <= ?
+     ORDER BY next_run_at ASC, created_at ASC, id ASC
+     LIMIT ? OFFSET ?`
+  );
+  const due = [];
+  let offset = 0;
+  while (due.length < args.limit) {
+    const page = query.all(args.now, pageSize, offset).map(requiredAutomationRow);
+    if (page.length === 0) break;
+    offset += page.length;
+    for (const row of page) {
+      if (!("error" in decodeAutomationRow(row))) due.push(row);
+      if (due.length === args.limit) return due;
+    }
+    if (page.length < pageSize) break;
+  }
+  return due;
+}
+function getRunningAutomationRun(db, automationId) {
+  return optionalRunRow(
+    db.prepare(
+      `SELECT
+           ${AUTOMATION_RUN_COLUMNS}
+         FROM automation_runs
+         WHERE automation_id = ? AND status = 'running'
+         ORDER BY started_at DESC, id DESC
+         LIMIT 1`
+    ).get(automationId)
+  );
+}
+function claimAutomationScheduledRun(db, args) {
+  return db.transaction(() => {
+    const row = getAutomation(db, args.automationId);
+    if (!row || !row.enabled || row.triggerType !== "schedule" && row.triggerType !== "once" || row.nextRunAt !== args.expectedNextRunAt) {
+      return { advanced: false };
+    }
+    if (getRunningAutomationRun(db, args.automationId)) {
+      return { advanced: false };
+    }
+    const skip = args.skipReason != null;
+    const updated = db.prepare(
+      `UPDATE automations SET
+           enabled = @enabled,
+           next_run_at = @newNextRunAt,
+           last_run_at = @now,
+           run_count = run_count + 1,
+           consecutive_failures = CASE
+             WHEN @skip = 1 THEN 0
+             ELSE consecutive_failures
+           END,
+           last_run_status = @lastRunStatus,
+           last_error = CASE WHEN @skip = 1 THEN NULL ELSE last_error END,
+           updated_at = @now
+         WHERE id = @automationId AND next_run_at = @expectedNextRunAt
+         RETURNING
+           ${AUTOMATION_COLUMNS}`
+    ).get({
+      automationId: args.automationId,
+      expectedNextRunAt: args.expectedNextRunAt,
+      enabled: boolToInt(row.triggerType === "once" ? false : row.enabled),
+      newNextRunAt: args.newNextRunAt,
+      skip: boolToInt(skip),
+      lastRunStatus: skip ? "skipped" : "running",
+      now: args.now
+    });
+    if (updated === void 0) return { advanced: false };
+    const runId = createAutomationRunId();
+    db.prepare(
+      `INSERT INTO automation_runs (
+         id, automation_id, run_mode, thread_id, status, trigger, skip_reason,
+         error, output, exit_code, idempotency_key, scheduled_for, started_at,
+         finished_at
+       ) VALUES (
+         @id, @automationId, @runMode, NULL, @status, 'schedule', @skipReason,
+         NULL, NULL, NULL, NULL, @scheduledFor, @startedAt, @finishedAt
+       )`
+    ).run({
+      id: runId,
+      automationId: args.automationId,
+      runMode: row.runMode,
+      status: skip ? "skipped" : "running",
+      skipReason: args.skipReason ?? null,
+      scheduledFor: args.expectedNextRunAt,
+      startedAt: args.now,
+      finishedAt: skip ? args.now : null
+    });
+    const run = getAutomationRun(db, runId);
+    if (!run) throw new Error("failed to create automation run");
+    return { advanced: true, automation: requiredAutomationRow(updated), run };
+  })();
+}
+function recordAutomationFailure(db, args) {
+  const automation = getAutomation(db, args.automationId);
+  if (!automation) {
+    return { consecutiveFailures: 0, paused: false, retryAt: null };
+  }
+  const consecutiveFailures = automation.consecutiveFailures + 1;
+  const paused = consecutiveFailures >= AUTOMATION_MAX_CONSECUTIVE_FAILURES;
+  const retryAt = args.retrySchedule && automation.enabled && !paused ? args.now + automationRetryDelayMs(consecutiveFailures) : null;
+  const lastError = paused ? `${args.error} (automation paused after ${consecutiveFailures} consecutive failures)` : args.error;
+  db.prepare(
+    `UPDATE automations SET
+       enabled = CASE WHEN @paused = 1 THEN 0 ELSE enabled END,
+       next_run_at = CASE
+         WHEN @paused = 1 THEN NULL
+         WHEN @retryAt IS NOT NULL THEN @retryAt
+         ELSE next_run_at
+       END,
+       consecutive_failures = @consecutiveFailures,
+       last_run_status = 'failed',
+       last_error = @lastError,
+       updated_at = @now
+     WHERE id = @automationId`
+  ).run({
+    automationId: args.automationId,
+    paused: boolToInt(paused),
+    retryAt,
+    consecutiveFailures,
+    lastError,
+    now: args.now
+  });
+  return { consecutiveFailures, paused, retryAt };
+}
+function closeAutomationRun(db, args) {
+  return db.transaction(() => {
+    const existing = getAutomationRun(db, args.runId);
+    if (!existing || existing.status !== "running") return null;
+    const settled = db.prepare(
+      `UPDATE automation_runs SET
+         status = @status,
+         skip_reason = @skipReason,
+         error = @error,
+         output = @output,
+         exit_code = @exitCode,
+         thread_id = CASE WHEN @hasThreadId THEN @threadId ELSE thread_id END,
+         finished_at = @now
+       WHERE id = @runId AND status = 'running'`
+    ).run({
+      runId: args.runId,
+      status: args.status,
+      skipReason: args.skipReason ?? null,
+      error: args.error ?? null,
+      output: args.output ?? null,
+      exitCode: args.exitCode ?? null,
+      hasThreadId: args.threadId === void 0 ? 0 : 1,
+      threadId: args.threadId ?? null,
+      now: args.now
+    });
+    if (settled.changes !== 1) return null;
+    if (args.status === "failed") {
+      recordAutomationFailure(db, {
+        automationId: existing.automationId,
+        retrySchedule: existing.trigger === "schedule",
+        error: args.error ?? "Automation run failed",
+        now: args.now
+      });
+      db.prepare(
+        `UPDATE automations SET
+           last_run_thread_id = CASE
+             WHEN @threadId IS NOT NULL THEN @threadId
+             ELSE last_run_thread_id
+           END
+         WHERE id = @automationId`
+      ).run({
+        automationId: existing.automationId,
+        threadId: args.threadId ?? null
+      });
+    } else {
+      db.prepare(
+        `UPDATE automations SET
+           consecutive_failures = 0,
+           last_run_status = @status,
+           last_run_thread_id = CASE
+             WHEN @threadId IS NOT NULL THEN @threadId
+             ELSE last_run_thread_id
+           END,
+           last_error = NULL,
+           updated_at = @now
+         WHERE id = @automationId`
+      ).run({
+        automationId: existing.automationId,
+        status: args.status,
+        threadId: args.threadId ?? null,
+        now: args.now
+      });
+    }
+    const run = getAutomationRun(db, args.runId);
+    if (!run) return null;
+    return { run, automationId: run.automationId };
+  })();
+}
+function createManualRun(db, args) {
+  return db.transaction(() => {
+    if (args.idempotencyKey) {
+      const existing = optionalRunRow(
+        db.prepare(
+          `SELECT
+               ${AUTOMATION_RUN_COLUMNS}
+             FROM automation_runs
+             WHERE automation_id = ? AND idempotency_key = ?`
+        ).get(args.automationId, args.idempotencyKey)
+      );
+      if (existing) return { run: existing, deduped: true };
+    }
+    const running = getRunningAutomationRun(db, args.automationId);
+    if (running) return { run: running, deduped: true };
+    const runId = createAutomationRunId();
+    db.prepare(
+      `INSERT INTO automation_runs (
+         id, automation_id, run_mode, thread_id, status, trigger, skip_reason,
+         error, output, exit_code, idempotency_key, scheduled_for, started_at,
+         finished_at
+       ) VALUES (
+         @id, @automationId, @runMode, NULL, 'running', 'manual', NULL,
+         NULL, NULL, NULL, @idempotencyKey, @now, @now, NULL
+       )`
+    ).run({
+      id: runId,
+      automationId: args.automationId,
+      runMode: args.runMode,
+      idempotencyKey: args.idempotencyKey ?? null,
+      now: args.now
+    });
+    const run = getAutomationRun(db, runId);
+    if (!run) throw new Error("failed to create manual run");
+    return { run, deduped: false };
+  })();
+}
+function getAutomationRun(db, id) {
+  return optionalRunRow(
+    db.prepare(
+      `SELECT
+           ${AUTOMATION_RUN_COLUMNS}
+         FROM automation_runs WHERE id = ?`
+    ).get(id)
+  );
+}
+function setAutomationRunThread(db, args) {
+  db.prepare(`UPDATE automation_runs SET thread_id = ? WHERE id = ?`).run(
+    args.threadId,
+    args.runId
+  );
+  return getAutomationRun(db, args.runId);
+}
+function markAutomationThread(db, args) {
+  db.prepare(
+    `INSERT OR REPLACE INTO automation_thread_marks (
+       thread_id, automation_id, run_id, created_at
+     ) VALUES (?, ?, ?, ?)`
+  ).run(args.threadId, args.automationId, args.runId, args.now);
+}
+function isAutomationSpawnedThread(db, threadId) {
+  return db.prepare(
+    `SELECT thread_id FROM automation_thread_marks WHERE thread_id = ? LIMIT 1`
+  ).get(threadId) !== void 0 || db.prepare(`SELECT id FROM automation_runs WHERE thread_id = ? LIMIT 1`).get(threadId) !== void 0;
+}
+function listRunningAutomationRuns(db) {
+  return db.prepare(
+    `SELECT
+           ${AUTOMATION_RUN_COLUMNS}
+         FROM automation_runs
+         WHERE status = 'running'
+         ORDER BY started_at ASC, id ASC`
+  ).all();
+}
+function listRunningAutomationRunsByThread(db, threadId) {
+  return db.prepare(
+    `SELECT
+           ${AUTOMATION_RUN_COLUMNS}
+         FROM automation_runs
+         WHERE thread_id = ? AND status = 'running'
+         ORDER BY started_at DESC, id DESC`
+  ).all(threadId);
+}
+function listAutomationRuns(db, args) {
+  const rows = args.cursor ? db.prepare(
+    `SELECT
+             ${AUTOMATION_RUN_COLUMNS}
+           FROM automation_runs
+           WHERE automation_id = ?
+             AND (started_at < ? OR (started_at = ? AND id < ?))
+           ORDER BY started_at DESC, id DESC
+           LIMIT ?`
+  ).all(
+    args.automationId,
+    args.cursor.startedAt,
+    args.cursor.startedAt,
+    args.cursor.id,
+    args.limit
+  ) : db.prepare(
+    `SELECT
+             ${AUTOMATION_RUN_COLUMNS}
+           FROM automation_runs
+           WHERE automation_id = ?
+           ORDER BY started_at DESC, id DESC
+           LIMIT ?`
+  ).all(args.automationId, args.limit);
+  return rows.map(requiredRunRow);
+}
+function disableAutomationsForDeletedThread(db, args) {
+  db.prepare(
+    `UPDATE automations SET
+       enabled = 0,
+       next_run_at = NULL,
+       last_error = 'target thread deleted',
+       updated_at = @now
+     WHERE target_thread_id = @threadId AND enabled = 1`
+  ).run(args);
+  return db.prepare(
+    `SELECT
+         ${AUTOMATION_COLUMNS}
+       FROM automations
+       WHERE target_thread_id = @threadId AND last_error = 'target thread deleted'
+       ORDER BY updated_at DESC`
+  ).all(args).map(requiredAutomationRow);
+}
+
+// ../.bundled-stage-7tjiRO/src/legacy-import.ts
+import { mkdir as mkdir2, readFile as readFile2, rename as rename2, stat, writeFile as writeFile2 } from "node:fs/promises";
+import { join as join2 } from "node:path";
+
+// ../.bundled-stage-7tjiRO/src/script-files.ts
+import { randomUUID } from "node:crypto";
+import {
+  access,
+  mkdir,
+  readFile,
+  realpath,
+  rename,
+  rm,
+  writeFile
+} from "node:fs/promises";
+import { basename, extname, join, resolve, relative } from "node:path";
+var SCRIPT_DIR_NAME = "scripts";
+var DEFAULT_SCRIPT_FILE_NAME = "script.sh";
+var INTERPRETER_BY_EXTENSION = {
+  ".sh": "bash",
+  ".bash": "bash",
+  ".js": "node",
+  ".mjs": "node",
+  ".py": "python3"
+};
+function scriptsRoot(dataDir) {
+  return join(dataDir, SCRIPT_DIR_NAME);
+}
+function automationScriptDir(dataDir, automationId) {
+  return join(scriptsRoot(dataDir), automationId);
+}
+function sanitizeScriptFileName(name) {
+  const base = basename(name).replace(/[^a-zA-Z0-9._-]+/gu, "-");
+  return base.length > 0 ? base : DEFAULT_SCRIPT_FILE_NAME;
+}
+function interpreterForPath(path) {
+  return INTERPRETER_BY_EXTENSION[extname(path).toLowerCase()];
+}
+function resolveDefaultInterpreter(scriptFile) {
+  return interpreterForPath(scriptFile) ?? "bash";
+}
+async function pathExists(path) {
+  try {
+    await access(path);
+    return true;
+  } catch (error48) {
+    if (typeof error48 === "object" && error48 !== null && "code" in error48 && error48.code === "ENOENT") {
+      return false;
+    }
+    throw error48;
+  }
+}
+async function writeInlineAutomationScript(args) {
+  const requestedName = sanitizeScriptFileName(
+    args.scriptFile ?? DEFAULT_SCRIPT_FILE_NAME
+  );
+  const dir = automationScriptDir(args.dataDir, args.automationId);
+  await mkdir(dir, { recursive: true });
+  let storedName = requestedName;
+  if (await pathExists(join(dir, storedName))) {
+    const extension = extname(requestedName);
+    const stem = requestedName.slice(
+      0,
+      requestedName.length - extension.length
+    );
+    storedName = `${stem}.${randomUUID()}${extension}`;
+  }
+  const target = join(dir, storedName);
+  const tmp = join(dir, `.${storedName}.${randomUUID()}.tmp`);
+  try {
+    await writeFile(tmp, args.content, { mode: 448 });
+    await rename(tmp, target);
+  } catch (error48) {
+    await rm(tmp, { force: true });
+    throw error48;
+  }
+  return storedName;
+}
+function ensureContained(rootPath, candidatePath) {
+  const rel = relative(rootPath, candidatePath);
+  if (rel === "" || !rel.startsWith("..") && !rel.startsWith("/") && !resolve(rel).startsWith("..")) {
+    return candidatePath;
+  }
+  return null;
+}
+async function resolveAutomationScriptPath(args) {
+  const dir = automationScriptDir(args.dataDir, args.automationId);
+  const contained = ensureContained(dir, resolve(dir, args.scriptFile));
+  if (contained === null) {
+    throw new Error("Script file path escapes the automation script directory");
+  }
+  let realRoot;
+  let realCandidate;
+  try {
+    realRoot = await realpath(dir);
+    realCandidate = await realpath(contained);
+  } catch {
+    throw new Error("Script file was not found");
+  }
+  const reContained = ensureContained(realRoot, realCandidate);
+  if (reContained === null) {
+    throw new Error("Script file path escapes the automation script directory");
+  }
+  return reContained;
+}
+async function readAutomationScript(args) {
+  return readFile(await resolveAutomationScriptPath(args), "utf8");
+}
+async function deleteAutomationScriptDir(args) {
+  await rm(automationScriptDir(args.dataDir, args.automationId), {
+    recursive: true,
+    force: true
+  });
+}
+async function deleteAutomationScriptFile(args) {
+  const storedName = sanitizeScriptFileName(args.scriptFile);
+  if (storedName !== args.scriptFile) {
+    throw new Error("Invalid stored automation script filename");
+  }
+  await rm(
+    join(automationScriptDir(args.dataDir, args.automationId), storedName),
+    { force: true }
+  );
+}
+
+// ../.bundled-stage-7tjiRO/src/legacy-import.ts
+var LEGACY_IMPORT_DONE_KEY = "legacy-import-done";
+var legacyAutomationRowSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  projectId: external_exports.string().min(1),
+  targetThreadId: external_exports.string().min(1).nullable(),
+  name: external_exports.string().min(1),
+  enabled: external_exports.boolean(),
+  triggerType: external_exports.enum(["schedule", "once"]),
+  triggerConfig: external_exports.string().min(1),
+  runMode: automationRunModeSchema,
+  execution: external_exports.string().min(1),
+  environment: external_exports.string().min(1),
+  autoArchive: external_exports.boolean(),
+  origin: automationOriginSchema,
+  createdByThreadId: external_exports.string().min(1).nullable(),
+  nextRunAt: external_exports.number().int().nullable(),
+  lastRunAt: external_exports.number().int().nullable(),
+  runCount: external_exports.number().int().min(0),
+  lastRunStatus: automationRunStatusSchema.nullable(),
+  lastRunThreadId: external_exports.string().min(1).nullable(),
+  lastError: external_exports.string().nullable(),
+  createdAt: external_exports.number().int(),
+  updatedAt: external_exports.number().int()
+}).strict();
+var legacyRunRowSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  automationId: external_exports.string().min(1),
+  runMode: automationRunModeSchema,
+  threadId: external_exports.string().min(1).nullable(),
+  status: automationRunStatusSchema,
+  trigger: automationRunTriggerSchema,
+  skipReason: external_exports.string().nullable(),
+  error: external_exports.string().nullable(),
+  output: external_exports.string().nullable(),
+  exitCode: external_exports.number().int().nullable(),
+  idempotencyKey: external_exports.string().min(1).nullable(),
+  scheduledFor: external_exports.number().int(),
+  startedAt: external_exports.number().int(),
+  finishedAt: external_exports.number().int().nullable()
+}).strict();
+var legacyScriptSchema = external_exports.object({
+  fileName: external_exports.string().min(1),
+  content: external_exports.string()
+}).strict();
+var legacyAgentExecutionSchema = external_exports.object({
+  mode: external_exports.literal("agent"),
+  prompt: external_exports.string().min(1),
+  providerId: external_exports.string().min(1),
+  model: external_exports.string().min(1),
+  permissionMode: external_exports.enum([
+    "accept-edits",
+    "auto",
+    "full",
+    "workspace-write",
+    "readonly"
+  ]),
+  targetThreadId: external_exports.string().min(1).optional()
+}).strict();
+var legacyScriptExecutionSchema = external_exports.object({
+  mode: external_exports.literal("script"),
+  script: external_exports.string().min(1).optional(),
+  scriptFile: external_exports.string().min(1).optional(),
+  interpreter: automationScriptInterpreterSchema.optional(),
+  timeoutMs: external_exports.number().int().positive().default(12e4),
+  env: external_exports.record(external_exports.string(), external_exports.string()).optional()
+}).strict();
+var legacyExecutionSchema = external_exports.discriminatedUnion("mode", [
+  legacyAgentExecutionSchema,
+  legacyScriptExecutionSchema
+]);
+var legacyImportFileSchema = external_exports.object({
+  automations: external_exports.array(legacyAutomationRowSchema),
+  runs: external_exports.array(legacyRunRowSchema),
+  scripts: external_exports.record(external_exports.string(), legacyScriptSchema)
+}).strict();
+async function fileExists(path) {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function normalizeExecution(row) {
+  const execution = legacyExecutionSchema.parse(JSON.parse(row.execution));
+  if (execution.mode !== row.runMode) {
+    throw new Error(`Automation ${row.id} runMode does not match execution`);
+  }
+  if (execution.mode === "script" && row.targetThreadId !== null) {
+    throw new Error(
+      `Automation ${row.id} targetThreadId does not match execution`
+    );
+  }
+  if (execution.mode === "agent") {
+    if (execution.targetThreadId !== void 0 && execution.targetThreadId !== row.targetThreadId) {
+      throw new Error(
+        `Automation ${row.id} targetThreadId does not match execution`
+      );
+    }
+    const environment = agentEnvironmentSchema.parse(
+      JSON.parse(row.environment)
+    );
+    const permissionMode = execution.permissionMode === "workspace-write" || execution.permissionMode === "readonly" ? "accept-edits" : execution.permissionMode;
+    return JSON.stringify({
+      ...execution,
+      permissionMode,
+      environment,
+      ...row.targetThreadId === null ? {} : { targetThreadId: row.targetThreadId }
+    });
+  }
+  const { script: _script, ...scriptExecution } = execution;
+  return JSON.stringify(scriptExecution);
+}
+function validateTriggerConfig(row) {
+  const trigger = automationTriggerSchema.parse(JSON.parse(row.triggerConfig));
+  if (trigger.triggerType !== row.triggerType) {
+    throw new Error(
+      `Automation ${row.id} triggerType does not match triggerConfig`
+    );
+  }
+}
+async function ingestLegacyImport(args) {
+  const done = await args.bb.storage.kv.get(LEGACY_IMPORT_DONE_KEY);
+  const importPath = join2(
+    args.pluginDataDir,
+    "import",
+    "legacy-automations.json"
+  );
+  if (done === true || !await fileExists(importPath)) return;
+  const payload = legacyImportFileSchema.parse(
+    JSON.parse(await readFile2(importPath, "utf8"))
+  );
+  args.db.transaction(() => {
+    for (const row of payload.automations) {
+      validateTriggerConfig(row);
+      args.db.prepare(
+        `INSERT OR IGNORE INTO automations (
+             id, project_id, target_thread_id, name, enabled, trigger_type,
+             trigger_config, run_mode, execution, origin,
+             created_by_thread_id, next_run_at, last_run_at, run_count,
+             last_run_status, last_run_thread_id, last_error, created_at,
+             updated_at
+           ) VALUES (
+             @id, @projectId, @targetThreadId, @name, @enabled, @triggerType,
+             @triggerConfig, @runMode, @execution, @origin,
+             @createdByThreadId, @nextRunAt, @lastRunAt, @runCount,
+             @lastRunStatus, @lastRunThreadId, @lastError, @createdAt,
+             @updatedAt
+           )`
+      ).run({
+        ...row,
+        enabled: row.enabled ? 1 : 0,
+        execution: normalizeExecution(row)
+      });
+    }
+    for (const run of payload.runs) {
+      args.db.prepare(
+        `INSERT OR IGNORE INTO automation_runs (
+             id, automation_id, run_mode, thread_id, status, trigger,
+             skip_reason, error, output, exit_code, idempotency_key,
+             scheduled_for, started_at, finished_at
+           ) VALUES (
+             @id, @automationId, @runMode, @threadId, @status, @trigger,
+             @skipReason, @error, @output, @exitCode, @idempotencyKey,
+             @scheduledFor, @startedAt, @finishedAt
+           )`
+      ).run(run);
+      if (run.threadId !== null) {
+        args.db.prepare(
+          `INSERT OR IGNORE INTO automation_thread_marks (
+               thread_id, automation_id, run_id, created_at
+             ) VALUES (?, ?, ?, ?)`
+        ).run(run.threadId, run.automationId, run.id, run.startedAt);
       }
-      if (response.status === 404 || response.status === 503) {
-        throw new ArcAccountError(
-          "account-source-unavailable",
-          `account pool plugin is not available (HTTP ${response.status})`
-        );
-      }
-      let payload;
-      try {
-        payload = await response.json();
-      } catch {
-        throw new ArcAccountError(
-          "account-source-unavailable",
-          `account pool RPC returned an unreadable response (HTTP ${response.status})`
-        );
-      }
-      if (typeof payload !== "object" || payload === null || !("ok" in payload)) {
-        throw new ArcAccountError(
-          "account-source-unavailable",
-          "account pool RPC returned an unexpected envelope"
-        );
-      }
-      if (payload.ok !== true) {
-        const error48 = payload.error;
-        const message = typeof error48 === "string" ? error48 : typeof error48 === "object" && error48 !== null && "message" in error48 && typeof error48.message === "string" ? error48.message : "account pool RPC failed";
-        throw new ArcAccountError(
-          method === "codexLogin.poll" && response.status === 400 ? "login-expired" : "account-source-unavailable",
-          method === "codexLogin.poll" && response.status === 400 ? "the device login session is no longer known to the account pool" : message
-        );
-      }
-      return payload.result;
+    }
+  })();
+  for (const [automationId, script] of Object.entries(payload.scripts)) {
+    const dir = automationScriptDir(args.pluginDataDir, automationId);
+    await mkdir2(dir, { recursive: true });
+    await writeFile2(join2(dir, script.fileName), script.content, {
+      mode: 448
+    });
+  }
+  await args.bb.storage.kv.set(LEGACY_IMPORT_DONE_KEY, true);
+  await rename2(importPath, `${importPath}.imported`);
+  args.bb.log.info(
+    `Imported ${payload.automations.length} legacy automations and ${payload.runs.length} runs`
+  );
+}
+
+// ../.bundled-stage-7tjiRO/src/path.ts
+import { dirname } from "node:path";
+function pluginDataDirFromDb(db) {
+  const row = db.prepare(`PRAGMA database_list`).all().find((entry) => entry.name === "main");
+  const file2 = row?.file;
+  if (typeof file2 !== "string" || file2.length === 0) {
+    throw new Error(
+      "Unable to resolve plugin data directory from SQLite handle"
+    );
+  }
+  return dirname(file2);
+}
+
+// ../.bundled-stage-7tjiRO/src/rpc.ts
+import { defineRpcContract } from "@get-bb/plugin-sdk";
+var automationRpcContract = defineRpcContract({
+  automations_overview: {
+    input: external_exports.null(),
+    output: automationsOverviewResponseSchema
+  },
+  automations_list: {
+    input: listAutomationsInputSchema,
+    output: automationListResponseSchema
+  },
+  automations_get: {
+    input: projectAutomationInputSchema,
+    output: automationDetailReadResultSchema
+  },
+  automations_create: {
+    input: createAutomationInputSchema,
+    output: automationDetailResponseSchema
+  },
+  automations_update: {
+    input: updateAutomationInputSchema,
+    output: automationDetailResponseSchema
+  },
+  automations_delete: {
+    input: projectAutomationInputSchema,
+    output: external_exports.object({ ok: external_exports.literal(true) }).strict()
+  },
+  automations_pause: {
+    input: projectAutomationInputSchema,
+    output: automationResponseSchema
+  },
+  automations_resume: {
+    input: projectAutomationInputSchema,
+    output: automationResponseSchema
+  },
+  automations_run: {
+    input: runAutomationInputSchema,
+    output: automationRunRpcResponseSchema
+  },
+  automations_runs: {
+    input: automationRunsInputSchema,
+    output: automationRunListResponseSchema
+  }
+});
+function createRpcHandlers(service) {
+  return {
+    automations_overview() {
+      return service.overview();
+    },
+    automations_list(input) {
+      return service.list(input);
+    },
+    automations_get(input) {
+      return service.get(input);
+    },
+    automations_create(input) {
+      return service.create(input);
+    },
+    automations_update(input) {
+      return service.update(input);
+    },
+    automations_delete(input) {
+      return service.delete(input);
+    },
+    automations_pause(input) {
+      return service.pause(input);
+    },
+    automations_resume(input) {
+      return service.resume(input);
+    },
+    automations_run(input) {
+      return service.run(input);
+    },
+    automations_runs(input) {
+      return service.runs(input);
     }
   };
 }
-function mapPoolAccount(identity, status, now) {
-  const family = identity.provider === "codex" ? "openai" : "anthropic";
-  const accountKey = identity.provider === "codex" ? typeof identity.codexAccountId === "string" && identity.codexAccountId.length > 0 ? `openai:chatgpt:${identity.codexAccountId}` : null : typeof identity.accountUuid === "string" && identity.accountUuid.length > 0 ? `anthropic:account:${identity.accountUuid}` : null;
-  let authState;
-  if (!identity.enabled || status === "disabled") {
-    authState = "disabled";
-  } else if (status === null) {
-    authState = "unknown";
-  } else if (status === "error") {
-    authState = "error";
-  } else {
-    authState = "connected";
+
+// ../.bundled-stage-7tjiRO/src/realtime.ts
+function publishAutomationChange(bb, projectId, kinds) {
+  for (const kind of Array.isArray(kinds) ? kinds : [kinds]) {
+    bb.realtime.publish("automations", { projectId, kind });
+  }
+}
+
+// ../.bundled-stage-7tjiRO/src/script-runner.ts
+import { execFile, spawn } from "node:child_process";
+import { constants } from "node:fs";
+import { delimiter, dirname as dirname2, isAbsolute, join as join3 } from "node:path";
+import { promisify, stripVTControlCharacters } from "node:util";
+import { access as access2, mkdir as mkdir3, stat as stat2 } from "node:fs/promises";
+var execFileAsync = promisify(execFile);
+var SCRIPT_OUTPUT_MAX_BYTES = 1024 * 1024;
+var SCRIPT_FAILURE_DETAIL_MAX_CHARS = 200;
+var resolvedBbPath = null;
+var BB_NOT_INJECTED_WARNING = "[bb] warning: could not locate the bb CLI, so `bb` is not on PATH for this script.";
+async function commandWorks(command, args) {
+  try {
+    await execFileAsync(command, args, { timeout: 5e3 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+function bbBinaryCandidates(env) {
+  const candidates = [];
+  const pushIfAbsolute = (candidate) => {
+    if (isAbsolute(candidate)) {
+      candidates.push(candidate);
+    }
+  };
+  const fromCli = env.BB_CLI?.trim();
+  if (fromCli !== void 0 && fromCli.length > 0) {
+    pushIfAbsolute(fromCli);
+  }
+  const fromCliDir = env.BB_CLI_DIR?.trim();
+  if (fromCliDir !== void 0 && fromCliDir.length > 0) {
+    pushIfAbsolute(join3(fromCliDir, "bb"));
+  }
+  for (const entry of (env.PATH ?? "").split(delimiter)) {
+    const trimmed = entry.trim();
+    if (trimmed.length > 0) {
+      pushIfAbsolute(join3(trimmed, "bb"));
+    }
+  }
+  candidates.push("/opt/homebrew/bin/bb", "/usr/local/bin/bb");
+  return candidates;
+}
+async function isExecutableFile(candidate) {
+  try {
+    const stats = await stat2(candidate);
+    if (!stats.isFile()) return false;
+    await access2(candidate, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function isDirectory(candidate) {
+  try {
+    return (await stat2(candidate)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+async function resolveBbBinary(env = process.env) {
+  if (resolvedBbPath !== null) return resolvedBbPath;
+  for (const candidate of bbBinaryCandidates(env)) {
+    if (!await isExecutableFile(candidate)) continue;
+    if (await commandWorks(candidate, ["--version"])) {
+      resolvedBbPath = candidate;
+      return candidate;
+    }
+  }
+  return null;
+}
+function scriptPathEnv(bbPath, inheritedPath) {
+  const basePath = inheritedPath ?? "";
+  if (bbPath === null || !isAbsolute(bbPath)) {
+    return basePath;
+  }
+  const bbDir = dirname2(bbPath);
+  return basePath.length > 0 ? `${bbDir}${delimiter}${basePath}` : bbDir;
+}
+function isWakeAgentSuppressed(output) {
+  const lines = output.split(/\r?\n/u).map((line) => line.trim()).filter((line) => line.length > 0);
+  const last = lines[lines.length - 1];
+  if (last === void 0) return false;
+  try {
+    const parsed = JSON.parse(last);
+    return typeof parsed === "object" && parsed !== null && "wakeAgent" in parsed && parsed.wakeAgent === false;
+  } catch {
+    return false;
+  }
+}
+function firstStderrLine(stderr) {
+  let start = 0;
+  while (start < stderr.length) {
+    const newline = stderr.indexOf("\n", start);
+    const lineEnd = newline === -1 ? stderr.length : newline;
+    const trimmedEnd = lineEnd > start && stderr[lineEnd - 1] === "\r" ? lineEnd - 1 : lineEnd;
+    if (trimmedEnd > start) {
+      const trimmed = stripVTControlCharacters(stderr.slice(start, trimmedEnd)).replace(new RegExp("\\p{Cc}", "gu"), " ").trim();
+      if (trimmed.length > 0) {
+        return trimmed.length > SCRIPT_FAILURE_DETAIL_MAX_CHARS ? `${trimmed.slice(0, SCRIPT_FAILURE_DETAIL_MAX_CHARS - 1)}\u2026` : trimmed;
+      }
+    }
+    if (newline === -1) break;
+    start = newline + 1;
+  }
+  return null;
+}
+function mapScriptResultToRun(result) {
+  if (result.timedOut) {
+    return {
+      status: "failed",
+      output: result.output.length > 0 ? result.output : null,
+      exitCode: null,
+      error: "Script timed out",
+      skipReason: null
+    };
+  }
+  if (result.exitCode !== 0) {
+    const detail = firstStderrLine(result.stderr);
+    return {
+      status: "failed",
+      output: result.output.length > 0 ? result.output : null,
+      exitCode: result.exitCode,
+      error: `Script exited with code ${result.exitCode}${detail === null ? "" : `: ${detail}`}`,
+      skipReason: null
+    };
+  }
+  if (result.output.trim().length === 0) {
+    return {
+      status: "skipped",
+      output: null,
+      exitCode: 0,
+      error: null,
+      skipReason: "empty output"
+    };
+  }
+  if (isWakeAgentSuppressed(result.output)) {
+    return {
+      status: "skipped",
+      output: null,
+      exitCode: 0,
+      error: null,
+      skipReason: "wakeAgent false"
+    };
   }
   return {
-    id: `pool:${identity.id}`,
-    sourceId: identity.id,
-    sourceKind: "pool",
-    providerFamily: family,
-    providerLabel: ARC_ACCOUNT_PROVIDER_LABELS[family],
-    accountKey,
-    email: identity.email,
-    planLabel: identity.subscriptionType,
-    authState,
-    enabled: identity.enabled,
-    availableThrough: identity.provider === "codex" ? ["codex"] : ["claude-code"],
-    observedAt: now
+    status: "succeeded",
+    output: result.output,
+    exitCode: 0,
+    error: null,
+    skipReason: null
   };
 }
-function asPoolAccountIdentity(value) {
-  if (typeof value !== "object" || value === null) {
-    throw new ArcAccountError(
-      "account-source-unavailable",
-      "account pool returned a malformed account"
+function signalProcessGroup(child, signal) {
+  try {
+    if (process.platform !== "win32" && child.pid !== void 0) {
+      process.kill(-child.pid, signal);
+      return;
+    }
+    child.kill(signal);
+  } catch (error48) {
+    if (error48.code === "ESRCH") return;
+    try {
+      child.kill(signal);
+    } catch {
+    }
+  }
+}
+function executeWithProcessGroup(args) {
+  return new Promise((resolve3) => {
+    let timedOut = false;
+    let outputLimitExceeded = false;
+    let outputBytes = 0;
+    const stdoutChunks = [];
+    const stderrChunks = [];
+    let forceKill;
+    let timeout;
+    const child = spawn(args.command, [args.scriptPath], {
+      cwd: args.cwd,
+      detached: process.platform !== "win32",
+      env: args.env,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    const terminateGroup = () => {
+      signalProcessGroup(child, "SIGTERM");
+      if (forceKill) return;
+      forceKill = setTimeout(() => {
+        signalProcessGroup(child, "SIGKILL");
+      }, 1e3);
+      forceKill.unref();
+    };
+    const capture = (target, chunk) => {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      const remaining = SCRIPT_OUTPUT_MAX_BYTES - outputBytes;
+      if (remaining > 0) {
+        const captured = buffer.subarray(0, remaining);
+        target.push(captured);
+        outputBytes += captured.byteLength;
+      }
+      if (buffer.byteLength > remaining && !outputLimitExceeded) {
+        outputLimitExceeded = true;
+        terminateGroup();
+      }
+    };
+    child.stdout?.on("data", (chunk) => capture(stdoutChunks, chunk));
+    child.stderr?.on("data", (chunk) => capture(stderrChunks, chunk));
+    child.once("error", (error48) => {
+      capture(stderrChunks, `${error48.message}
+`);
+      terminateGroup();
+    });
+    child.once("close", (code) => {
+      clearTimeout(timeout);
+      if (forceKill) clearTimeout(forceKill);
+      if (timedOut || outputLimitExceeded) {
+        signalProcessGroup(child, "SIGKILL");
+      }
+      const suffix = outputLimitExceeded ? "\n[output truncated]\n" : "";
+      const stderr = Buffer.concat(stderrChunks).toString("utf8");
+      resolve3({
+        exitCode: timedOut ? null : outputLimitExceeded ? 1 : code,
+        output: `${Buffer.concat(stdoutChunks).toString("utf8")}${stderr}${suffix}`,
+        stderr,
+        timedOut
+      });
+    });
+    timeout = setTimeout(() => {
+      timedOut = true;
+      terminateGroup();
+    }, args.timeoutMs);
+    timeout.unref();
+  });
+}
+async function executeStoredScript(args) {
+  const scriptPath = await resolveAutomationScriptPath({
+    dataDir: args.pluginDataDir,
+    automationId: args.automationId,
+    scriptFile: args.scriptFile
+  });
+  const interpreter = args.interpreter ?? resolveDefaultInterpreter(args.scriptFile);
+  const bbPath = await resolveBbBinary();
+  const warning = bbPath === null ? `${BB_NOT_INJECTED_WARNING}
+` : "";
+  const scriptEnv = {
+    ...process.env,
+    ...args.env ?? {},
+    PATH: scriptPathEnv(bbPath, process.env.PATH),
+    BB_SERVER_URL: args.serverUrl,
+    BB_PROJECT_ID: args.projectId,
+    BB_AUTOMATION_ID: args.automationId,
+    BB_AUTOMATION_RUN_ID: args.runId
+  };
+  if (bbPath !== null) {
+    scriptEnv.BB_CLI = bbPath;
+  }
+  await mkdir3(scriptsRoot(args.pluginDataDir), { recursive: true });
+  if (!await isDirectory(args.workingDir)) {
+    throw new Error(
+      `Script working directory is not an existing directory: ${args.workingDir}`
+    );
+  }
+  const cwd = args.workingDir;
+  const result = await executeWithProcessGroup({
+    command: interpreter,
+    scriptPath,
+    cwd,
+    timeoutMs: Math.min(args.timeoutMs, AUTOMATION_SCRIPT_TIMEOUT_MAX_MS),
+    env: scriptEnv
+  });
+  return { ...result, output: `${warning}${result.output}` };
+}
+
+// ../.bundled-stage-7tjiRO/src/run.ts
+var sdkThreadSchema = external_exports.object({
+  id: external_exports.string(),
+  archivedAt: external_exports.number().nullable(),
+  deletedAt: external_exports.number().nullable(),
+  status: external_exports.enum([
+    "pending",
+    "idle",
+    "active",
+    "starting",
+    "stopping",
+    "error"
+  ])
+}).passthrough();
+var projectGoneErrorSchema = external_exports.object({
+  status: external_exports.literal(404),
+  code: external_exports.enum(["project_not_found", "project_unavailable"])
+}).passthrough();
+var threadGoneErrorSchema = external_exports.object({ status: external_exports.literal(404) }).passthrough();
+function isThreadGoneError(error48) {
+  if (!(error48 instanceof Error)) return false;
+  return threadGoneErrorSchema.safeParse(error48).success;
+}
+function errorMessage(error48) {
+  return error48 instanceof Error ? error48.message : String(error48);
+}
+function isProjectGoneError(error48) {
+  if (!(error48 instanceof Error)) return false;
+  return projectGoneErrorSchema.safeParse(error48).success;
+}
+function renderAutomationDueMessage(args) {
+  return `[bb automation due:${args.automationId}]
+
+${args.prompt}`;
+}
+var ARC_VOICE_PLUGIN_ID = "arc-core";
+function arcVoiceMetadata(args) {
+  return {
+    automationId: args.automation.id,
+    allowVoiceOutput: args.automation.allowVoiceOutput,
+    providerId: args.execution.providerId
+  };
+}
+async function stampArcVoiceMetadata(bb, args) {
+  try {
+    await bb.sdk.threads.updatePluginMetadata({
+      threadId: args.threadId,
+      pluginId: ARC_VOICE_PLUGIN_ID,
+      set: arcVoiceMetadata(args)
+    });
+  } catch (error48) {
+    bb.log.warn(
+      `Automation ${args.automation.id}: could not stamp Arc voice metadata on thread ${args.threadId} (${error48 instanceof Error ? error48.message : String(error48)}); voice alerts are refused for this run.`
+    );
+  }
+}
+function isThreadReusable(thread) {
+  return thread.deletedAt === null && thread.archivedAt === null && (thread.status === "idle" || thread.status === "active");
+}
+async function executeAgentRun(bb, db, args) {
+  try {
+    if (args.automation.targetThreadId !== null) {
+      await reuseTargetThreadForRun(bb, db, {
+        ...args,
+        targetThreadId: args.automation.targetThreadId
+      });
+      return;
+    }
+    const thread = sdkThreadSchema.parse(
+      await bb.sdk.threads.spawn({
+        projectId: args.automation.projectId,
+        environment: args.execution.environment,
+        prompt: args.execution.prompt,
+        title: args.automation.name,
+        providerId: args.execution.providerId,
+        model: args.execution.model,
+        reasoningLevel: args.execution.reasoningLevel,
+        ...args.execution.serviceTier === void 0 ? {} : { serviceTier: args.execution.serviceTier },
+        permissionMode: args.execution.permissionMode
+      })
+    );
+    await stampArcVoiceMetadata(bb, {
+      threadId: thread.id,
+      automation: args.automation,
+      execution: args.execution
+    });
+    setAutomationRunThread(db, { runId: args.run.id, threadId: thread.id });
+    markAutomationThread(db, {
+      automationId: args.automation.id,
+      runId: args.run.id,
+      threadId: thread.id,
+      now: Date.now()
+    });
+  } catch (error48) {
+    settleDispatchFailure(bb, db, args, error48);
+  } finally {
+    publishAutomationChange(bb, args.automation.projectId, [
+      "automations-changed",
+      "automation-runs-changed"
+    ]);
+  }
+}
+function settleDispatchFailure(bb, db, args, error48) {
+  const message = errorMessage(error48);
+  if (isProjectGoneError(error48)) {
+    setAutomationEnabled(db, {
+      projectId: args.automation.projectId,
+      automationId: args.automation.id,
+      enabled: false,
+      nextRunAt: null,
+      lastError: message
+    });
+    closeAutomationRun(db, {
+      runId: args.run.id,
+      status: "failed",
+      error: message,
+      now: Date.now()
+    });
+  } else {
+    args.onFailure(error48);
+  }
+  bb.log.error(
+    `Failed to dispatch automation ${args.automation.id}: ${message}`
+  );
+}
+async function reuseTargetThreadForRun(bb, db, args) {
+  let thread;
+  try {
+    thread = sdkThreadSchema.parse(
+      await bb.sdk.threads.get({ threadId: args.targetThreadId })
+    );
+  } catch (error48) {
+    if (!isThreadGoneError(error48)) throw error48;
+    closeRunForUnusableTargetThread(bb, db, {
+      ...args,
+      detail: errorMessage(error48)
+    });
+    return;
+  }
+  if (!isThreadReusable(thread)) {
+    closeRunForUnusableTargetThread(bb, db, {
+      ...args,
+      detail: "missing, deleted, archived, or not runnable"
+    });
+    return;
+  }
+  setAutomationRunThread(db, {
+    runId: args.run.id,
+    threadId: args.targetThreadId
+  });
+  markAutomationThread(db, {
+    automationId: args.automation.id,
+    runId: args.run.id,
+    threadId: args.targetThreadId,
+    now: Date.now()
+  });
+  await stampArcVoiceMetadata(bb, {
+    threadId: args.targetThreadId,
+    automation: args.automation,
+    execution: args.execution
+  });
+  await bb.sdk.threads.send({
+    threadId: args.targetThreadId,
+    mode: "steer-if-active",
+    input: [
+      {
+        type: "text",
+        text: renderAutomationDueMessage({
+          automationId: args.automation.id,
+          prompt: args.execution.prompt
+        }),
+        mentions: []
+      }
+    ],
+    permissionMode: args.execution.permissionMode
+  });
+}
+function closeRunForUnusableTargetThread(bb, db, args) {
+  const now = Date.now();
+  disableAutomationsForDeletedThread(db, {
+    threadId: args.targetThreadId,
+    now
+  });
+  closeAutomationRun(db, {
+    runId: args.run.id,
+    status: "failed",
+    error: `Target thread ${args.targetThreadId} is unavailable: ${args.detail}`,
+    now
+  });
+  bb.log.error(
+    `Automation ${args.automation.id} target thread ${args.targetThreadId} is unavailable: ${args.detail}`
+  );
+}
+async function executeScriptRun(bb, db, args) {
+  try {
+    const scriptFile = args.execution.scriptFile;
+    if (scriptFile === void 0) {
+      closeAutomationRun(db, {
+        runId: args.run.id,
+        status: "failed",
+        error: "Script automation is missing a stored script file",
+        now: Date.now()
+      });
+      return;
+    }
+    const workingDir = await args.resolveWorkingDirectory(
+      args.automation.projectId,
+      args.execution.workingDirectory
+    );
+    if (workingDir === null) {
+      throw new Error(
+        `Project ${args.automation.projectId} has no source on the bb server host`
+      );
+    }
+    const result = await executeStoredScript({
+      pluginDataDir: args.pluginDataDir,
+      automationId: args.automation.id,
+      runId: args.run.id,
+      projectId: args.automation.projectId,
+      scriptFile,
+      interpreter: args.execution.interpreter,
+      timeoutMs: args.execution.timeoutMs,
+      env: args.execution.env,
+      serverUrl: args.serverUrl,
+      workingDir
+    });
+    const mapped = mapScriptResultToRun(result);
+    closeAutomationRun(db, {
+      runId: args.run.id,
+      status: mapped.status,
+      skipReason: mapped.skipReason,
+      output: mapped.output,
+      exitCode: mapped.exitCode,
+      error: mapped.error,
+      now: Date.now()
+    });
+  } catch (error48) {
+    args.onFailure(error48);
+    bb.log.error(
+      `Failed to run script for automation ${args.automation.id}: ${errorMessage(error48)}`
+    );
+  } finally {
+    publishAutomationChange(bb, args.automation.projectId, [
+      "automations-changed",
+      "automation-runs-changed"
+    ]);
+  }
+}
+function closeAutomationRunForSettledThread(bb, db, args) {
+  const runs = listRunningAutomationRunsByThread(db, args.threadId);
+  const now = Date.now();
+  const changedProjects = /* @__PURE__ */ new Set();
+  for (const run of runs) {
+    const closed = closeAutomationRun(db, {
+      runId: run.id,
+      status: args.status === "idle" ? "succeeded" : "failed",
+      error: args.status === "idle" ? null : args.error ?? "Turn failed",
+      threadId: args.threadId,
+      now
+    });
+    if (!closed) continue;
+    const automation = getAutomation(db, closed.automationId);
+    if (automation) changedProjects.add(automation.projectId);
+  }
+  for (const projectId of changedProjects) {
+    publishAutomationChange(bb, projectId, [
+      "automations-changed",
+      "automation-runs-changed"
+    ]);
+  }
+}
+async function reconcileRunningAutomationRuns(bb, db) {
+  const changedProjects = /* @__PURE__ */ new Set();
+  for (const run of listRunningAutomationRuns(db)) {
+    const outcome = await reconcileOutcome(bb, run);
+    if (outcome === null) continue;
+    const closed = closeAutomationRun(db, {
+      runId: run.id,
+      ...outcome,
+      now: Date.now()
+    });
+    if (!closed) continue;
+    const automation = getAutomation(db, closed.automationId);
+    if (automation) changedProjects.add(automation.projectId);
+    bb.log.info(
+      `Automation run ${run.id} settled as ${outcome.status} on startup: ${outcome.status === "succeeded" ? "its thread is idle" : outcome.status === "failed" ? outcome.error : outcome.skipReason}`
+    );
+  }
+  for (const projectId of changedProjects) {
+    publishAutomationChange(bb, projectId, [
+      "automations-changed",
+      "automation-runs-changed"
+    ]);
+  }
+}
+async function reconcileOutcome(bb, run) {
+  if (run.runMode === "script") {
+    return {
+      status: "skipped",
+      skipReason: "interrupted: the server restarted while the script was running"
+    };
+  }
+  if (run.threadId === null) {
+    return {
+      status: "skipped",
+      skipReason: "interrupted: the server restarted before a thread was attached"
+    };
+  }
+  let thread;
+  try {
+    thread = sdkThreadSchema.parse(
+      await bb.sdk.threads.get({ threadId: run.threadId })
+    );
+  } catch (error48) {
+    if (isThreadGoneError(error48)) {
+      return {
+        status: "skipped",
+        skipReason: `interrupted: thread ${run.threadId} no longer exists`
+      };
+    }
+    bb.log.warn(
+      `Could not check thread ${run.threadId} for running automation run ${run.id}; leaving it running: ${errorMessage(error48)}`
+    );
+    return null;
+  }
+  if (thread.deletedAt !== null || thread.archivedAt !== null) {
+    return {
+      status: "skipped",
+      skipReason: `interrupted: thread ${run.threadId} was ${thread.deletedAt !== null ? "deleted" : "archived"}`
+    };
+  }
+  switch (thread.status) {
+    case "idle":
+      return { status: "succeeded" };
+    case "error":
+      return {
+        status: "failed",
+        error: "Turn failed while the automations plugin was not running"
+      };
+    // Still going somewhere: leave the run marked running and re-check later.
+    // `pending` belongs here — the thread's first dispatch is queued, not
+    // failed, so the run has neither succeeded nor finished.
+    case "pending":
+    case "starting":
+    case "active":
+    case "stopping":
+      return null;
+  }
+}
+function disableAutomationsForDeletedThreadEvent(bb, db, threadId) {
+  const disabled = disableAutomationsForDeletedThread(db, {
+    threadId,
+    now: Date.now()
+  });
+  for (const automation of disabled) {
+    publishAutomationChange(bb, automation.projectId, "automations-changed");
+  }
+}
+
+// ../.bundled-stage-7tjiRO/src/cli.ts
+import { isAbsolute as isAbsolute2, resolve as resolve2 } from "node:path";
+import {
+  PluginCliError,
+  cliCommand,
+  defineCli
+} from "@get-bb/plugin-sdk";
+
+// ../../packages/domain/src/permission-resolution.ts
+var PRODUCT_DEFAULT_PERMISSION_MODE = "auto";
+
+// ../.bundled-stage-7tjiRO/src/provider-permissions.ts
+function providerRoutingForEnvironment(environment) {
+  if (environment.type === "reuse") {
+    return { environmentId: environment.environmentId };
+  }
+  if (environment.type === "host" && environment.hostId !== void 0) {
+    return { hostId: environment.hostId };
+  }
+  return {};
+}
+async function resolveRequestedPermissionMode(bb, providerId, requested, routing = {}) {
+  const providers = await bb.sdk.providers.list(routing);
+  const provider = providers.find((candidate) => candidate.id === providerId);
+  if (provider === void 0 || provider.available === false) {
+    throw new Error(`Provider ${providerId} is not available.`);
+  }
+  return requested ?? PRODUCT_DEFAULT_PERMISSION_MODE;
+}
+
+// ../.bundled-stage-7tjiRO/src/cli.ts
+var DURATION_PATTERN = /^(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$/iu;
+var hostListSchema = external_exports.array(
+  external_exports.object({
+    id: external_exports.string().optional(),
+    status: external_exports.string().optional(),
+    connected: external_exports.boolean().optional()
+  }).passthrough()
+);
+var DESCRIPTION = `Automations run agent prompts or server-side scripts on a schedule.
+
+Scripts run on the bb server host. New standard-project scripts use the
+project source on that host when one exists; Personal and projects without a
+server-host source run in the plugin's shared script storage directory.
+Existing scripts without a saved policy also run there. Select
+automation-storage, project, or an absolute server-host path with
+--working-directory. An unavailable selected directory fails the run.`;
+var JSON_OPTION = {
+  type: "boolean",
+  description: "Emit machine-readable JSON"
+};
+var PROJECT_OPTION = {
+  type: "string",
+  placeholder: "id",
+  description: "Required. Project that owns the automation; `bb project list --include-personal --json` lists ids"
+};
+var AUTOMATION_ID_POSITIONAL = {
+  name: "automationId",
+  description: "Automation id from `bb automation list`",
+  required: true
+};
+var SCHEDULE_OPTIONS = {
+  cron: {
+    type: "string",
+    placeholder: "expression",
+    description: "Five-field cron expression, at most 100 characters; requires --timezone"
+  },
+  timezone: {
+    type: "string",
+    placeholder: "iana-timezone",
+    description: "IANA timezone for --cron, for example America/New_York; only used with --cron"
+  },
+  at: {
+    type: "string",
+    placeholder: "datetime",
+    description: "One-shot run time in the future, preferably ISO 8601 (2026-01-31T09:00:00Z)"
+  },
+  in: {
+    type: "string",
+    placeholder: "duration",
+    description: "One-shot delay from now: 30s, 5m, 2h, or 1d"
+  }
+};
+var AGENT_OPTIONS = {
+  prompt: {
+    type: "string",
+    placeholder: "text",
+    description: "Prompt the agent runs when the automation is due"
+  },
+  provider: {
+    type: "string",
+    placeholder: "id",
+    description: "Provider id, for example claude or codex"
+  },
+  model: {
+    type: "string",
+    placeholder: "model",
+    description: "Model id the provider accepts"
+  },
+  reasoning: {
+    type: "enum",
+    values: reasoningLevelSchema.options,
+    description: "Reasoning level; new automations default to medium"
+  },
+  "service-tier": {
+    type: "enum",
+    values: [...serviceTierSchema.options, "none"],
+    description: "Service tier; none leaves the automation without one"
+  },
+  "permission-mode": {
+    type: "enum",
+    values: permissionModeSchema.options,
+    description: "Permission mode; defaults to auto, adapted to what the provider supports"
+  },
+  "target-thread": {
+    type: "string",
+    placeholder: "thread-id",
+    description: "Re-prompt this existing thread instead of spawning one"
+  },
+  environment: {
+    type: "string",
+    placeholder: "id-or-path",
+    description: "Existing environment id, or a workspace path to run in on a connected host"
+  },
+  "new-environment": {
+    type: "enum",
+    values: ["worktree"],
+    description: "Create a fresh environment of this kind for each run"
+  },
+  "base-branch": {
+    type: "string",
+    placeholder: "branch",
+    description: "Base branch for --new-environment worktree"
+  },
+  "voice-output": {
+    type: "enum",
+    values: ["on", "off"],
+    description: "Allow (on) or disallow (off) the agent's short spoken voice alerts through Arc Voice (agent mode only; default off; requires Arc Voice enabled)"
+  }
+};
+var SCRIPT_OPTIONS = {
+  script: {
+    type: "string",
+    placeholder: "inline",
+    description: `Inline script body, at most ${AUTOMATION_SCRIPT_MAX_LENGTH} characters`
+  },
+  "script-file": {
+    type: "string",
+    placeholder: "path",
+    description: "Copy the script from this file; relative paths resolve against the invoking directory"
+  },
+  host: {
+    type: "string",
+    placeholder: "name-or-id",
+    description: "Host holding --script-file; defaults to the thread's environment host, else the server host"
+  },
+  interpreter: {
+    type: "enum",
+    values: automationScriptInterpreterSchema.options,
+    description: "Interpreter for the script; inferred from a --script-file extension when omitted"
+  },
+  timeout: {
+    type: "duration",
+    defaultUnit: "ms",
+    min: 1,
+    max: AUTOMATION_SCRIPT_TIMEOUT_MAX_MS,
+    description: `Run timeout; a bare number is milliseconds (default ${AUTOMATION_SCRIPT_TIMEOUT_DEFAULT_MS}, max ${AUTOMATION_SCRIPT_TIMEOUT_MAX_MS})`
+  },
+  "env-json": {
+    type: "string",
+    placeholder: "json",
+    description: 'Script environment variables as a JSON object of string values, for example {"CHANNEL":"qa"}'
+  },
+  "working-directory": {
+    type: "string",
+    placeholder: "automation-storage|project|path",
+    description: "Where the script runs: automation-storage, project, or an absolute path on the bb server host"
+  }
+};
+function cliError(message, code) {
+  return new PluginCliError(message, { code });
+}
+async function attempt(work) {
+  try {
+    return await work();
+  } catch (error48) {
+    if (error48 instanceof PluginCliError) throw error48;
+    throw new PluginCliError(
+      error48 instanceof Error ? error48.message : String(error48),
+      { code: "automation_failed" }
+    );
+  }
+}
+function jsonOutput(value) {
+  return `${JSON.stringify(value, null, 2)}
+`;
+}
+function requireProjectId(value, ctx) {
+  if (value !== void 0 && value !== "") return value;
+  const known = ctx.projectId;
+  throw new PluginCliError("missing required option --project", {
+    code: "missing_required",
+    hint: known === void 0 ? "Pass --project <id>; `bb project list --include-personal --json` lists project ids." : `This thread's project is ${known}; re-run with --project ${known}`
+  });
+}
+function requireOptionValue(name, value) {
+  if (value === "") {
+    throw cliError(
+      `Missing required option --${name} <value>.`,
+      "missing_required"
     );
   }
   return value;
 }
-var AccountPoolSource = class {
-  kind = "pool";
-  rpc;
-  now;
-  constructor(args) {
-    this.rpc = args.rpc;
-    this.now = args.now ?? Date.now;
+function parseRunAt(value) {
+  const runAt = Date.parse(value);
+  if (!Number.isFinite(runAt)) {
+    throw cliError(
+      "--at must be a valid date/time, preferably ISO 8601.",
+      "invalid_value"
+    );
   }
-  async listAccounts() {
-    const result = await this.rpc.call("account.list", null);
-    if (!Array.isArray(result)) {
-      throw new ArcAccountError(
-        "account-source-unavailable",
-        "account pool returned a malformed account list"
+  if (runAt <= Date.now()) {
+    throw cliError("--at must be in the future.", "invalid_value");
+  }
+  return runAt;
+}
+function parseRunIn(value) {
+  const match = DURATION_PATTERN.exec(value.trim());
+  if (!match) {
+    throw cliError(
+      "--in must be a duration like 30s, 5m, 2h, or 1d.",
+      "invalid_value"
+    );
+  }
+  const amount = Number.parseInt(match[1] ?? "", 10);
+  if (amount <= 0) {
+    throw cliError("--in must be greater than zero.", "invalid_value");
+  }
+  const unit = (match[2] ?? "").toLowerCase();
+  const multiplier = unit.startsWith("s") ? 1e3 : unit.startsWith("m") ? 6e4 : unit.startsWith("h") ? 60 * 6e4 : 24 * 60 * 6e4;
+  return Date.now() + amount * multiplier;
+}
+function buildTrigger(options) {
+  const { cron, at, in: runIn, timezone } = options;
+  const triggerFlags = [cron, at, runIn].filter(
+    (value) => value !== void 0
+  ).length;
+  if (triggerFlags !== 1) {
+    throw cliError(
+      "Provide exactly one schedule flag: --cron, --at, or --in.",
+      "missing_required"
+    );
+  }
+  if (cron !== void 0) {
+    if (!timezone)
+      throw cliError("--cron requires --timezone.", "missing_required");
+    return { triggerType: "schedule", cron, timezone };
+  }
+  if (timezone !== void 0) {
+    throw cliError(
+      "--timezone is only used with --cron.",
+      "unexpected_argument"
+    );
+  }
+  if (at !== void 0) return { triggerType: "once", runAt: parseRunAt(at) };
+  if (runIn !== void 0) {
+    return { triggerType: "once", runAt: parseRunIn(runIn) };
+  }
+  throw cliError(
+    "Provide exactly one schedule flag: --cron, --at, or --in.",
+    "missing_required"
+  );
+}
+function parseScriptWorkingDirectory(raw) {
+  const value = requireOptionValue("working-directory", raw);
+  if (value === "automation-storage" || value === "project") {
+    return { type: value };
+  }
+  if (isAbsolute2(value)) return { type: "path", path: value };
+  throw cliError(
+    "Invalid --working-directory. Expected automation-storage, project, or an absolute path on the bb server host.",
+    "invalid_value"
+  );
+}
+function validateAgentTargetOptions(options) {
+  const targetThread = options["target-thread"];
+  const environment = options.environment;
+  const newEnvironment = options["new-environment"];
+  if (targetThread !== void 0) {
+    requireOptionValue("target-thread", targetThread);
+  }
+  if (environment !== void 0) requireOptionValue("environment", environment);
+  const provided = [targetThread, environment, newEnvironment].filter(
+    (value) => value !== void 0
+  );
+  if (provided.length > 1) {
+    throw cliError(
+      "Cannot combine target options: --target-thread, --environment, and --new-environment.",
+      "unexpected_argument"
+    );
+  }
+  if (options["base-branch"] !== void 0 && options["new-environment"] === void 0) {
+    throw cliError(
+      "--base-branch requires --new-environment worktree.",
+      "missing_required"
+    );
+  }
+}
+function parseScriptEnv(value) {
+  if (value === void 0) return void 0;
+  let decoded;
+  try {
+    decoded = JSON.parse(value);
+  } catch {
+    throw cliError(
+      "--env-json must be a JSON object of string values.",
+      "invalid_value"
+    );
+  }
+  const parsed = external_exports.record(external_exports.string(), external_exports.string()).safeParse(decoded);
+  if (!parsed.success) {
+    throw cliError(
+      "--env-json must be a JSON object of string values.",
+      "invalid_value"
+    );
+  }
+  return parsed.data;
+}
+function looksLikePath(value) {
+  return value.includes("/") || value.startsWith(".") || value.startsWith("~");
+}
+async function resolveConnectedHostId(bb) {
+  const hosts = hostListSchema.parse(await bb.sdk.hosts.list());
+  const host = hosts.find((candidate) => candidate.connected === true) ?? hosts.find((candidate) => candidate.status === "connected") ?? hosts[0];
+  if (!host?.id) {
+    throw cliError("No connected host is available.", "no_connected_host");
+  }
+  return host.id;
+}
+async function buildAgentEnvironment(bb, options) {
+  const environment = options.environment?.trim();
+  const newEnvironment = options["new-environment"];
+  const baseBranch = options["base-branch"]?.trim();
+  if (environment && newEnvironment) {
+    throw cliError(
+      "Cannot combine --environment with --new-environment.",
+      "unexpected_argument"
+    );
+  }
+  if (newEnvironment) {
+    return {
+      type: "host",
+      hostId: await resolveConnectedHostId(bb),
+      workspace: {
+        type: "managed-worktree",
+        baseBranch: baseBranch ? { kind: "named", name: baseBranch } : { kind: "default" }
+      }
+    };
+  }
+  if (!environment) return { type: "project-default" };
+  if (looksLikePath(environment)) {
+    return {
+      type: "host",
+      hostId: await resolveConnectedHostId(bb),
+      workspace: { type: "unmanaged", path: environment }
+    };
+  }
+  return { type: "reuse", environmentId: environment };
+}
+var scriptFileHostListSchema = external_exports.array(
+  external_exports.object({ id: external_exports.string().min(1), name: external_exports.string().min(1) }).passthrough()
+);
+var threadEnvironmentHostSchema = external_exports.object({
+  environment: external_exports.object({ hostId: external_exports.string().min(1) }).passthrough().nullable().optional()
+}).passthrough();
+async function resolveScriptFileHostId(bb, ctx, override) {
+  if (override !== void 0) {
+    const query = override.trim();
+    if (query.length === 0) {
+      throw cliError("--host requires a name or id.", "invalid_value");
+    }
+    const hosts = scriptFileHostListSchema.parse(await bb.sdk.hosts.list());
+    const idMatch = hosts.find((host) => host.id === query);
+    if (idMatch) return idMatch.id;
+    const nameMatches = hosts.filter(
+      (host) => host.name.toLocaleLowerCase() === query.toLocaleLowerCase()
+    );
+    if (nameMatches.length === 1) return nameMatches[0].id;
+    if (nameMatches.length > 1) {
+      throw cliError(
+        `Host name "${query}" is ambiguous; pass one of these ids: ${nameMatches.map((host) => host.id).join(", ")}`,
+        "invalid_value"
       );
     }
-    const now = this.now();
-    return result.map(
-      (entry) => mapPoolAccount(
-        asPoolAccountIdentity(entry),
-        entry.status ?? null,
-        now
-      )
+    throw cliError(
+      `Unknown host "${query}"; run \`bb machine list\` to list hosts.`,
+      "invalid_value"
     );
   }
-  async getAccount(sourceId) {
-    const accounts = await this.listAccounts();
-    const account = accounts.find((entry) => entry.sourceId === sourceId);
-    if (account === void 0) {
-      throw new ArcAccountError("account-not-found", sourceId);
-    }
-    return account;
-  }
-  async setAccountEnabled(sourceId, enabled) {
-    const result = await this.rpc.call(
-      enabled ? "account.enable" : "account.disable",
-      { id: sourceId }
+  if (ctx.threadId === void 0) return void 0;
+  const thread = threadEnvironmentHostSchema.parse(
+    await bb.sdk.threads.get({
+      threadId: ctx.threadId,
+      include: "environment"
+    })
+  );
+  if (!thread.environment) {
+    throw cliError(
+      `Thread ${ctx.threadId} has no environment, so the --script-file host cannot be resolved; pass --host <name-or-id>.`,
+      "invalid_value"
     );
-    if (result.account === null) {
-      throw new ArcAccountError("account-not-found", sourceId);
+  }
+  return thread.environment.hostId;
+}
+async function loadScriptFileSource(bb, options, ctx) {
+  const scriptFile = options["script-file"];
+  const hostOverride = options.host;
+  if (scriptFile === void 0) {
+    if (hostOverride !== void 0) {
+      throw cliError("--host requires --script-file.", "missing_required");
     }
-    const refreshed = await this.getAccount(sourceId);
-    return { ...refreshed, enabled };
+    return void 0;
   }
-  async removeAccount(sourceId) {
-    await this.getAccount(sourceId);
-    await this.rpc.call("account.remove", { id: sourceId });
-  }
-  async setAccountPriority(sourceId, priority) {
-    const result = await this.rpc.call("account.setPriority", {
-      accountId: sourceId,
-      priority
-    });
-    if (result.account === null) {
-      throw new ArcAccountError("account-not-found", sourceId);
+  let path;
+  if (isAbsolute2(scriptFile)) {
+    path = scriptFile;
+  } else {
+    if (ctx.cwd === void 0 || !isAbsolute2(ctx.cwd)) {
+      throw cliError(
+        "Relative --script-file paths need the invoking CLI cwd; pass an absolute path.",
+        "invalid_value"
+      );
     }
-    return this.getAccount(sourceId);
+    path = resolve2(ctx.cwd, scriptFile);
   }
-  async reorderAccounts(providerFamily, orderedSourceIds) {
-    await this.rpc.call("account.reorder", {
-      provider: providerFamily === "openai" ? "codex" : "claude",
-      accountIds: orderedSourceIds
-    });
+  const hostId = await resolveScriptFileHostId(bb, ctx, hostOverride);
+  const file2 = await bb.sdk.files.read({
+    ...hostId !== void 0 ? { hostId } : {},
+    path
+  });
+  if (file2.contentEncoding !== "utf8") {
+    throw cliError(`--script-file is not UTF-8 text: ${path}`, "invalid_value");
   }
-  async startOpenAiLogin() {
-    const result = await this.rpc.call("codexLogin.start", null);
-    return { provider: "openai", ...result };
+  return { path, hostId, content: file2.content };
+}
+async function buildExecution(bb, options, ctx) {
+  const prompt = options.prompt;
+  const script = options.script;
+  const scriptFile = options["script-file"];
+  const hasAgent = prompt !== void 0;
+  const hasScript = script !== void 0 || scriptFile !== void 0;
+  if (hasAgent && hasScript) {
+    throw cliError(
+      "Provide either agent flags (--prompt) or script flags (--script/--script-file), not both.",
+      "unexpected_argument"
+    );
   }
-  async pollOpenAiLogin(sessionId) {
-    const result = await this.rpc.call("codexLogin.poll", {
-      sessionId
-    });
-    if (result.status === "pending") {
-      return { state: "waiting-for-user", account: null, message: null };
+  if (hasAgent && (options.interpreter !== void 0 || options.timeout !== void 0 || options["env-json"] !== void 0 || options["working-directory"] !== void 0)) {
+    throw cliError(
+      "Agent automations do not accept --interpreter, --timeout, --env-json, or --working-directory.",
+      "unexpected_argument"
+    );
+  }
+  if (!hasAgent && !hasScript) {
+    throw cliError(
+      "Provide an execution mode: agent (--prompt --provider --model) or script (--script-file <path> or --script <inline>).",
+      "missing_required"
+    );
+  }
+  if (hasAgent) {
+    const provider = options.provider;
+    const model = options.model;
+    if (!provider || !model) {
+      throw cliError(
+        "Agent automations require --provider and --model alongside --prompt.",
+        "missing_required"
+      );
     }
-    if (result.status === "complete") {
-      return {
-        state: "connected",
-        account: mapPoolAccount(
-          asPoolAccountIdentity(result.account),
-          result.account.status,
-          this.now()
+    validateAgentTargetOptions(options);
+    const environment = await buildAgentEnvironment(bb, options);
+    const serviceTier = options["service-tier"];
+    return {
+      execution: {
+        mode: "agent",
+        prompt,
+        providerId: provider,
+        model,
+        reasoningLevel: options.reasoning ?? "medium",
+        ...serviceTier === void 0 || serviceTier === "none" ? {} : { serviceTier },
+        permissionMode: await resolveRequestedPermissionMode(
+          bb,
+          provider,
+          options["permission-mode"],
+          providerRoutingForEnvironment(environment)
         ),
-        message: null
-      };
-    }
-    return { state: "failed", account: null, message: result.message };
+        environment,
+        ...options["target-thread"] ? { targetThreadId: options["target-thread"] } : {}
+      }
+    };
   }
-  async cancelOpenAiLogin(sessionId) {
-    await this.rpc.call("codexLogin.cancel", { sessionId });
+  if (options.provider !== void 0 || options.model !== void 0 || options.reasoning !== void 0 || options["service-tier"] !== void 0 || options["permission-mode"] !== void 0 || options["target-thread"] !== void 0 || options.environment !== void 0 || options["new-environment"] !== void 0 || options["base-branch"] !== void 0) {
+    throw cliError(
+      "Script automations do not accept agent execution flags.",
+      "unexpected_argument"
+    );
   }
-  async startClaudeLogin() {
-    const result = await this.rpc.call("login.start", null);
-    return { provider: "anthropic", ...result, expiresAt: null };
+  if (script !== void 0 && scriptFile !== void 0) {
+    throw cliError(
+      "Provide exactly one of --script or --script-file.",
+      "unexpected_argument"
+    );
   }
-  async completeClaudeLogin(sessionId, code) {
-    const result = await this.rpc.call("login.complete", {
-      sessionId,
-      code
-    });
-    return mapPoolAccount(asPoolAccountIdentity(result), null, this.now());
-  }
-};
-
-// ../../packages/arc-domains/src/arc-account/agent-status-source.ts
-var ServiceArcAccountStatusSource = class {
-  service;
-  constructor(service) {
-    this.service = service;
-  }
-  async getAccountState(agentId) {
-    try {
-      return await this.service.accountStateForAgent(agentId);
-    } catch {
-      return "unknown";
-    }
-  }
-};
-
-// ../../packages/arc-domains/src/arc-account/omp-account-source.ts
-import { randomUUID } from "node:crypto";
-
-// ../../packages/arc-domains/src/arc-runtime/environment.ts
-import { constants } from "node:fs";
-import { access, stat } from "node:fs/promises";
-import { homedir } from "node:os";
-import { dirname as dirname2, isAbsolute, join as join2, relative, resolve } from "node:path";
-
-// ../../packages/arc-domains/src/arc-runtime/manifest.ts
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
-var ARC_RUNTIME_MANIFEST_SCHEMA_VERSION = 1;
-var arcRuntimeEntrySchema = external_exports.object({
-  activeVersion: external_exports.string().min(1).nullable(),
-  previousVersion: external_exports.string().min(1).nullable(),
-  source: external_exports.enum([
-    "arc-bundled",
-    "arc-managed-download",
-    "official-managed-install",
-    "external-override"
-  ]).nullable(),
-  digest: external_exports.string().min(1).nullable(),
-  installedAt: external_exports.number().int().nonnegative().nullable()
-});
-var arcRuntimeManifestSchema = external_exports.object({
-  schemaVersion: external_exports.literal(ARC_RUNTIME_MANIFEST_SCHEMA_VERSION),
-  createdByArcVersion: external_exports.string().min(1),
-  platform: external_exports.string().min(1),
-  runtimes: external_exports.object({
-    codex: arcRuntimeEntrySchema,
-    "claude-code": arcRuntimeEntrySchema,
-    omp: arcRuntimeEntrySchema
-  })
-});
-function createEmptyArcRuntimeManifest(args) {
-  const emptyEntry = {
-    activeVersion: null,
-    previousVersion: null,
-    source: null,
-    digest: null,
-    installedAt: null
-  };
+  const timeoutMs = options.timeout;
+  const env = parseScriptEnv(options["env-json"]);
+  const workingDirectoryOption = options["working-directory"];
+  const workingDirectory = workingDirectoryOption === void 0 ? void 0 : parseScriptWorkingDirectory(workingDirectoryOption);
+  const scriptSource = await loadScriptFileSource(bb, options, ctx);
+  const content = scriptSource ? scriptSource.content : script;
+  if (!content) throw cliError("Missing script content.", "invalid_value");
+  const interpreter = options.interpreter ?? (scriptSource ? interpreterForPath(scriptSource.path) : void 0);
   return {
-    schemaVersion: ARC_RUNTIME_MANIFEST_SCHEMA_VERSION,
-    createdByArcVersion: args.createdByArcVersion,
-    platform: args.platform,
-    runtimes: {
-      codex: { ...emptyEntry },
-      "claude-code": { ...emptyEntry },
-      omp: { ...emptyEntry }
-    }
+    execution: {
+      mode: "script",
+      script: content,
+      ...scriptSource ? { scriptFile: scriptSource.path } : {},
+      ...interpreter ? { interpreter } : {},
+      ...workingDirectory ? { workingDirectory } : {},
+      timeoutMs: timeoutMs ?? AUTOMATION_SCRIPT_TIMEOUT_DEFAULT_MS,
+      ...env ? { env } : {}
+    },
+    ...scriptSource ? { scriptSource } : {}
   };
 }
-function hasCode(error48, code) {
-  return error48 instanceof Error && "code" in error48 && error48.code === code;
-}
-async function readArcRuntimeManifest(args) {
-  let raw;
-  try {
-    raw = await readFile(args.manifestPath, "utf8");
-  } catch (error48) {
-    if (hasCode(error48, "ENOENT")) {
-      return {
-        kind: "missing",
-        manifest: createEmptyArcRuntimeManifest(args)
-      };
-    }
-    return {
-      kind: "invalid",
-      manifest: createEmptyArcRuntimeManifest(args),
-      problem: `manifest is unreadable: ${error48 instanceof Error ? error48.message : String(error48)}`
-    };
-  }
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return {
-      kind: "invalid",
-      manifest: createEmptyArcRuntimeManifest(args),
-      problem: "manifest is not valid JSON"
-    };
-  }
-  if (typeof parsed === "object" && parsed !== null && "schemaVersion" in parsed && typeof parsed.schemaVersion === "number" && parsed.schemaVersion > ARC_RUNTIME_MANIFEST_SCHEMA_VERSION) {
-    return {
-      kind: "unsupported-version",
-      manifestPath: args.manifestPath,
-      schemaVersion: parsed.schemaVersion
-    };
-  }
-  const result = arcRuntimeManifestSchema.safeParse(parsed);
-  if (!result.success) {
-    return {
-      kind: "invalid",
-      manifest: createEmptyArcRuntimeManifest(args),
-      problem: `manifest does not match schema version ${ARC_RUNTIME_MANIFEST_SCHEMA_VERSION}`
-    };
-  }
-  return { kind: "ok", manifest: result.data };
-}
-async function writeArcRuntimeManifest(args) {
-  const manifest = arcRuntimeManifestSchema.parse(args.manifest);
-  const directory = dirname(args.manifestPath);
-  await mkdir(directory, { recursive: true });
-  const tempPath = join(directory, `.${basename(args.manifestPath)}.tmp`);
-  try {
-    await unlink(tempPath);
-  } catch (error48) {
-    if (!hasCode(error48, "ENOENT")) {
-      throw error48;
-    }
-  }
-  try {
-    await writeFile(tempPath, `${JSON.stringify(manifest, null, 2)}
-`, {
-      encoding: "utf8",
-      flag: "wx",
-      mode: 384
-    });
-    await rename(tempPath, args.manifestPath);
-  } finally {
-    await unlink(tempPath).catch(() => void 0);
-  }
-}
-var manifestMutationChains = /* @__PURE__ */ new Map();
-async function mutateArcRuntimeManifest(args) {
-  const previous = manifestMutationChains.get(args.manifestPath) ?? Promise.resolve();
-  const chain = previous.catch(() => void 0).then(async () => {
-    const result = await readArcRuntimeManifest(args);
-    if (result.kind === "unsupported-version") {
-      throw new Error(
-        `manifest declares unsupported schema version ${result.schemaVersion}; leaving untouched`
-      );
-    }
-    const next = await args.mutate(result.manifest);
-    if (JSON.stringify(next) !== JSON.stringify(result.manifest)) {
-      await writeArcRuntimeManifest({
-        manifest: next,
-        manifestPath: args.manifestPath
-      });
-    }
-    return next;
-  });
-  manifestMutationChains.set(args.manifestPath, chain);
-  return chain;
-}
-
-// ../../packages/arc-domains/src/arc-runtime/types.ts
-var ARC_RUNTIME_IDS = [
-  "codex",
-  "claude-code",
-  "omp"
+var COMPLETE_EXECUTION_OPTION_NAMES = [
+  "script",
+  "script-file",
+  "interpreter",
+  "timeout",
+  "env-json"
 ];
-
-// ../../packages/arc-domains/src/arc-runtime/environment.ts
-var BB_CLAUDE_CODE_EXECUTABLE_ENV = "BB_CLAUDE_CODE_EXECUTABLE";
-var BB_ARC_RUNTIME_ROOT_ENV = "BB_ARC_RUNTIME_ROOT";
-var BB_ARC_APP_VERSION_ENV = "BB_ARC_APP_VERSION";
-var BB_ARC_SEED_ROOT_ENV = "BB_ARC_SEED_ROOT";
-var OMP_CONFIG_DIR_ENV = "PI_CONFIG_DIR";
-var OMP_CODING_AGENT_DIR_ENV = "PI_CODING_AGENT_DIR";
-var CLAUDE_DISABLE_AUTOUPDATER_ENV = "DISABLE_AUTOUPDATER";
-var CLAUDE_DISABLE_UPDATES_ENV = "DISABLE_UPDATES";
-var PATH_PRECEDENCE = [
-  "codex",
-  "omp",
-  "claude-code"
-];
-async function isRunnableExecutable(path, isWindows) {
-  try {
-    const fileStat = await stat(path);
-    if (!fileStat.isFile()) {
-      return false;
-    }
-    if (isWindows) {
-      return true;
-    }
-    await access(path, constants.X_OK);
-    return true;
-  } catch {
-    return false;
+async function buildAgentExecutionUpdate(bb, options) {
+  const agentOptionNames = [
+    options.prompt,
+    options.provider,
+    options.model,
+    options.reasoning,
+    options["service-tier"],
+    options["permission-mode"],
+    options["target-thread"],
+    options.environment,
+    options["new-environment"],
+    options["base-branch"]
+  ];
+  if (!agentOptionNames.some((value) => value !== void 0)) return void 0;
+  validateAgentTargetOptions(options);
+  const update = {};
+  if (options.prompt !== void 0) {
+    update.prompt = requireOptionValue("prompt", options.prompt);
   }
+  if (options.provider !== void 0) {
+    update.providerId = requireOptionValue("provider", options.provider);
+  }
+  if (options.model !== void 0) {
+    update.model = requireOptionValue("model", options.model);
+  }
+  if (options.reasoning !== void 0) {
+    update.reasoningLevel = options.reasoning;
+  }
+  const serviceTier = options["service-tier"];
+  if (serviceTier !== void 0) {
+    update.serviceTier = serviceTier === "none" ? null : serviceTier;
+  }
+  if (options["permission-mode"] !== void 0) {
+    update.permissionMode = options["permission-mode"];
+  }
+  if (options["target-thread"] !== void 0) {
+    update.target = {
+      type: "target-thread",
+      threadId: requireOptionValue("target-thread", options["target-thread"])
+    };
+  } else if (options.environment !== void 0 || options["new-environment"] !== void 0) {
+    update.target = {
+      type: "environment",
+      environment: await buildAgentEnvironment(bb, options)
+    };
+  }
+  return update;
 }
-async function resolveActiveArcRuntimes(args) {
-  const manifestResult = await readArcRuntimeManifest({
-    createdByArcVersion: args.createdByArcVersion,
-    manifestPath: args.runtimePaths.manifestPath,
-    platform: args.platform
-  });
-  if (manifestResult.kind === "unsupported-version") {
-    args.onDiagnostic?.(
-      `[arc-runtime] manifest ${manifestResult.manifestPath} declares unsupported schema version ${manifestResult.schemaVersion}; ignoring Arc-managed runtimes`
-    );
-    return [];
+async function buildUpdateRequest(bb, options, automationId, ctx) {
+  const projectId = requireProjectId(options.project, ctx);
+  const request = { projectId, automationId };
+  if (options.name !== void 0) request.name = options.name;
+  if (options["voice-output"] !== void 0) {
+    request.allowVoiceOutput = options["voice-output"] === "on";
   }
-  if (manifestResult.kind === "invalid") {
-    args.onDiagnostic?.(
-      `[arc-runtime] ${manifestResult.problem} at ${args.runtimePaths.manifestPath}; ignoring Arc-managed runtimes`
-    );
+  if (options.cron !== void 0 || options.timezone !== void 0 || options.at !== void 0 || options.in !== void 0) {
+    request.trigger = buildTrigger(options);
   }
-  const isWindows = args.platform.startsWith("win32");
-  const activeRuntimes = [];
-  for (const id of ARC_RUNTIME_IDS) {
-    const activeVersion = manifestResult.manifest.runtimes[id].activeVersion;
-    if (activeVersion === null) {
-      continue;
+  let scriptSource;
+  const replacesAgentExecution = options.prompt !== void 0 && options.provider !== void 0 && options.model !== void 0;
+  if (replacesAgentExecution || COMPLETE_EXECUTION_OPTION_NAMES.some((name) => options[name] !== void 0)) {
+    const built = await buildExecution(bb, options, ctx);
+    request.execution = built.execution;
+    scriptSource = built.scriptSource;
+  } else {
+    const agentUpdate = await buildAgentExecutionUpdate(bb, options);
+    if (agentUpdate !== void 0) {
+      request.agent = agentUpdate;
     }
-    const executablePath = args.runtimePaths.executablePath(
-      id,
-      activeVersion
-    );
-    if (!await isRunnableExecutable(executablePath, isWindows)) {
-      args.onDiagnostic?.(
-        `[arc-runtime] manifest activates ${id} ${activeVersion} but ${executablePath} is missing or not executable; treating as stale`
-      );
-      continue;
-    }
-    activeRuntimes.push({ id, executablePath });
   }
-  return activeRuntimes;
+  const workingDirectoryOption = options["working-directory"];
+  if (request.agent !== void 0 && workingDirectoryOption !== void 0) {
+    throw cliError(
+      "Cannot combine agent execution flags with --working-directory.",
+      "unexpected_argument"
+    );
+  }
+  if (request.execution === void 0 && request.agent === void 0 && workingDirectoryOption !== void 0) {
+    request.script = {
+      workingDirectory: parseScriptWorkingDirectory(workingDirectoryOption)
+    };
+  }
+  if (request.name === void 0 && request.allowVoiceOutput === void 0 && request.trigger === void 0 && request.execution === void 0 && request.agent === void 0 && request.script === void 0) {
+    throw cliError(
+      "No changes requested. Provide --name, --voice-output, schedule flags, a complete agent/script execution, or partial agent/script update flags.",
+      "missing_required"
+    );
+  }
+  return { request, ...scriptSource ? { scriptSource } : {} };
 }
-function buildArcManagedRuntimeEnvironment(args) {
-  const nextEnv = { ...args.env };
-  const delimiter = args.platform === "win32" ? ";" : ":";
-  const pathKey = args.platform === "win32" ? "Path" : "PATH";
-  const activeById = /* @__PURE__ */ new Map();
-  for (const runtime of args.activeRuntimes) {
-    if (runtime.executablePath.trim().length === 0) {
-      continue;
-    }
-    if (!activeById.has(runtime.id)) {
-      activeById.set(runtime.id, runtime);
-    }
-  }
-  const prependDirectories = [];
-  const seenDirectories = /* @__PURE__ */ new Set();
-  for (const id of PATH_PRECEDENCE) {
-    const runtime = activeById.get(id);
-    if (runtime === void 0) {
-      continue;
-    }
-    const directory = dirname2(resolve(runtime.executablePath));
-    if (seenDirectories.has(directory)) {
-      continue;
-    }
-    seenDirectories.add(directory);
-    prependDirectories.push(directory);
-  }
-  if (prependDirectories.length > 0) {
-    const originalPath = nextEnv[pathKey];
-    const originalEntries = originalPath === void 0 ? [] : originalPath.split(delimiter).map((entry) => entry.trim()).filter((entry) => entry.length > 0);
-    const originalEntryKeys = new Set(
-      originalEntries.map((entry) => entry)
-    );
-    const additions = prependDirectories.filter(
-      (directory) => !originalEntryKeys.has(directory)
-    );
-    if (additions.length > 0) {
-      nextEnv[pathKey] = [...additions, ...originalEntries].join(delimiter);
-    }
-  }
-  const activeClaude = activeById.get("claude-code");
-  if (activeClaude !== void 0) {
-    nextEnv[BB_CLAUDE_CODE_EXECUTABLE_ENV] = resolve(
-      activeClaude.executablePath
-    );
-    nextEnv[CLAUDE_DISABLE_AUTOUPDATER_ENV] = "1";
-    nextEnv[CLAUDE_DISABLE_UPDATES_ENV] = "1";
-  }
-  const activeOmp = activeById.get("omp");
-  if (activeOmp !== void 0) {
-    applyArcOmpStateIsolation({
-      env: nextEnv,
-      homeDirectory: args.homeDirectory ?? homedir(),
-      userDataPath: dirname2(args.runtimePaths.root)
-    });
-  }
-  nextEnv[BB_ARC_RUNTIME_ROOT_ENV] = dirname2(args.runtimePaths.root);
-  if (args.arcAppVersion !== void 0) {
-    nextEnv[BB_ARC_APP_VERSION_ENV] = args.arcAppVersion;
-  }
-  if (args.arcSeedRoot !== void 0) {
-    nextEnv[BB_ARC_SEED_ROOT_ENV] = args.arcSeedRoot;
-  }
-  return nextEnv;
+function formatTimestamp(value) {
+  return value === null ? "-" : new Date(value).toLocaleString();
 }
-function applyArcOmpStateIsolation(args) {
-  const ompStateRoot = join2(args.userDataPath, "omp");
-  args.env[OMP_CODING_AGENT_DIR_ENV] = join2(ompStateRoot, "agent");
-  const relativeConfigDir = relative(args.homeDirectory, ompStateRoot);
-  if (relativeConfigDir.length > 0 && !relativeConfigDir.startsWith("..") && !isAbsolute(relativeConfigDir)) {
-    args.env[OMP_CONFIG_DIR_ENV] = relativeConfigDir;
+function formatAutomationTrigger(automation) {
+  if (automation.trigger.triggerType === "once") {
+    return `once at ${formatTimestamp(automation.trigger.runAt)}`;
   }
+  return `${automation.trigger.cron} (${automation.trigger.timezone})`;
 }
-
-// ../../packages/arc-domains/src/arc-account/omp-account-source.ts
-var BROKER_BIND_HOST = "127.0.0.1";
-var DEFAULT_BROKER_IDLE_TTL_MS = 6e4;
-var DEFAULT_SNAPSHOT_TTL_MS = 5e3;
-var LOGIN_START_TIMEOUT_MS = 15e3;
-var OMP_AUTHORIZE_HOST_OVERRIDES = {
-  "kimi-code": "kimi.ai"
-};
-function applyAuthorizeUrlOverride(provider, url2) {
-  const host = OMP_AUTHORIZE_HOST_OVERRIDES[provider];
-  if (url2 === null || host === void 0) return url2;
-  try {
-    const parsed = new URL(url2);
-    if (parsed.hostname === "www.kimi.com" || parsed.hostname === "kimi.com") {
-      parsed.hostname = host;
-      return parsed.toString();
-    }
-  } catch {
+function printAutomation(automation, status) {
+  const lines = [
+    "",
+    `  ID:        ${automation.id}`,
+    `  Name:      ${automation.name}`,
+    ...status === void 0 ? [] : [`  Status:    ${status}`],
+    `  Enabled:   ${automation.enabled ? "yes" : "no"}`,
+    `  Mode:      ${automation.execution.mode}`,
+    `  Schedule:  ${formatAutomationTrigger(automation)}`,
+    `  Next run:  ${formatTimestamp(automation.nextRunAt)}`,
+    `  Last run:  ${formatTimestamp(automation.lastRunAt)}`,
+    `  Runs:      ${automation.runCount}`,
+    `  Origin:    ${automation.origin}`
+  ];
+  if (automation.execution.mode === "script" && automation.execution.storedScriptPath !== void 0) {
+    lines.push(`  Script:    ${automation.execution.storedScriptPath}`);
   }
-  return url2;
+  if (automation.execution.mode === "script") {
+    lines.push(
+      `  Working dir: ${automation.execution.resolvedWorkingDirectory ?? "unavailable"}`
+    );
+  }
+  if (automation.execution.mode === "agent") {
+    lines.push(
+      `  Provider:  ${automation.execution.providerId}`,
+      `  Model:     ${automation.execution.model}`,
+      `  Reasoning: ${automation.execution.reasoningLevel}`,
+      `  Tier:      ${automation.execution.serviceTier ?? "-"}`,
+      `  Permission: ${automation.execution.permissionMode}`
+    );
+    if (automation.allowVoiceOutput) {
+      lines.push("  Voice:     alerts allowed");
+    }
+  }
+  if (automation.lastError) lines.push(`  Error:     ${automation.lastError}`);
+  lines.push("");
+  return `${lines.join("\n")}
+`;
 }
-function createArcOmpRuntimeResolver(args) {
-  return async () => {
-    const activeRuntimes = await resolveActiveArcRuntimes({
-      createdByArcVersion: args.createdByArcVersion,
-      platform: args.platform,
-      runtimePaths: args.runtimePaths
-    });
-    const omp = activeRuntimes.find((runtime) => runtime.id === "omp");
-    if (omp === void 0) {
-      return null;
-    }
-    const env = buildArcManagedRuntimeEnvironment({
-      activeRuntimes,
-      env: { ...args.env ?? process.env },
-      homeDirectory: args.homeDirectory,
-      platform: args.platform,
-      runtimePaths: args.runtimePaths
-    });
-    return { executablePath: omp.executablePath, env };
-  };
+function shellQuote(value) {
+  return /^[A-Za-z0-9_@%+=:,./-]+$/u.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`;
 }
-var StreamLines = class {
-  constructor(onLine) {
-    this.onLine = onLine;
-  }
-  onLine;
-  tail = "";
-  push(chunk) {
-    this.tail += chunk;
-    let index;
-    while ((index = this.tail.indexOf("\n")) >= 0) {
-      const line = this.tail.slice(0, index);
-      this.tail = this.tail.slice(index + 1);
-      this.onLine(line);
-    }
-  }
-  remainder() {
-    return this.tail;
-  }
-};
-function mapSnapshot(payload) {
-  if (typeof payload !== "object" || payload === null) {
-    throw new ArcAccountError(
-      "account-source-unavailable",
-      "OMP broker returned a malformed snapshot"
-    );
-  }
-  const rawEntries = payload.credentials;
-  if (!Array.isArray(rawEntries)) {
-    throw new ArcAccountError(
-      "account-source-unavailable",
-      "OMP broker snapshot has no credential list"
-    );
-  }
-  const entries = [];
-  for (const raw of rawEntries) {
-    if (typeof raw !== "object" || raw === null) continue;
-    const entry = raw;
-    const credential = typeof entry.credential === "object" && entry.credential !== null ? entry.credential : {};
-    const type = credential.type === "api_key" ? "api_key" : "oauth";
-    const rawBlocks = Array.isArray(entry.blocks) ? entry.blocks : [];
-    const blocks = [];
-    for (const rawBlock of rawBlocks) {
-      if (typeof rawBlock !== "object" || rawBlock === null) continue;
-      const block = rawBlock;
-      if (typeof block.blockedUntilMs !== "number") continue;
-      blocks.push({
-        blockScope: typeof block.blockScope === "string" ? block.blockScope : "unknown",
-        blockedUntilMs: block.blockedUntilMs
-      });
-    }
-    entries.push({
-      id: typeof entry.id === "number" ? entry.id : -1,
-      provider: typeof entry.provider === "string" ? entry.provider : "unknown",
-      type,
-      identity: {
-        email: typeof credential.email === "string" ? credential.email : void 0,
-        accountId: typeof credential.accountId === "string" ? credential.accountId : void 0,
-        projectId: typeof credential.projectId === "string" ? credential.projectId : void 0,
-        orgId: typeof credential.orgId === "string" ? credential.orgId : void 0,
-        orgName: typeof credential.orgId === "string" && typeof credential.orgName === "string" ? credential.orgName : void 0,
-        enterpriseUrl: typeof credential.enterpriseUrl === "string" ? credential.enterpriseUrl : void 0,
-        authorizedAt: typeof credential.authorizedAt === "number" ? credential.authorizedAt : void 0
-      },
-      identityKey: typeof entry.identityKey === "string" ? entry.identityKey : null,
-      blocks
-    });
-  }
-  return { entries };
-}
-function mapOmpSnapshotEntry(entry, providerLabel, now) {
-  const identity = entry.identity;
-  const accountKey = identity.accountId !== void 0 && identity.accountId.length > 0 ? `omp:${entry.provider}:${identity.accountId}` : null;
-  const blocked = entry.blocks.some((block) => block.blockedUntilMs > now);
-  return {
-    id: `omp:${entry.provider}:${entry.id}`,
-    sourceId: `${entry.provider}:${entry.id}`,
-    sourceKind: "omp",
-    providerFamily: entry.provider,
-    providerLabel,
-    accountKey,
-    email: identity.email ?? null,
-    // OMP 18.2.6 does not report plan/subscription metadata in its
-    // credential snapshot; unknown stays null (never "free").
-    planLabel: null,
-    authState: blocked ? "disabled" : "connected",
-    // OMP has no user-facing enable/disable; a blocked credential is an
-    // automatic provider-side state, not user intent.
-    enabled: true,
-    availableThrough: ["omp"],
-    observedAt: now
-  };
-}
-function classifyOauthFlow(session) {
-  const url2 = session.authorizeUrl;
-  if (url2 !== null) {
-    try {
-      const parsed = new URL(url2);
-      const code = parsed.searchParams.get("user_code");
-      if (code !== null && code.length > 0) {
-        return { flow: "device", userCode: code };
-      }
-    } catch {
-    }
-  }
-  const instructions = session.instructions;
-  if (instructions !== null) {
-    const match = /enter code[: ]+([A-Za-z0-9-]+)/i.exec(instructions);
-    if (match !== null) {
-      return { flow: "device", userCode: match[1] ?? null };
-    }
-  }
-  return { flow: "browser", userCode: null };
-}
-var OmpAccountSource = class {
-  kind = "omp";
-  resolveRuntime;
-  spawn;
-  fetchImpl;
-  now;
-  brokerIdleTtlMs;
-  snapshotTtlMs;
-  scheduler;
-  loginStartTimeoutMs;
-  brokerPromise = null;
-  brokerIdleTimer = null;
-  snapshotCache = null;
-  registryCache = null;
-  loginSessions = /* @__PURE__ */ new Map();
-  constructor(args) {
-    this.resolveRuntime = args.resolveRuntime;
-    this.spawn = args.spawn;
-    this.fetchImpl = args.fetchImpl ?? fetch;
-    this.now = args.now ?? Date.now;
-    this.brokerIdleTtlMs = args.brokerIdleTtlMs ?? DEFAULT_BROKER_IDLE_TTL_MS;
-    this.snapshotTtlMs = args.snapshotTtlMs ?? DEFAULT_SNAPSHOT_TTL_MS;
-    this.scheduler = args.scheduler ?? {
-      setTimer: (fn, ms) => setTimeout(fn, ms),
-      clearTimer: (handle) => clearTimeout(handle)
-    };
-    this.loginStartTimeoutMs = args.loginStartTimeoutMs ?? LOGIN_START_TIMEOUT_MS;
-  }
-  // ── ArcAccountSource ────────────────────────────────────────────────
-  async listAccounts() {
-    const snapshot = await this.readSnapshot();
-    const labels = await this.providerLabelMap();
-    const now = this.now();
-    return snapshot.entries.map(
-      (entry) => mapOmpSnapshotEntry(
-        entry,
-        labels.get(entry.provider) ?? entry.provider,
-        now
-      )
-    );
-  }
-  // ArcOmpUsageGateway seam: this source only ever reports its own OMP
-  // accounts, so the inventory is the account list. Reads the local
-  // snapshot through the lazy broker lifecycle — never a permanent process.
-  async listOmpAccounts() {
-    return this.listAccounts();
-  }
-  async getAccount(sourceId) {
-    const account = (await this.listAccounts()).find(
-      (entry) => entry.sourceId === sourceId
-    );
-    if (account === void 0) {
-      throw new ArcAccountError("account-not-found", sourceId);
-    }
-    return account;
-  }
-  // OMP 18.2.6 has no native enable/disable for credentials (only automatic
-  // provider-side blocks); inventing persistent disable semantics would
-  // require modifying OMP-owned state, so this is reported honestly.
-  async setAccountEnabled(_sourceId, _enabled) {
-    throw new ArcAccountError(
-      "unsupported-provider",
-      "OMP does not support enabling or disabling individual accounts"
-    );
-  }
-  // `omp auth-broker logout <provider>` removes every credential for the
-  // provider. Per-account removal only proceeds when the account is the
-  // provider's sole credential; otherwise the operation fails honestly
-  // rather than silently dropping the user's other accounts.
-  async removeAccount(sourceId) {
-    const separator = sourceId.indexOf(":");
-    if (separator <= 0) {
-      throw new ArcAccountError("account-not-found", sourceId);
-    }
-    const provider = sourceId.slice(0, separator);
-    const snapshot = await this.readSnapshot();
-    const siblings = snapshot.entries.filter(
-      (entry) => entry.provider === provider
-    );
-    const target = siblings.find(
-      (entry) => `${entry.provider}:${entry.id}` === sourceId
-    );
-    if (target === void 0) {
-      throw new ArcAccountError("account-not-found", sourceId);
-    }
-    if (siblings.length > 1) {
-      throw new ArcAccountError(
-        "disconnect-failed",
-        `OMP removes all credentials for a provider at once and "${provider}" has ${siblings.length} accounts; remove is not available per account`
-      );
-    }
-    const runtime = await this.requireRuntime();
-    const child = this.requireSpawn()({
-      argv: ["auth-broker", "logout", provider],
-      env: runtime.env,
-      executablePath: runtime.executablePath
-    });
-    const exit = await child.wait();
-    if (exit.code !== 0) {
-      throw new ArcAccountError(
-        "disconnect-failed",
-        `omp auth-broker logout exited with code ${exit.code ?? String(exit.signal)}`
-      );
-    }
-    this.snapshotCache = null;
-  }
-  // OMP owns provider selection itself (storage order + round-robin); there
-  // is no priority or reorder API in 18.2.6 and Arc invents none.
-  async setAccountPriority(_sourceId, _priority) {
-    throw new ArcAccountError(
-      "unsupported-provider",
-      "OMP does not support account priority"
-    );
-  }
-  async reorderAccounts(_providerFamily, _orderedSourceIds) {
-    throw new ArcAccountError(
-      "unsupported-provider",
-      "OMP does not support account reordering"
-    );
-  }
-  async startOpenAiLogin() {
-    throw new ArcAccountError(
-      "unsupported-provider",
-      "OpenAI device login is provided by the account pool, not OMP"
-    );
-  }
-  async pollOpenAiLogin(_sessionId) {
-    throw new ArcAccountError(
-      "unsupported-provider",
-      "OpenAI device login is provided by the account pool, not OMP"
-    );
-  }
-  async cancelOpenAiLogin(_sessionId) {
-    throw new ArcAccountError(
-      "unsupported-provider",
-      "OpenAI device login is provided by the account pool, not OMP"
-    );
-  }
-  async startClaudeLogin() {
-    throw new ArcAccountError(
-      "unsupported-provider",
-      "Claude OAuth login is provided by the account pool, not OMP"
-    );
-  }
-  async completeClaudeLogin(_sessionId, _code) {
-    throw new ArcAccountError(
-      "unsupported-provider",
-      "Claude OAuth login is provided by the account pool, not OMP"
-    );
-  }
-  // ── OMP-specific operations ─────────────────────────────────────────
-  // Supported OAuth providers straight from `omp auth-broker list --json`
-  // (the static registry), merged with observed connection state from the
-  // credential snapshot. Registry entries are never reported as accounts.
-  async listOmpProviders() {
-    const registry2 = await this.readRegistry();
-    const snapshot = await this.readSnapshot();
-    const connected = new Set(snapshot.entries.map((entry) => entry.provider));
-    const apiKeyProviders = new Set(
-      snapshot.entries.filter((entry) => entry.type === "api_key").map((entry) => entry.provider)
-    );
-    return registry2.map((provider) => ({
-      ...provider,
-      authMethod: apiKeyProviders.has(provider.id) ? "api-key" : "oauth",
-      connectionState: connected.has(provider.id) ? "connected" : "not-connected",
-      hasAccounts: connected.has(provider.id)
-    }));
-  }
-  // Starts OMP's official provider login (`omp auth-broker login <id>`) and
-  // captures the authorize URL (OAuth providers) or key prompt (API-key
-  // providers). Authentication happens on the provider's own surface; Arc
-  // never sees passwords and api keys only pass through to the OMP child's
-  // stdin on submitOmpLoginKey.
-  async startOmpLogin(provider) {
-    const registry2 = await this.readRegistry();
-    if (!registry2.some((entry) => entry.id === provider)) {
-      throw new ArcAccountError(
-        "provider-not-found",
-        `OMP has no OAuth provider "${provider}"`
-      );
-    }
-    const runtime = await this.requireRuntime();
-    const child = this.requireSpawn()({
-      argv: ["auth-broker", "login", provider],
-      env: runtime.env,
-      executablePath: runtime.executablePath
-    });
-    const session = {
-      id: randomUUID(),
-      provider,
-      process: child,
-      kind: "oauth",
-      authorizeUrl: null,
-      instructions: null,
-      exit: null,
-      lastStderr: "",
-      terminal: null
-    };
-    this.loginSessions.set(session.id, session);
-    void child.wait().then((result) => {
-      session.exit = result;
-    }).catch(() => {
-      session.exit = { code: null, signal: "SIGTERM" };
-    });
-    const started = this.now();
-    let sawAuthHeader = false;
-    const detectPrompt = (text) => {
-      if (/paste your .*api key/i.test(text)) {
-        session.kind = "api-key";
-        session.instructions = text.trim();
-        return;
-      }
-      if (session.authorizeUrl === null && /:\s*$/.test(text.trim()) && /paste|api key|token/i.test(text)) {
-        session.kind = "api-key";
-        session.instructions = text.trim();
-      }
-    };
-    const stdout = new StreamLines((line) => {
-      const trimmed = line.trim();
-      if (/open this url in your browser/i.test(trimmed)) {
-        sawAuthHeader = true;
-        return;
-      }
-      if (sawAuthHeader && session.authorizeUrl === null && /^https?:\/\//.test(trimmed)) {
-        session.authorizeUrl = trimmed;
-        return;
-      }
-      if (session.authorizeUrl !== null && session.instructions === null && trimmed.length > 0) {
-        session.instructions = trimmed;
-      }
-    });
-    child.onStdoutData((chunk) => {
-      stdout.push(chunk);
-      detectPrompt(stdout.remainder());
-    });
-    const stderr = new StreamLines((line) => {
-      const trimmed = line.trim();
-      if (trimmed.length === 0) return;
-      if (/^at\s/.test(trimmed) || trimmed.includes("omp-darwin-arm64")) {
-        return;
-      }
-      session.lastStderr = trimmed;
-    });
-    child.onStderrData((chunk) => {
-      stderr.push(chunk);
-      const tail = stderr.remainder().trim();
-      if (tail.length > 0 && !/^at\s/.test(tail) && !tail.includes("omp-darwin-arm64")) {
-        session.lastStderr = tail;
-      }
-    });
-    while (session.authorizeUrl === null && session.kind === "oauth" && session.exit === null && this.now() - started < this.loginStartTimeoutMs) {
-      await this.tick(25);
-    }
-    if (session.authorizeUrl === null && session.kind === "oauth") {
-      const detail = session.exit !== null ? session.lastStderr || `omp auth-broker login exited with code ${session.exit.code ?? String(session.exit.signal)}` : "OMP did not produce an authorize URL or credential prompt";
-      this.loginSessions.delete(session.id);
-      throw new ArcAccountError("login-failed", detail);
-    }
-    return {
-      provider,
-      sessionId: session.id,
-      kind: session.kind,
-      ...classifyOauthFlow(session),
-      authorizeUrl: applyAuthorizeUrlOverride(provider, session.authorizeUrl),
-      instructions: session.instructions,
-      // OMP does not expose OAuth session expiry; unknown stays null.
-      expiresAt: null
-    };
-  }
-  // Submits an API key for an api-key-style login session. The key travels
-  // only into the OMP child's stdin and is never stored, logged, or placed
-  // in an ArcAccount.
-  submitOmpLoginKey(sessionId, key) {
-    const session = this.loginSessions.get(sessionId);
-    if (session === void 0) {
-      throw new ArcAccountError("account-not-found", sessionId);
-    }
-    if (session.kind !== "api-key") {
-      throw new ArcAccountError(
-        "auth-not-supported",
-        "this login session expects a browser OAuth flow, not an API key"
-      );
-    }
-    session.process.writeLine(key);
-  }
-  async pollOmpLogin(sessionId) {
-    const session = this.loginSessions.get(sessionId);
-    if (session === void 0) {
-      throw new ArcAccountError("account-not-found", sessionId);
-    }
-    await new Promise((resolve2) => setImmediate(resolve2));
-    if (session.terminal === "cancelled") {
-      this.loginSessions.delete(sessionId);
-      return { state: "failed", account: null, message: "login was cancelled" };
-    }
-    if (session.exit === null) {
-      return { state: "waiting-for-user", account: null, message: null };
-    }
-    const exit = session.exit;
-    if (exit.code === 0) {
-      this.snapshotCache = null;
-      const accounts = await this.listAccounts().catch(() => []);
-      const account = accounts.find(
-        (entry) => entry.providerFamily === session.provider && entry.authState === "connected"
-      ) ?? null;
-      this.loginSessions.delete(sessionId);
-      return { state: "connected", account, message: null };
-    }
-    this.loginSessions.delete(sessionId);
-    return {
-      state: "failed",
-      account: null,
-      message: session.lastStderr || `login exited with code ${exit.code ?? String(exit.signal)}`
-    };
-  }
-  async cancelOmpLogin(sessionId) {
-    const session = this.loginSessions.get(sessionId);
-    if (session === void 0) {
-      throw new ArcAccountError("account-not-found", sessionId);
-    }
-    session.terminal = "cancelled";
-    session.process.kill("SIGTERM");
-  }
-  // Stops the lazily-started broker immediately (idle shutdown also happens
-  // automatically after brokerIdleTtlMs of inactivity). Arc never leaves an
-  // OMP broker — or any OMP process — running in the background.
-  async shutdown() {
-    this.clearBrokerIdleTimer();
-    const broker = this.brokerPromise;
-    this.brokerPromise = null;
-    this.snapshotCache = null;
-    if (broker === null) return;
-    const session = await broker.catch(() => null);
-    if (session === null) return;
-    session.process.kill("SIGTERM");
-  }
-  // ── internals ───────────────────────────────────────────────────────
-  async providerLabelMap() {
-    const registry2 = await this.readRegistry().catch(() => []);
-    return new Map(registry2.map((entry) => [entry.id, entry.displayName]));
-  }
-  async readRegistry() {
-    if (this.registryCache !== null && this.now() - this.registryCache.at < 6e4) {
-      return this.registryCache.providers;
-    }
-    const runtime = await this.requireRuntime();
-    const child = this.requireSpawn()({
-      argv: ["auth-broker", "list", "--json"],
-      env: runtime.env,
-      executablePath: runtime.executablePath
-    });
-    let stdout = "";
-    child.onStdoutData((chunk) => {
-      stdout += chunk;
-    });
-    const exit = await child.wait();
-    if (exit.code !== 0) {
-      throw new ArcAccountError(
-        "account-source-unavailable",
-        `omp auth-broker list exited with code ${exit.code ?? String(exit.signal)}`
-      );
-    }
-    let parsed;
-    try {
-      parsed = JSON.parse(stdout);
-    } catch {
-      throw new ArcAccountError(
-        "account-source-unavailable",
-        "omp auth-broker list returned unreadable JSON"
-      );
-    }
-    if (!Array.isArray(parsed)) {
-      throw new ArcAccountError(
-        "account-source-unavailable",
-        "omp auth-broker list returned a malformed provider list"
-      );
-    }
-    const providers = parsed.flatMap((entry) => {
-      if (typeof entry !== "object" || entry === null) return [];
-      const { id, name } = entry;
-      if (typeof id !== "string" || id.length === 0) return [];
-      return [
-        {
-          id,
-          displayName: typeof name === "string" && name.length > 0 ? name : id,
-          authMethod: "unknown",
-          connectionState: "unknown",
-          hasAccounts: false
-        }
-      ];
-    });
-    this.registryCache = { at: this.now(), providers };
-    return providers;
-  }
-  async readSnapshot() {
-    if (this.snapshotCache !== null && this.now() - this.snapshotCache.at < this.snapshotTtlMs) {
-      return this.snapshotCache.snapshot;
-    }
-    const broker = await this.ensureBroker();
-    let payload;
-    try {
-      payload = await broker.wire.snapshot();
-    } catch (error48) {
-      throw new ArcAccountError(
-        "account-source-unavailable",
-        `OMP broker snapshot failed: ${error48 instanceof Error ? error48.message : String(error48)}`
-      );
-    }
-    const snapshot = mapSnapshot(payload);
-    this.snapshotCache = { at: this.now(), snapshot };
-    return snapshot;
-  }
-  // Usage & Limits (Phase 9): fetches the broker's /v1/usage reports and
-  // /v1/credentials/disabled tombstones as raw payloads. Validation and
-  // mapping into the Arc usage model live in the arc-usage adapter; this
-  // method only reuses the lazy loopback broker lifecycle — the broker is
-  // started on demand and still idle-shuts down, so usage reads never leave
-  // a permanent OMP process running.
-  async fetchUsageSnapshot() {
-    const broker = await this.ensureBroker();
-    try {
-      const [usage, disabled] = await Promise.all([
-        broker.wire.usage(),
-        broker.wire.disabledCredentials().catch(() => null)
-      ]);
-      return { usage, disabled };
-    } catch (error48) {
-      throw new ArcAccountError(
-        "account-source-unavailable",
-        `OMP broker usage fetch failed: ${error48 instanceof Error ? error48.message : String(error48)}`
-      );
-    }
-  }
-  // Lazily starts the OMP auth broker bound to an ephemeral loopback port.
-  // The bearer token is obtained from `omp auth-broker token` and used only
-  // in Authorization headers against 127.0.0.1; it never reaches ArcAccount
-  // objects, logs, or any UI surface.
-  async ensureBroker() {
-    this.clearBrokerIdleTimer();
-    if (this.brokerPromise !== null) {
-      this.armBrokerIdleTimer();
-      return this.brokerPromise;
-    }
-    this.brokerPromise = this.startBroker();
-    this.armBrokerIdleTimer();
-    return this.brokerPromise;
-  }
-  async startBroker() {
-    const runtime = await this.requireRuntime();
-    const spawn = this.requireSpawn();
-    const child = spawn({
-      argv: ["auth-broker", "serve", "--bind", `${BROKER_BIND_HOST}:0`],
-      env: runtime.env,
-      executablePath: runtime.executablePath
-    });
-    const urlPromise = new Promise((resolveUrl, rejectUrl) => {
-      const startupTimer = this.scheduler.setTimer(() => {
-        rejectUrl(
-          new ArcAccountError(
-            "account-source-unavailable",
-            "OMP auth broker did not report a listening address"
-          )
-        );
-      }, 15e3);
-      const brokerLines = new StreamLines((line) => {
-        const match = /auth-broker listening"\s*,\s*"url"\s*:\s*"(http:\/\/[^"]+)"/.exec(line) ?? /auth-broker listening.*?(http:\/\/127\.0\.0\.1:\d+)/.exec(line);
-        const candidate = match?.[1];
-        if (candidate === void 0) return;
-        try {
-          const parsed = new URL(candidate);
-          if (parsed.hostname !== BROKER_BIND_HOST) {
-            rejectUrl(
-              new ArcAccountError(
-                "account-source-unavailable",
-                `OMP auth broker reported a non-loopback address (${parsed.hostname})`
-              )
-            );
-            return;
-          }
-          this.scheduler.clearTimer(startupTimer);
-          resolveUrl(candidate);
-        } catch {
-        }
-      });
-      child.onStdoutData((chunk) => {
-        brokerLines.push(chunk);
-      });
-    });
-    const url2 = await urlPromise;
-    const token = await this.readBrokerToken(runtime, spawn);
-    const baseUrl = url2;
-    const fetchImpl = this.fetchImpl;
-    const wire = {
-      async healthz() {
-        const response = await fetchImpl(`${baseUrl}/v1/healthz`, {
-          headers: { authorization: `Bearer ${token}` }
-        });
-        if (!response.ok) {
-          throw new Error(`healthz returned HTTP ${response.status}`);
-        }
-        return await response.json();
-      },
-      async snapshot() {
-        const response = await fetchImpl(`${baseUrl}/v1/snapshot`, {
-          headers: { authorization: `Bearer ${token}` }
-        });
-        if (!response.ok) {
-          throw new Error(`snapshot returned HTTP ${response.status}`);
-        }
-        return await response.json();
-      },
-      async usage() {
-        const response = await fetchImpl(`${baseUrl}/v1/usage`, {
-          headers: { authorization: `Bearer ${token}` }
-        });
-        if (!response.ok) {
-          throw new Error(`usage returned HTTP ${response.status}`);
-        }
-        return await response.json();
-      },
-      async disabledCredentials() {
-        const response = await fetchImpl(
-          `${baseUrl}/v1/credentials/disabled`,
-          { headers: { authorization: `Bearer ${token}` } }
-        );
-        if (!response.ok) {
-          throw new Error(
-            `disabled credentials returned HTTP ${response.status}`
-          );
-        }
-        return await response.json();
-      }
-    };
-    await wire.healthz().catch((error48) => {
-      child.kill("SIGTERM");
-      throw new ArcAccountError(
-        "account-source-unavailable",
-        `OMP auth broker did not become healthy: ${error48 instanceof Error ? error48.message : String(error48)}`
-      );
-    });
-    return { url: url2, token, wire, process: child };
-  }
-  async readBrokerToken(runtime, spawn) {
-    const child = spawn({
-      argv: ["auth-broker", "token"],
-      env: runtime.env,
-      executablePath: runtime.executablePath
-    });
-    let stdout = "";
-    child.onStdoutData((chunk) => {
-      stdout += chunk;
-    });
-    const exit = await child.wait();
-    const token = stdout.trim();
-    if (exit.code !== 0 || token.length === 0) {
-      throw new ArcAccountError(
-        "account-source-unavailable",
-        "could not obtain the OMP auth broker token"
-      );
-    }
-    return token;
-  }
-  armBrokerIdleTimer() {
-    this.clearBrokerIdleTimer();
-    this.brokerIdleTimer = this.scheduler.setTimer(() => {
-      this.brokerIdleTimer = null;
-      void this.shutdown();
-    }, this.brokerIdleTtlMs);
-  }
-  clearBrokerIdleTimer() {
-    if (this.brokerIdleTimer !== null) {
-      this.scheduler.clearTimer(this.brokerIdleTimer);
-      this.brokerIdleTimer = null;
-    }
-  }
-  async requireRuntime() {
-    const runtime = await this.resolveRuntime();
-    if (runtime === null) {
-      throw new ArcAccountError(
-        "omp-runtime-unavailable",
-        "the Arc-managed OMP runtime is not prepared"
-      );
-    }
-    return runtime;
-  }
-  requireSpawn() {
-    if (this.spawn === void 0) {
-      throw new ArcAccountError(
-        "account-source-unavailable",
-        "no OMP process runner is configured"
-      );
-    }
-    return this.spawn;
-  }
-  async tick(ms) {
-    await new Promise((resolve2) => {
-      setTimeout(resolve2, ms);
-    });
-  }
-};
-
-// ../../packages/arc-domains/src/arc-account/service.ts
-var PENDING_LOGIN_TTL_MS = 10 * 60 * 1e3;
-var AGENT_ACCOUNT_SOURCES = {
-  codex: ["pool"],
-  "claude-code": ["pool"],
-  omp: ["omp"]
-};
-var ArcAccountService = class {
-  sources;
-  now;
-  onDiagnostic;
-  pendingSessions = /* @__PURE__ */ new Map();
-  pendingStarts = /* @__PURE__ */ new Map();
-  constructor(args) {
-    this.sources = args.sources;
-    this.now = args.now ?? Date.now;
-    this.onDiagnostic = args.onDiagnostic;
-  }
-  // Side-effect-free inventory read across sources with per-source failure
-  // isolation: one source failing never destroys another source's accounts.
-  // No dedup across sources (Phase 9 owns that, keyed on canonical
-  // accountKey only).
-  async listArcAccounts() {
-    return (await this.listArcAccountsDetailed()).accounts;
-  }
-  // Same read plus per-source health. An "unavailable" source means its
-  // accounts could not be queried — UNKNOWN != EMPTY.
-  async listArcAccountsDetailed() {
-    const results = await Promise.all(
-      this.sources.map(
-        async (source) => {
-          try {
-            return { ok: true, source, accounts: await source.listAccounts() };
-          } catch (error48) {
-            return { ok: false, source, error: error48 };
-          }
-        }
-      )
-    );
-    const accounts = [];
-    const statuses = [];
-    let failures = 0;
-    for (const result of results) {
-      const checkedAt = this.now();
-      if (result.ok) {
-        accounts.push(...result.accounts);
-        statuses.push({
-          kind: result.source.kind,
-          state: "ready",
-          detail: null,
-          checkedAt
-        });
-        continue;
-      }
-      failures += 1;
-      const message = result.error instanceof Error ? result.error.message : String(result.error);
-      this.onDiagnostic?.(
-        `account source ${result.source.kind} failed: ${message}`
-      );
-      statuses.push({
-        kind: result.source.kind,
-        state: "unavailable",
-        detail: message,
-        checkedAt
-      });
-    }
-    if (this.sources.length > 0 && failures === this.sources.length) {
-      throw new ArcAccountError(
-        "account-source-unavailable",
-        `every account source failed: ${statuses.map((status) => `${status.kind}: ${status.detail}`).join("; ")}`
-      );
-    }
-    return { accounts, sources: statuses };
-  }
-  async getArcAccount(id) {
-    for (const source of this.sources) {
-      const prefix = `${source.kind}:`;
-      if (!id.startsWith(prefix)) continue;
-      return source.getAccount(id.slice(prefix.length));
-    }
-    throw new ArcAccountError("account-not-found", id);
-  }
-  async setAccountEnabled(id, enabled) {
-    return this.forSource(
-      id,
-      (source, sourceId) => source.setAccountEnabled(sourceId, enabled)
-    );
-  }
-  async removeAccount(id) {
-    return this.forSource(
-      id,
-      (source, sourceId) => source.removeAccount(sourceId)
-    );
-  }
-  async setAccountPriority(id, priority) {
-    return this.forSource(
-      id,
-      (source, sourceId) => source.setAccountPriority(sourceId, priority)
-    );
-  }
-  // Explicit priority order for one provider family. Only sources that
-  // implement reorder semantics participate (the pool does; OMP does not).
-  async reorderAccounts(providerFamily, orderedSourceIds) {
-    const reorderable = this.sources.find(
-      (source) => typeof source.reorderAccounts === "function"
-    );
-    if (reorderable === void 0) {
-      throw new ArcAccountError(
-        "unsupported-provider",
-        `no account source supports reordering for ${providerFamily}`
-      );
-    }
-    return reorderable.reorderAccounts(providerFamily, orderedSourceIds);
-  }
-  // Per-agent account readiness based on the sources that actually back the
-  // agent. A relevant source that failed to read maps to "unknown" (never
-  // "not-connected"); zero accounts on a healthy relevant source is honestly
-  // "not-connected". One enabled, connected account suffices for readiness;
-  // Arc never picks or rotates accounts on its own.
-  async accountStateForAgent(agentId) {
-    const { accounts, sources } = await this.listArcAccountsDetailed();
-    const relevant = AGENT_ACCOUNT_SOURCES[agentId];
-    const relevantSources = sources.filter(
-      (status) => relevant.includes(status.kind)
-    );
-    if (relevantSources.length === 0) return "unknown";
-    if (relevantSources.some((status) => status.state !== "ready")) {
-      return "unknown";
-    }
-    return accounts.some(
-      (account) => account.availableThrough.includes(agentId) && account.enabled && account.authState === "connected"
-    ) ? "connected" : "not-connected";
-  }
-  async hasConnectedAccount(agentId) {
-    return await this.accountStateForAgent(agentId) === "connected";
-  }
-  getLoginState(provider) {
-    const session = this.pendingSessions.get(provider);
-    if (session === void 0) return "idle";
-    return session.state;
-  }
-  // Starts (or joins) the official OpenAI device login flow. Five clicks on
-  // Connect ChatGPT produce one provider login attempt. The returned
-  // challenge carries only presentation data (verification URL, user code) —
-  // never tokens.
-  startOpenAiLogin() {
-    return this.startExclusive("openai", async () => {
-      const challenge = await this.poolSource().startOpenAiLogin();
-      return {
-        challenge,
-        state: "waiting-for-user",
-        expiresAt: challenge.expiresAt
-      };
-    }).then((session) => session.challenge);
-  }
-  async pollOpenAiLogin(sessionId) {
-    const source = this.poolSource();
-    const poll = await source.pollOpenAiLogin(sessionId);
-    if (poll.state !== "waiting-for-user") {
-      this.pendingSessions.delete("openai");
-    }
-    return poll;
-  }
-  async cancelOpenAiLogin(sessionId) {
-    const source = this.poolSource();
-    try {
-      await source.cancelOpenAiLogin(sessionId);
-    } finally {
-      this.pendingSessions.delete("openai");
-    }
-  }
-  // Starts (or joins) the official Anthropic OAuth/PKCE flow. Arc opens the
-  // authorizeUrl in the user's browser; authentication happens on
-  // Anthropic's surface and the paste callback completes the session. Arc
-  // never collects provider passwords.
-  startClaudeLogin() {
-    return this.startExclusive("anthropic", async () => {
-      const challenge = await this.poolSource().startClaudeLogin();
-      return {
-        challenge,
-        state: "waiting-for-user",
-        // The pool does not expose its Claude session TTL; use the same
-        // documented 10-minute bound as the pool's login sessions.
-        expiresAt: this.now() + PENDING_LOGIN_TTL_MS
-      };
-    }).then((session) => session.challenge);
-  }
-  async completeClaudeLogin(sessionId, code) {
-    const source = this.poolSource();
-    try {
-      return await source.completeClaudeLogin(sessionId, code);
-    } finally {
-      this.pendingSessions.delete("anthropic");
-    }
-  }
-  // ── OMP provider login (Phase 8) ─────────────────────────────────────
-  async listOmpProviders() {
-    return this.ompSource().listOmpProviders();
-  }
-  // Starts (or joins) OMP's official login for one provider
-  // (`omp auth-broker login <provider>`). OAuth providers return an
-  // authorizeUrl for the browser; API-key providers await a key via
-  // submitOmpProviderLoginKey. Duplicate starts for the same provider join
-  // the in-flight attempt.
-  startOmpProviderLogin(provider) {
-    return this.startExclusive(`omp:${provider}`, async () => {
-      const challenge = await this.ompSource().startOmpLogin(provider);
-      return {
-        challenge,
-        state: "waiting-for-user",
-        // OMP does not expose its login session TTL; mirror the pool's
-        // documented 10-minute bound.
-        expiresAt: this.now() + PENDING_LOGIN_TTL_MS
-      };
-    }).then((session) => session.challenge);
-  }
-  async pollOmpProviderLogin(sessionId) {
-    const poll = await this.ompSource().pollOmpLogin(sessionId);
-    if (poll.state !== "waiting-for-user") {
-      for (const [key, session] of this.pendingSessions) {
-        if (key.startsWith("omp:") && session.challenge.sessionId === sessionId) {
-          this.pendingSessions.delete(key);
-        }
-      }
-    }
-    return poll;
-  }
-  async cancelOmpProviderLogin(sessionId) {
-    for (const [key, session] of this.pendingSessions) {
-      if (key.startsWith("omp:") && session.challenge.sessionId === sessionId) {
-        this.pendingSessions.delete(key);
-      }
-    }
-    await this.ompSource().cancelOmpLogin(sessionId);
-  }
-  // Submits an API key for an OMP api-key-style login session. The key goes
-  // only to the OMP child's stdin; it is never stored in Arc state.
-  submitOmpProviderLoginKey(sessionId, key) {
-    this.ompSource().submitOmpLoginKey(sessionId, key);
-  }
-  poolSource() {
-    const source = this.sources.find((entry) => entry.kind === "pool");
-    if (source === void 0) {
-      throw new ArcAccountError(
-        "account-source-unavailable",
-        "no account pool source is configured"
-      );
-    }
-    return source;
-  }
-  ompSource() {
-    const source = this.sources.find((entry) => entry.kind === "omp");
-    if (source === void 0) {
-      throw new ArcAccountError(
-        "account-source-unavailable",
-        "no OMP account source is configured"
-      );
-    }
-    return source;
-  }
-  async forSource(id, run) {
-    for (const source of this.sources) {
-      const prefix = `${source.kind}:`;
-      if (!id.startsWith(prefix)) continue;
-      return run(source, id.slice(prefix.length));
-    }
-    throw new ArcAccountError("account-not-found", id);
-  }
-  startExclusive(provider, start) {
-    const inFlight = this.pendingStarts.get(provider);
-    if (inFlight !== void 0) return inFlight;
-    const existing = this.pendingSessions.get(provider);
-    if (existing !== void 0 && existing.expiresAt > this.now()) {
-      return Promise.resolve(existing);
-    }
-    if (existing !== void 0) this.pendingSessions.delete(provider);
-    const operation = (async () => {
-      try {
-        const session = await start();
-        this.pendingSessions.set(provider, session);
-        return session;
-      } catch (error48) {
-        this.onDiagnostic?.(
-          `account login start failed for ${provider}: ${error48 instanceof Error ? error48.message : String(error48)}`
-        );
-        throw error48;
-      } finally {
-        this.pendingStarts.delete(provider);
-      }
-    })();
-    this.pendingStarts.set(provider, operation);
-    return operation;
-  }
-};
-
-// ../../packages/arc-domains/src/arc-agent/types.ts
-var ArcAgentError = class extends Error {
-  code;
-  detail;
-  constructor(code, detail) {
-    super(`${code}: ${detail}`);
-    this.name = "ArcAgentError";
-    this.code = code;
-    this.detail = detail;
-  }
-};
-
-// ../../packages/arc-domains/src/arc-agent/catalog.ts
-var ARC_AGENT_CATALOG = [
-  {
-    id: "omp",
-    displayName: "OMP",
-    runtimeId: "omp",
-    providerId: "acp-omp",
-    runtimeStrategy: "bundled-managed"
-  },
-  {
-    id: "codex",
-    displayName: "Codex",
-    runtimeId: "codex",
-    providerId: "codex",
-    runtimeStrategy: "bundled-managed"
-  },
-  {
-    id: "claude-code",
-    displayName: "Claude Code",
-    runtimeId: "claude-code",
-    providerId: "claude-code",
-    runtimeStrategy: "official-managed"
-  }
-];
-var ARC_AGENT_DESCRIPTORS = {
-  omp: ARC_AGENT_CATALOG[0],
-  codex: ARC_AGENT_CATALOG[1],
-  "claude-code": ARC_AGENT_CATALOG[2]
-};
-function getArcAgentDescriptor(id) {
-  return ARC_AGENT_DESCRIPTORS[id];
-}
-
-// ../../packages/arc-domains/src/arc-runtime/bootstrap.ts
-import { constants as constants2 } from "node:fs";
-import {
-  access as access2,
-  chmod,
-  copyFile,
-  mkdir as mkdir2,
-  rename as rename2,
-  rm,
-  stat as stat2
-} from "node:fs/promises";
-import { dirname as dirname3, join as join4 } from "node:path";
-
-// ../../packages/arc-domains/src/arc-runtime/digest.ts
-import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
-async function sha256File(path) {
-  const hash2 = createHash("sha256");
-  await new Promise((resolvePromise, rejectPromise) => {
-    const stream = createReadStream(path);
-    stream.on("data", (chunk) => {
-      hash2.update(chunk);
-    });
-    stream.on("error", rejectPromise);
-    stream.on("end", () => {
-      resolvePromise();
-    });
-  });
-  return hash2.digest("hex");
-}
-
-// ../../packages/arc-domains/src/arc-runtime/paths.ts
-import { join as join3 } from "node:path";
-var ARC_RUNTIME_ROOT_DIR_NAME = "arc-runtimes";
-var RUNTIME_MANIFEST_FILE_NAME = "runtime-manifest.json";
-var RUNTIME_STAGING_DIR_NAME = "staging";
-var RUNTIME_FAMILIES_DIR_NAME = "runtimes";
-var ARC_RUNTIME_EXECUTABLE_NAMES = {
-  codex: "codex",
-  "claude-code": "claude",
-  omp: "omp"
-};
-function arcRuntimeExecutableName(id) {
-  return ARC_RUNTIME_EXECUTABLE_NAMES[id];
-}
-function createArcRuntimePaths(args) {
-  const root = join3(args.userDataPath, ARC_RUNTIME_ROOT_DIR_NAME);
-  const familiesRoot = join3(root, RUNTIME_FAMILIES_DIR_NAME);
-  return {
-    root,
-    manifestPath: join3(root, RUNTIME_MANIFEST_FILE_NAME),
-    stagingRoot: join3(root, RUNTIME_STAGING_DIR_NAME),
-    runtimeRoot: (id) => join3(familiesRoot, id),
-    versionRoot: (id, version2) => join3(familiesRoot, id, version2),
-    executablePath: (id, version2) => join3(familiesRoot, id, version2, arcRuntimeExecutableName(id))
-  };
-}
-
-// ../../packages/arc-domains/src/arc-runtime/probe.ts
-var import_semver = __toESM(require_semver2(), 1);
-import { execFile } from "node:child_process";
-var ARC_RUNTIME_PROBE_TIMEOUT_MS = 15e3;
-function parseRuntimeVersionOutput(output) {
-  const match = /(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]+)?)/.exec(output);
-  if (match === null) {
-    return null;
-  }
-  return (0, import_semver.valid)(match[1]);
-}
-async function probeArcRuntimeVersion(args) {
-  const timeoutMs = args.timeoutMs ?? ARC_RUNTIME_PROBE_TIMEOUT_MS;
-  let output;
-  try {
-    output = await new Promise((resolvePromise, rejectPromise) => {
-      const child = execFile(
-        args.executablePath,
-        ["--version"],
-        { timeout: timeoutMs, maxBuffer: 64 * 1024 },
-        (error48, stdout, stderr) => {
-          if (error48 !== null) {
-            rejectPromise(
-              new Error(
-                `probe exited with ${error48.code ?? "unknown code"}: ${String(stderr).slice(0, 200)}`
-              )
-            );
-            return;
-          }
-          resolvePromise(String(stdout));
-        }
-      );
-      if (child.pid === void 0) {
-        rejectPromise(new Error("probe process failed to start"));
-      }
-    });
-  } catch (error48) {
-    return {
-      kind: "failed",
-      reason: error48 instanceof Error ? error48.message : String(error48)
-    };
-  }
-  const version2 = parseRuntimeVersionOutput(output);
-  if (version2 === null) {
-    return {
-      kind: "failed",
-      reason: `probe output did not contain a semantic version: ${output.trim().slice(0, 100)}`
-    };
-  }
-  return { kind: "ok", version: version2 };
-}
-
-// ../../packages/arc-domains/src/arc-runtime/releases.ts
-var import_semver2 = __toESM(require_semver2(), 1);
-var TRUSTED_RELEASE_ORIGINS = {
-  codex: {
-    host: "github.com",
-    pathPrefix: "/openai/codex/releases/download/"
-  },
-  omp: {
-    host: "github.com",
-    pathPrefix: "/can1357/oh-my-pi/releases/download/"
-  },
-  "claude-code": {
-    host: "downloads.claude.ai",
-    pathPrefix: "/claude-code-releases/"
-  }
-};
-var ARC_CODEX_RELEASE = {
-  runtimeId: "codex",
-  artifactKind: "archive",
-  version: "0.155.1",
-  platform: "darwin-arm64",
-  releaseTag: "rust-v0.155.1",
-  assetName: "codex-aarch64-apple-darwin.tar.gz",
-  downloadUrl: "https://github.com/openai/codex/releases/download/rust-v0.155.1/codex-aarch64-apple-darwin.tar.gz",
-  sha256: "5e5a51470dce2423f9d96bd191d0bbc4cc0e2848a6833df5178eaf47a07a3768",
-  executableSha256: "8eaf1ad12fe6bf89b1710330f58900014322c7c5af677e43be116d8ac5fc0a9e",
-  expectedExecutableVersion: "0.155.1",
-  license: "Apache-2.0"
-};
-var ARC_OMP_RELEASE = {
-  runtimeId: "omp",
-  artifactKind: "executable",
-  version: "18.2.6",
-  platform: "darwin-arm64",
-  releaseTag: "v18.2.6",
-  assetName: "omp-darwin-arm64",
-  downloadUrl: "https://github.com/can1357/oh-my-pi/releases/download/v18.2.6/omp-darwin-arm64",
-  sha256: "d498da40d577e1ffa681ca8632c2ea40a9f722a08b880412011d37dffee9513a",
-  executableSha256: "d498da40d577e1ffa681ca8632c2ea40a9f722a08b880412011d37dffee9513a",
-  expectedExecutableVersion: "18.2.6",
-  license: "MIT"
-};
-var ARC_RUNTIME_RELEASES = [
-  ARC_CODEX_RELEASE,
-  ARC_OMP_RELEASE
-];
-var ARC_CLAUDE_CODE_RELEASE = {
-  runtimeId: "claude-code",
-  artifactKind: "direct-official",
-  version: "2.1.276",
-  platform: "darwin-arm64",
-  releaseTag: "v2.1.276",
-  assetName: "claude",
-  downloadUrl: "https://downloads.claude.ai/claude-code-releases/2.1.276/darwin-arm64/claude",
-  sha256: "9de364db11a410d53cbbb0f6b1f18c66c90053efc9a63370072856d10db66329",
-  executableSha256: "9de364db11a410d53cbbb0f6b1f18c66c90053efc9a63370072856d10db66329",
-  expectedExecutableVersion: "2.1.276",
-  license: "Anthropic Commercial Terms"
-};
-function isHexDigest(value) {
-  return /^[0-9a-f]{64}$/.test(value);
-}
-function validateArcRuntimeRelease(release) {
-  if ((0, import_semver2.valid)(release.version) === null) {
-    return {
-      kind: "invalid",
-      problem: `release version "${release.version}" is not valid semver`
-    };
-  }
-  if ((0, import_semver2.valid)(release.expectedExecutableVersion) === null) {
-    return {
-      kind: "invalid",
-      problem: `expected executable version "${release.expectedExecutableVersion}" is not valid semver`
-    };
-  }
-  if (release.releaseTag.includes("latest")) {
-    return {
-      kind: "invalid",
-      problem: `release tag "${release.releaseTag}" must not reference a moving target`
-    };
-  }
-  if (!isHexDigest(release.sha256)) {
-    return {
-      kind: "invalid",
-      problem: "sha256 must be a lowercase 64-character hex digest"
-    };
-  }
-  if (!isHexDigest(release.executableSha256)) {
-    return {
-      kind: "invalid",
-      problem: "executableSha256 must be a lowercase 64-character hex digest"
-    };
-  }
-  if (release.artifactKind !== "archive" && release.artifactKind !== "executable" && release.artifactKind !== "direct-official") {
-    return {
-      kind: "invalid",
-      problem: `artifactKind "${String(release.artifactKind)}" is not supported`
-    };
-  }
-  let parsed;
-  try {
-    parsed = new URL(release.downloadUrl);
-  } catch {
-    return { kind: "invalid", problem: "downloadUrl is not a valid URL" };
-  }
-  if (parsed.protocol !== "https:") {
-    return {
-      kind: "invalid",
-      problem: `downloadUrl must use https, got ${parsed.protocol}`
-    };
-  }
-  const trustedOrigin = TRUSTED_RELEASE_ORIGINS[release.runtimeId];
-  if (trustedOrigin === void 0) {
-    return {
-      kind: "invalid",
-      problem: `no trusted download origin is recorded for runtime "${release.runtimeId}"`
-    };
-  }
-  if (parsed.host !== trustedOrigin.host || !parsed.pathname.startsWith(trustedOrigin.pathPrefix)) {
-    return {
-      kind: "invalid",
-      problem: `downloadUrl must be a ${trustedOrigin.host} release asset under ${trustedOrigin.pathPrefix}`
-    };
-  }
-  if (release.artifactKind !== "direct-official" && !parsed.pathname.endsWith(`/${release.assetName}`)) {
-    return {
-      kind: "invalid",
-      problem: "downloadUrl must end with the exact pinned asset name"
-    };
-  }
-  if (release.artifactKind === "direct-official" && !parsed.pathname.endsWith(`/${release.version}/${release.platform}/${release.assetName}`)) {
-    return {
-      kind: "invalid",
-      problem: "direct-official downloadUrl must end with the exact pinned /<version>/<platform>/<binary> path"
-    };
-  }
-  if (release.downloadUrl.includes("latest") || release.assetName.includes("latest")) {
-    return {
-      kind: "invalid",
-      problem: "release identity must never use a latest alias"
-    };
-  }
-  if (release.artifactKind === "archive" && !release.assetName.endsWith(".tar.gz")) {
-    return {
-      kind: "invalid",
-      problem: 'archive artifacts must use the ".tar.gz" extension'
-    };
-  }
-  if (release.artifactKind === "executable" && release.sha256 !== release.executableSha256) {
-    return {
-      kind: "invalid",
-      problem: "executable artifacts are staged directly, so sha256 and executableSha256 must be identical"
-    };
-  }
-  return { kind: "ok" };
-}
-
-// ../../packages/arc-domains/src/arc-runtime/bootstrap.ts
-async function isRunnableExecutable2(path, isWindows) {
-  try {
-    const fileStat = await stat2(path);
-    if (!fileStat.isFile()) {
-      return false;
-    }
-    if (isWindows) {
-      return true;
-    }
-    await access2(path, constants2.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-function diagnose(args, message) {
-  args.onDiagnostic?.(`[arc-runtime] ${message}`);
-}
-async function installFromSeed(args) {
-  const { release, runtimePaths, seedPath, manifest, repair } = args;
-  const existing = manifest.runtimes[release.runtimeId];
-  const isWindows = manifest.platform.startsWith("win32");
-  const seedDigest = await sha256File(seedPath).catch(() => null);
-  if (seedDigest !== release.executableSha256) {
-    return {
-      result: {
-        runtimeId: release.runtimeId,
-        action: "failed",
-        detail: `bundled seed digest mismatch: expected ${release.executableSha256}, got ${seedDigest ?? "unreadable"}`
-      },
-      manifest
-    };
-  }
-  const seedProbe = await probeArcRuntimeVersion({ executablePath: seedPath });
-  if (seedProbe.kind === "failed" || seedProbe.version !== release.expectedExecutableVersion) {
-    return {
-      result: {
-        runtimeId: release.runtimeId,
-        action: "failed",
-        detail: seedProbe.kind === "failed" ? `seed version probe failed: ${seedProbe.reason}` : `seed reports ${seedProbe.version}, expected ${release.expectedExecutableVersion}`
-      },
-      manifest
-    };
-  }
-  const versionRoot = runtimePaths.versionRoot(
-    release.runtimeId,
-    release.version
+function refreshScriptFileCommand(automation, source) {
+  if (automation.execution.mode !== "script") return "";
+  const argv = [
+    "bb",
+    "automation",
+    "update",
+    automation.id,
+    "--project",
+    automation.projectId,
+    "--script-file",
+    source.path
+  ];
+  if (source.hostId !== void 0) argv.push("--host", source.hostId);
+  if (automation.execution.interpreter !== void 0) {
+    argv.push("--interpreter", automation.execution.interpreter);
+  }
+  const workingDirectory = automation.execution.workingDirectory;
+  argv.push(
+    "--working-directory",
+    workingDirectory.type === "path" ? workingDirectory.path : workingDirectory.type
   );
-  await mkdir2(runtimePaths.stagingRoot, { recursive: true });
-  const stagingDir = join4(
-    runtimePaths.stagingRoot,
-    `${release.runtimeId}-${release.version}-${process.pid}`
-  );
-  await rm(stagingDir, { recursive: true, force: true });
-  await mkdir2(stagingDir, { recursive: true });
-  try {
-    const stagedExecutable = join4(
-      stagingDir,
-      arcRuntimeExecutableName(release.runtimeId)
-    );
-    await copyFile(seedPath, stagedExecutable);
-    await chmod(stagedExecutable, isWindows ? 420 : 493);
-    const stagedDigest = await sha256File(stagedExecutable);
-    if (stagedDigest !== release.executableSha256) {
-      return {
-        result: {
-          runtimeId: release.runtimeId,
-          action: "failed",
-          detail: "copied executable digest mismatch; refusing to activate"
-        },
-        manifest
-      };
-    }
-    const stagedProbe = await probeArcRuntimeVersion({
-      executablePath: stagedExecutable
-    });
-    if (stagedProbe.kind === "failed" || stagedProbe.version !== release.expectedExecutableVersion) {
-      return {
-        result: {
-          runtimeId: release.runtimeId,
-          action: "failed",
-          detail: "copied executable failed version verification"
-        },
-        manifest
-      };
-    }
-    await mkdir2(dirname3(versionRoot), { recursive: true });
-    await rm(versionRoot, { recursive: true, force: true });
-    await rename2(stagingDir, versionRoot);
-    return {
-      result: {
-        runtimeId: release.runtimeId,
-        action: repair ? "repaired" : "installed",
-        detail: `${release.runtimeId} ${release.version} ${repair ? "repaired from" : "installed from"} bundled seed (digest ${stagedDigest})`
-      },
-      manifest: {
-        ...manifest,
-        runtimes: {
-          ...manifest.runtimes,
-          [release.runtimeId]: {
-            activeVersion: release.version,
-            previousVersion: repair ? existing.previousVersion : existing.activeVersion,
-            source: "arc-bundled",
-            digest: stagedDigest,
-            installedAt: Date.now()
-          }
-        }
-      }
-    };
-  } finally {
-    await rm(stagingDir, { recursive: true, force: true });
+  argv.push("--timeout", String(automation.execution.timeoutMs));
+  if (automation.execution.env !== void 0) {
+    argv.push("--env-json", JSON.stringify(automation.execution.env));
   }
+  return argv.map(shellQuote).join(" ");
 }
-async function decideBootstrap(args, release, seedPath, manifest) {
-  const isWindows = args.platform.startsWith("win32");
-  const entry = manifest.runtimes[release.runtimeId];
-  if (entry.activeVersion === release.version) {
-    const executablePath = args.runtimePaths.executablePath(
-      release.runtimeId,
-      release.version
-    );
-    if (await isRunnableExecutable2(executablePath, isWindows)) {
-      if (entry.digest === null) {
-        const digest = await sha256File(executablePath).catch(() => null);
-        if (digest !== null) {
-          return {
-            result: {
-              runtimeId: release.runtimeId,
-              action: "already-active",
-              detail: `${release.runtimeId} ${release.version} already active; reusing verified copy`
+function printScriptFileSnapshotNote(automation, source) {
+  if (source === void 0 || automation.execution.mode !== "script" || automation.execution.storedScriptPath === void 0) {
+    return "";
+  }
+  return [
+    `Copied ${source.path}${source.hostId !== void 0 ? ` (host ${source.hostId})` : ""}`,
+    `    to ${automation.execution.storedScriptPath}`,
+    "The automation runs this stored copy, a snapshot of the source file.",
+    "Edits to the source file do not apply until you run:",
+    `  ${refreshScriptFileCommand(automation, source)}`,
+    ""
+  ].join("\n");
+}
+function table(head, rows) {
+  const widths = head.map(
+    (label, index) => Math.max(label.length, ...rows.map((row) => row[index]?.length ?? 0))
+  );
+  const format = (row) => row.map((cell, index) => cell.padEnd(widths[index] ?? 0)).join("  ").trimEnd();
+  return ["", format(head), ...rows.map(format), ""].join("\n") + "\n";
+}
+function printAutomationProblem(automation) {
+  if (automation.problem === "missing-agent-prompt") {
+    return printAutomation(automation, "Prompt required");
+  }
+  return [
+    "",
+    `  ID:        ${automation.id}`,
+    `  Name:      ${automation.name}`,
+    "  Status:    Invalid data",
+    ""
+  ].join("\n") + "\n";
+}
+function printAutomationTable(automations) {
+  return table(
+    ["ID", "Name", "Status", "On", "Schedule", "Next run", "Runs", "Origin"],
+    automations.map(
+      (automation) => "problem" in automation ? automation.problem === "missing-agent-prompt" ? [
+        automation.id,
+        automation.name,
+        "Prompt required",
+        automation.enabled ? "yes" : "no",
+        formatAutomationTrigger(automation),
+        formatTimestamp(automation.nextRunAt),
+        String(automation.runCount),
+        automation.origin
+      ] : [
+        automation.id,
+        automation.name,
+        "Invalid data",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ] : [
+        automation.id,
+        automation.name,
+        "-",
+        automation.enabled ? "yes" : "no",
+        formatAutomationTrigger(automation),
+        formatTimestamp(automation.nextRunAt),
+        String(automation.runCount),
+        automation.origin
+      ]
+    )
+  );
+}
+function printRunTable(runs) {
+  return table(
+    ["ID", "Status", "Started", "Thread/Exit", "Detail"],
+    runs.map((run) => [
+      run.id,
+      run.status,
+      formatTimestamp(run.startedAt),
+      run.threadId ?? (run.exitCode === null ? "-" : `exit ${run.exitCode}`),
+      run.skipReason ?? run.error ?? "-"
+    ])
+  );
+}
+function registerAutomationCli(args) {
+  const { bb, service } = args;
+  bb.cli.register(
+    defineCli({
+      name: "automation",
+      summary: "Inspect and manage automations (scheduled agent/script runs)",
+      description: DESCRIPTION,
+      root: cliCommand({
+        summary: "Show the automation commands",
+        run: (input) => ({ exitCode: 0, stdout: input.help })
+      }),
+      commands: {
+        list: cliCommand({
+          summary: "List automations for a project",
+          options: { project: PROJECT_OPTION, json: JSON_OPTION },
+          run: (input, ctx) => attempt(async () => {
+            const result = service.list({
+              projectId: requireProjectId(input.options.project, ctx)
+            });
+            return {
+              exitCode: 0,
+              stdout: input.options.json ? jsonOutput(result) : result.length === 0 ? "No automations found\n" : printAutomationTable(result)
+            };
+          })
+        }),
+        create: cliCommand({
+          summary: "Create an automation",
+          description: "Pick exactly one schedule flag and one execution mode: agent (--prompt --provider --model) or script (--script or --script-file).",
+          options: {
+            project: PROJECT_OPTION,
+            name: {
+              type: "string",
+              placeholder: "name",
+              required: true,
+              description: "Display name, at most 200 characters"
             },
-            manifest: {
-              ...manifest,
-              runtimes: {
-                ...manifest.runtimes,
-                [release.runtimeId]: { ...entry, digest }
+            disabled: {
+              type: "boolean",
+              description: "Create the automation paused"
+            },
+            ...SCHEDULE_OPTIONS,
+            ...AGENT_OPTIONS,
+            ...SCRIPT_OPTIONS,
+            json: JSON_OPTION
+          },
+          constraints: [
+            { kind: "exactly-one", options: ["cron", "at", "in"] },
+            { kind: "requires", option: "cron", needs: ["timezone"] },
+            { kind: "requires", option: "timezone", needs: ["cron"] }
+          ],
+          run: (input, ctx) => attempt(async () => {
+            const projectId = requireProjectId(input.options.project, ctx);
+            const { execution, scriptSource } = await buildExecution(
+              bb,
+              input.options,
+              ctx
+            );
+            const request = {
+              projectId,
+              name: input.options.name,
+              enabled: !input.options.disabled,
+              allowVoiceOutput: input.options["voice-output"] === "on",
+              trigger: buildTrigger(input.options),
+              execution,
+              origin: ctx.threadId ? "agent" : "human",
+              ...ctx.threadId ? { createdByThreadId: ctx.threadId } : {}
+            };
+            const created = await service.create(request);
+            return {
+              exitCode: 0,
+              stdout: input.options.json ? jsonOutput(created) : `Automation created: ${created.id}
+${printAutomation(created)}${printScriptFileSnapshotNote(created, scriptSource)}`
+            };
+          })
+        }),
+        show: cliCommand({
+          summary: "Show automation details",
+          positionals: [AUTOMATION_ID_POSITIONAL],
+          options: { project: PROJECT_OPTION, json: JSON_OPTION },
+          run: (input, ctx) => attempt(async () => {
+            const found = await service.get({
+              projectId: requireProjectId(input.options.project, ctx),
+              automationId: input.positionals.automationId
+            });
+            return {
+              exitCode: 0,
+              stdout: input.options.json ? jsonOutput(found) : "problem" in found ? printAutomationProblem(found) : printAutomation(found)
+            };
+          })
+        }),
+        update: cliCommand({
+          summary: "Update automation configuration",
+          description: "Replace the execution with a complete agent (--prompt --provider --model) or script (--script/--script-file), or patch an existing agent with any subset of its flags.",
+          positionals: [AUTOMATION_ID_POSITIONAL],
+          options: {
+            project: PROJECT_OPTION,
+            name: {
+              type: "string",
+              placeholder: "name",
+              description: "Replacement display name, at most 200 characters"
+            },
+            ...SCHEDULE_OPTIONS,
+            ...AGENT_OPTIONS,
+            ...SCRIPT_OPTIONS,
+            json: JSON_OPTION
+          },
+          constraints: [
+            { kind: "at-most-one", options: ["cron", "at", "in"] },
+            { kind: "requires", option: "cron", needs: ["timezone"] },
+            { kind: "requires", option: "timezone", needs: ["cron"] }
+          ],
+          run: (input, ctx) => attempt(async () => {
+            const { request, scriptSource } = await buildUpdateRequest(
+              bb,
+              input.options,
+              input.positionals.automationId,
+              ctx
+            );
+            const updated = await service.update(request);
+            return {
+              exitCode: 0,
+              stdout: input.options.json ? jsonOutput(updated) : `Automation ${updated.id} updated
+${printAutomation(updated)}${printScriptFileSnapshotNote(updated, scriptSource)}`
+            };
+          })
+        }),
+        pause: cliCommand({
+          summary: "Pause an automation",
+          positionals: [AUTOMATION_ID_POSITIONAL],
+          options: { project: PROJECT_OPTION, json: JSON_OPTION },
+          run: (input, ctx) => attempt(async () => {
+            const updated = service.pause({
+              projectId: requireProjectId(input.options.project, ctx),
+              automationId: input.positionals.automationId
+            });
+            return {
+              exitCode: 0,
+              stdout: input.options.json ? jsonOutput(updated) : `Automation ${updated.id} paused
+`
+            };
+          })
+        }),
+        resume: cliCommand({
+          summary: "Resume an automation",
+          positionals: [AUTOMATION_ID_POSITIONAL],
+          options: { project: PROJECT_OPTION, json: JSON_OPTION },
+          run: (input, ctx) => attempt(async () => {
+            const updated = service.resume({
+              projectId: requireProjectId(input.options.project, ctx),
+              automationId: input.positionals.automationId
+            });
+            return {
+              exitCode: 0,
+              stdout: input.options.json ? jsonOutput(updated) : `Automation ${updated.id} resumed
+`
+            };
+          })
+        }),
+        run: cliCommand({
+          summary: "Run an automation now",
+          positionals: [AUTOMATION_ID_POSITIONAL],
+          options: {
+            project: PROJECT_OPTION,
+            "idempotency-key": {
+              type: "string",
+              placeholder: "key",
+              description: "Reuse the run started by an earlier call with this key, at most 200 characters"
+            },
+            json: JSON_OPTION
+          },
+          run: (input, ctx) => attempt(async () => {
+            const idempotencyKey = input.options["idempotency-key"];
+            const result = await service.run({
+              projectId: requireProjectId(input.options.project, ctx),
+              automationId: input.positionals.automationId,
+              ...idempotencyKey ? { idempotencyKey } : {}
+            });
+            const threadLine = result.run.threadId ? `Thread: ${result.run.threadId}
+` : "";
+            return {
+              exitCode: 0,
+              stdout: input.options.json ? jsonOutput(result) : `Run started: ${result.run.id}
+${threadLine}`
+            };
+          })
+        }),
+        runs: cliCommand({
+          summary: "List automation runs",
+          positionals: [AUTOMATION_ID_POSITIONAL],
+          options: {
+            project: PROJECT_OPTION,
+            limit: {
+              type: "integer",
+              min: 1,
+              max: AUTOMATION_RUNS_LIMIT_MAX,
+              default: AUTOMATION_RUNS_LIMIT_DEFAULT,
+              description: "How many recent runs to read"
+            },
+            output: {
+              type: "string",
+              placeholder: "runId",
+              description: "Print only this run's captured output; it must be inside --limit"
+            },
+            json: JSON_OPTION
+          },
+          run: (input, ctx) => attempt(async () => {
+            const result = service.runs({
+              projectId: requireProjectId(input.options.project, ctx),
+              automationId: input.positionals.automationId,
+              limit: input.options.limit
+            });
+            const outputRunId = input.options.output;
+            if (outputRunId) {
+              const run = result.runs.find(
+                (candidate) => candidate.id === outputRunId
+              );
+              if (!run) {
+                throw cliError(
+                  `Run ${outputRunId} not found in returned runs. Increase --limit if it is older.`,
+                  "not_found"
+                );
               }
+              return {
+                exitCode: 0,
+                stdout: input.options.json ? jsonOutput(run) : `${run.output ?? ""}
+`
+              };
             }
-          };
-        }
+            return {
+              exitCode: 0,
+              stdout: input.options.json ? jsonOutput(result) : result.runs.length === 0 ? "No runs found\n" : printRunTable(result.runs)
+            };
+          })
+        }),
+        delete: cliCommand({
+          summary: "Delete an automation",
+          positionals: [AUTOMATION_ID_POSITIONAL],
+          options: {
+            project: PROJECT_OPTION,
+            yes: {
+              type: "boolean",
+              description: "Required. Confirms the automation is deleted"
+            },
+            json: JSON_OPTION
+          },
+          run: (input, ctx) => attempt(async () => {
+            if (!input.options.yes) {
+              throw cliError(
+                "Deletion requires --yes when run through the plugin CLI.",
+                "missing_required"
+              );
+            }
+            const projectId = requireProjectId(input.options.project, ctx);
+            const automationId = input.positionals.automationId;
+            await service.delete({ projectId, automationId });
+            return {
+              exitCode: 0,
+              stdout: input.options.json ? jsonOutput({ ok: true, id: automationId }) : `Automation ${automationId} deleted
+`
+            };
+          })
+        })
       }
-      return {
-        result: {
-          runtimeId: release.runtimeId,
-          action: "already-active",
-          detail: `${release.runtimeId} ${release.version} already active; reusing verified copy`
-        },
-        manifest
-      };
-    }
-    diagnose(
-      args,
-      `${release.runtimeId} ${release.version} active in manifest but ${executablePath} is missing or broken; repairing from bundled seed`
-    );
-    const decision = await installFromSeed({
-      manifest,
-      release,
-      repair: true,
-      runtimePaths: args.runtimePaths,
-      seedPath
-    });
-    if (decision.result.action === "repaired") {
-      return decision;
-    }
-    return {
-      result: {
-        runtimeId: release.runtimeId,
-        action: "failed",
-        detail: `repair failed: ${decision.result.detail}`
-      },
-      manifest
-    };
-  }
-  if (entry.activeVersion !== null) {
-    const executablePath = args.runtimePaths.executablePath(
-      release.runtimeId,
-      entry.activeVersion
-    );
-    if (await isRunnableExecutable2(executablePath, isWindows)) {
-      return {
-        result: {
-          runtimeId: release.runtimeId,
-          action: "kept-existing",
-          detail: `${release.runtimeId} ${entry.activeVersion} is active and valid; bundled seed ${release.version} will not force a downgrade`
-        },
-        manifest
-      };
-    }
-    return {
-      result: {
-        runtimeId: release.runtimeId,
-        action: "kept-broken",
-        detail: `${release.runtimeId} ${entry.activeVersion} is active but its executable is broken; recovery is deferred to the runtime repair/update flow`
-      },
-      manifest
-    };
-  }
-  return installFromSeed({
-    manifest,
-    release,
-    repair: false,
-    runtimePaths: args.runtimePaths,
-    seedPath
-  });
-}
-async function bootstrapRelease(args, release, seedPath) {
-  const validation = validateArcRuntimeRelease(release);
-  if (validation.kind === "invalid") {
-    return {
-      runtimeId: release.runtimeId,
-      action: "failed",
-      detail: `invalid pinned release metadata: ${validation.problem}`
-    };
-  }
-  let outcome = null;
-  try {
-    await mutateArcRuntimeManifest({
-      createdByArcVersion: args.createdByArcVersion,
-      manifestPath: args.runtimePaths.manifestPath,
-      platform: args.platform,
-      mutate: async (manifest) => {
-        const decision = await decideBootstrap(args, release, seedPath, manifest);
-        outcome = decision.result;
-        return decision.manifest;
-      }
-    });
-  } catch (error48) {
-    return {
-      runtimeId: release.runtimeId,
-      action: "failed",
-      detail: error48 instanceof Error ? error48.message : String(error48)
-    };
-  }
-  return outcome ?? {
-    runtimeId: release.runtimeId,
-    action: "failed",
-    detail: "bootstrap did not produce a result"
-  };
-}
-async function prepareArcManagedRuntimes(args) {
-  const results = [];
-  const releases = args.releases ?? ARC_RUNTIME_RELEASES;
-  for (const release of releases) {
-    const seedPath = join4(
-      args.seedRoot,
-      release.runtimeId,
-      release.version,
-      arcRuntimeExecutableName(release.runtimeId)
-    );
-    const seedExists = await isRunnableExecutable2(
-      seedPath,
-      args.platform.startsWith("win32")
-    );
-    if (!seedExists) {
-      diagnose(
-        args,
-        `bundled ${release.runtimeId} seed not available at ${seedPath}; skipping managed runtime bootstrap`
-      );
-      results.push({
-        runtimeId: release.runtimeId,
-        action: "seed-missing",
-        detail: `no bundled seed at ${seedPath}`
-      });
-      continue;
-    }
-    try {
-      results.push(await bootstrapRelease(args, release, seedPath));
-    } catch (error48) {
-      const detail = error48 instanceof Error ? error48.message : String(error48);
-      diagnose(args, `${release.runtimeId} bootstrap failed: ${detail}`);
-      results.push({ runtimeId: release.runtimeId, action: "failed", detail });
-    }
-  }
-  return results;
+    })
+  );
 }
 
-// ../../packages/arc-domains/src/arc-runtime/claude-setup.ts
-import { execFile as execFile2 } from "node:child_process";
-import { createWriteStream } from "node:fs";
-import {
-  chmod as chmod2,
-  mkdir as mkdir3,
-  readFile as readFile2,
-  rename as rename3,
-  rm as rm2,
-  stat as stat3,
-  writeFile as writeFile2
-} from "node:fs/promises";
-import { dirname as dirname4, join as join5 } from "node:path";
-import { Readable } from "node:stream";
-var CLAUDE_SETUP_STATE_FILE_NAME = "claude-setup-state.json";
-var DOWNLOAD_TIMEOUT_MS = 6e5;
-var SETUP_BACKOFF_DELAYS_MS = [
-  6e4,
-  3e5,
-  18e5,
-  216e5
-];
-async function defaultDownload(url2, destinationPath) {
-  const response = await fetch(url2, {
-    redirect: "follow",
-    signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS)
-  });
-  if (!response.ok || response.body === null) {
-    throw new Error(`download failed with HTTP ${response.status}`);
-  }
-  const temporaryPath = `${destinationPath}.tmp-${process.pid}`;
-  let resolvePromise;
-  let rejectPromise;
-  const promise2 = new Promise((resolve2, reject) => {
-    resolvePromise = resolve2;
-    rejectPromise = reject;
-  });
-  const stream = Readable.fromWeb(
-    response.body
-  );
-  const file2 = createWriteStream(temporaryPath, { flags: "wx" });
-  stream.pipe(file2);
-  file2.on("finish", () => {
-    resolvePromise();
-  });
-  file2.on("error", rejectPromise);
-  stream.on("error", rejectPromise);
-  await promise2;
-  await rename3(temporaryPath, destinationPath);
-}
-async function defaultVerifyCodeSignature(executablePath) {
-  const run = (args) => new Promise((resolvePromise, rejectPromise) => {
-    execFile2(
-      "codesign",
-      args,
-      { timeout: 3e4, maxBuffer: 64 * 1024 },
-      (error48, _stdout, stderr) => {
-        if (error48 !== null) {
-          rejectPromise(new Error(String(stderr).slice(0, 200)));
-          return;
-        }
-        resolvePromise(String(stderr));
-      }
-    );
-  });
+// ../.bundled-stage-7tjiRO/src/service.ts
+import { isAbsolute as isAbsolute3, join as join4 } from "node:path";
+
+// ../.bundled-stage-7tjiRO/src/schedule-helpers.ts
+var import_cron_parser = __toESM(require_dist(), 1);
+var CRON_FIELD_COUNT = 5;
+var ScheduleValidationError = class extends Error {
+};
+function parseExpression(args) {
   try {
-    await run(["--verify", "--verbose=4", executablePath]);
-    const info = await run(["-dv", "--verbose=4", executablePath]);
-    return info.includes("Anthropic");
-  } catch {
-    return false;
+    return import_cron_parser.CronExpressionParser.parse(args.cron, {
+      currentDate: new Date(args.now),
+      tz: args.timezone
+    });
+  } catch (error48) {
+    throw new ScheduleValidationError(
+      error48 instanceof Error ? error48.message : "Invalid cron expression"
+    );
   }
 }
-async function defaultRunDoctor(executablePath) {
-  return new Promise((resolvePromise) => {
-    execFile2(
-      executablePath,
-      ["doctor"],
-      {
-        timeout: 6e4,
-        maxBuffer: 128 * 1024,
-        env: { ...process.env, DISABLE_AUTOUPDATER: "1", DISABLE_UPDATES: "1" }
-      },
-      (error48, stdout) => {
-        if (error48 !== null) {
-          resolvePromise(null);
-          return;
-        }
-        resolvePromise(String(stdout));
-      }
+function assertValidTimezone(timezone) {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(
+      /* @__PURE__ */ new Date(0)
     );
+  } catch {
+    throw new ScheduleValidationError("Invalid timezone");
+  }
+}
+function validateScheduleDefinition(args) {
+  const fields = args.cron.trim().split(/\s+/u);
+  if (fields.length !== CRON_FIELD_COUNT) {
+    throw new ScheduleValidationError(
+      "Cron expression must have exactly 5 fields (minute hour day-of-month month day-of-week)"
+    );
+  }
+  assertValidTimezone(args.timezone);
+  parseExpression({
+    cron: args.cron,
+    now: Date.now(),
+    timezone: args.timezone
   });
 }
-async function readBackoffState(statePath) {
-  try {
-    const parsed = JSON.parse(await readFile2(statePath, "utf8"));
-    if (typeof parsed === "object" && parsed !== null && typeof parsed.consecutiveFailures === "number" && typeof parsed.lastAttemptAt === "number") {
-      return parsed;
-    }
-    return null;
-  } catch {
-    return null;
+function computeNextScheduledTime(args) {
+  validateScheduleDefinition({ cron: args.cron, timezone: args.timezone });
+  return parseExpression(args).next().getTime();
+}
+function validateOnceDefinition(args) {
+  if (args.runAt <= args.now) {
+    throw new ScheduleValidationError(
+      "One-shot run time must be in the future"
+    );
   }
 }
-async function writeBackoffState(statePath, state) {
-  await mkdir3(dirname4(statePath), { recursive: true });
-  const temporaryPath = `${statePath}.tmp-${process.pid}`;
-  await writeFile2(temporaryPath, `${JSON.stringify(state)}
-`, "utf8");
-  await rename3(temporaryPath, statePath);
-}
-async function isRunnableFile(path) {
-  try {
-    const fileStat = await stat3(path);
-    return fileStat.isFile();
-  } catch {
-    return false;
+function computeInitialNextRunAt(args) {
+  if (!args.enabled) return null;
+  if (args.trigger.triggerType === "once") {
+    validateOnceDefinition({ runAt: args.trigger.runAt, now: args.now });
+    return args.trigger.runAt;
   }
-}
-function diagnose2(args, message) {
-  args.onDiagnostic?.(`[arc-runtime] ${message}`);
-}
-async function prepareManagedClaudeCode(args) {
-  const release = args.release ?? ARC_CLAUDE_CODE_RELEASE;
-  const now = args.now ?? Date.now;
-  const download = args.download ?? defaultDownload;
-  const runDoctor = args.runDoctor ?? defaultRunDoctor;
-  const verifyCodeSignature = args.verifyCodeSignature ?? defaultVerifyCodeSignature;
-  const isDarwin = args.platform.startsWith("darwin");
-  const validation = validateArcRuntimeRelease(release);
-  if (validation.kind === "invalid") {
-    return {
-      state: "unsupported",
-      detail: `invalid pinned Claude release metadata: ${validation.problem}`,
-      executablePath: null
-    };
-  }
-  if (release.runtimeId !== "claude-code") {
-    return {
-      state: "unsupported",
-      detail: "prepareManagedClaudeCode only manages the claude-code runtime",
-      executablePath: null
-    };
-  }
-  const manifestPath = args.runtimePaths.manifestPath;
-  const manifestResult = await readArcRuntimeManifest({
-    createdByArcVersion: args.createdByArcVersion,
-    manifestPath,
-    platform: args.platform
+  return computeNextScheduledTime({
+    cron: args.trigger.cron,
+    timezone: args.trigger.timezone,
+    now: args.now
   });
-  if (manifestResult.kind === "unsupported-version") {
-    return {
-      state: "unsupported",
-      detail: `manifest declares unsupported schema version ${manifestResult.schemaVersion}; leaving untouched`,
-      executablePath: null
-    };
-  }
-  const manifest = manifestResult.manifest;
-  const entry = manifest.runtimes["claude-code"];
-  if (entry.activeVersion !== null) {
-    const activeExecutablePath = args.runtimePaths.executablePath(
-      "claude-code",
-      entry.activeVersion
-    );
-    const activeRunnable = await isRunnableFile(activeExecutablePath);
-    if (activeRunnable) {
-      return {
-        state: "ready",
-        detail: `claude-code ${entry.activeVersion} already active; reusing verified copy`,
-        executablePath: activeExecutablePath
-      };
+}
+
+// ../.bundled-stage-7tjiRO/src/working-directory.ts
+var projectSourcesSchema = external_exports.object({ sources: external_exports.array(external_exports.unknown()) }).passthrough();
+var localPathProjectSourceSchema = external_exports.object({
+  type: external_exports.literal("local_path"),
+  hostId: external_exports.string().min(1),
+  path: external_exports.string().min(1)
+}).passthrough();
+function projectPathForHost(project, hostId) {
+  const parsed = projectSourcesSchema.safeParse(project);
+  if (!parsed.success) return null;
+  for (const source of parsed.data.sources) {
+    const local = localPathProjectSourceSchema.safeParse(source);
+    if (local.success && local.data.hostId === hostId) {
+      return local.data.path;
     }
-    if (entry.activeVersion !== release.version) {
-      return {
-        state: "broken",
-        detail: `claude-code ${entry.activeVersion} is active but its executable is broken; recovery is deferred to the runtime repair/update flow`,
-        executablePath: null
-      };
+  }
+  return null;
+}
+function createScriptWorkingDirectoryResolver(args) {
+  const { sdk, pluginDataDir, serverHostId } = args;
+  const projectPaths = /* @__PURE__ */ new Map();
+  return async (projectId, workingDirectory) => {
+    if (workingDirectory.type === "automation-storage") {
+      return scriptsRoot(pluginDataDir);
     }
-    diagnose2(
-      args,
-      `claude-code ${release.version} active in manifest but ${activeExecutablePath} is missing; reinstalling from Anthropic`
-    );
-  }
-  const statePath = join5(
-    dirname4(args.runtimePaths.manifestPath),
-    CLAUDE_SETUP_STATE_FILE_NAME
-  );
-  const backoff = await readBackoffState(statePath);
-  const attempts = backoff?.consecutiveFailures === void 0 ? 0 : backoff.consecutiveFailures;
-  const delay = SETUP_BACKOFF_DELAYS_MS[Math.max(0, Math.min(attempts - 1, SETUP_BACKOFF_DELAYS_MS.length - 1))];
-  if (entry.activeVersion === null && backoff !== null && now() - backoff.lastAttemptAt < delay) {
-    return {
-      state: "not-installed",
-      detail: `claude setup skipped: last attempt failed ${Math.round(
-        (now() - backoff.lastAttemptAt) / 1e3
-      )}s ago; retrying after backoff`,
-      executablePath: null
-    };
-  }
-  const stagingRoot = args.runtimePaths.stagingRoot;
-  await mkdir3(stagingRoot, { recursive: true });
-  const stagingDir = join5(
-    stagingRoot,
-    `claude-code-${release.version}-${process.pid}`
-  );
-  await rm2(stagingDir, { recursive: true, force: true });
-  await mkdir3(stagingDir, { recursive: true });
-  const recordFailure = async (detail) => {
-    await writeBackoffState(statePath, {
-      consecutiveFailures: attempts + 1,
-      lastAttemptAt: now()
-    }).catch(() => void 0);
-    return { state: "broken", detail, executablePath: null };
+    if (workingDirectory.type === "path") return workingDirectory.path;
+    if (serverHostId === null) return null;
+    let projectPath = projectPaths.get(projectId);
+    if (projectPath === void 0) {
+      projectPath = sdk.projects.get({ projectId }).then((project) => projectPathForHost(project, serverHostId));
+      projectPaths.set(projectId, projectPath);
+    }
+    return projectPath;
   };
+}
+
+// ../.bundled-stage-7tjiRO/src/service.ts
+function requireProjectAutomation(db, args) {
+  const automation = getAutomationForProject(db, args);
+  if (!automation) throw new Error("Automation not found");
+  return automation;
+}
+function validateTrigger(trigger, now = Date.now()) {
+  if (trigger.triggerType === "schedule") {
+    validateScheduleDefinition({
+      cron: trigger.cron,
+      timezone: trigger.timezone
+    });
+  } else {
+    validateOnceDefinition({ runAt: trigger.runAt, now });
+  }
+}
+function computeNextRunAt(trigger, now) {
+  if (trigger.triggerType === "once") {
+    return trigger.runAt;
+  }
+  return computeNextScheduledTime({
+    cron: trigger.cron,
+    timezone: trigger.timezone,
+    now
+  });
+}
+function assertNotRecursiveCreation(db, createdByThreadId) {
+  if (createdByThreadId === void 0) return;
+  if (isAutomationSpawnedThread(db, createdByThreadId)) {
+    throw new Error("Automation-spawned threads cannot create automations");
+  }
+}
+var PROJECT_WORKING_DIRECTORY = { type: "project" };
+var AUTOMATION_STORAGE_WORKING_DIRECTORY = {
+  type: "automation-storage"
+};
+function validateScriptWorkingDirectory(workingDirectory) {
+  if (workingDirectory.type !== "path") return;
+  if (!isAbsolute3(workingDirectory.path)) {
+    throw new Error(
+      "A script working directory must be automation-storage, project, or an absolute path on the bb server host"
+    );
+  }
+  if (!isPrintableWorkingDirectoryPath(workingDirectory.path)) {
+    throw new Error(WORKING_DIRECTORY_CONTROL_CHARACTER_MESSAGE);
+  }
+}
+async function resolveStoredExecution(args) {
+  if (args.execution.mode !== "script") {
+    return { execution: args.execution };
+  }
+  const execution = {
+    ...args.execution,
+    workingDirectory: args.execution.workingDirectory ?? args.defaultWorkingDirectory
+  };
+  validateScriptWorkingDirectory(execution.workingDirectory);
+  if (execution.script !== void 0) {
+    const scriptFile = await writeInlineAutomationScript({
+      dataDir: args.pluginDataDir,
+      automationId: args.automationId,
+      content: execution.script,
+      scriptFile: execution.scriptFile
+    });
+    const { script: _script, ...rest } = execution;
+    return {
+      execution: { ...rest, scriptFile },
+      writtenScriptFile: scriptFile
+    };
+  }
+  return { execution };
+}
+async function discardUncommittedScript(args) {
+  if (args.scriptFile === void 0) return;
   try {
-    const stagedExecutable = join5(stagingDir, "claude");
-    await download(release.downloadUrl, stagedExecutable);
-    const stagedDigest = await sha256File(stagedExecutable);
-    if (stagedDigest !== release.executableSha256) {
-      await rm2(stagingDir, { recursive: true, force: true });
-      return recordFailure(
-        `downloaded Claude digest mismatch: expected ${release.executableSha256}, got ${stagedDigest}; not activating`
-      );
+    await deleteAutomationScriptFile({
+      dataDir: args.pluginDataDir,
+      automationId: args.automationId,
+      scriptFile: args.scriptFile
+    });
+  } catch (error48) {
+    args.bb.log.warn(
+      `Failed to discard uncommitted script for automation ${args.automationId}: ${errorMessage(error48)}`
+    );
+  }
+}
+function withStoredScriptPath(pluginDataDir, automation) {
+  if (automation.execution.mode !== "script" || automation.execution.scriptFile === void 0) {
+    return automation;
+  }
+  return {
+    ...automation,
+    execution: {
+      ...automation.execution,
+      storedScriptPath: join4(
+        automationScriptDir(pluginDataDir, automation.id),
+        automation.execution.scriptFile
+      )
     }
-    if (isDarwin) {
-      const signatureOk = await verifyCodeSignature(stagedExecutable);
-      if (!signatureOk) {
-        await rm2(stagingDir, { recursive: true, force: true });
-        return recordFailure(
-          "downloaded Claude failed macOS code-signature verification; not activating"
+  };
+}
+function toStoredAutomationResponse(pluginDataDir, row) {
+  return withStoredScriptPath(pluginDataDir, toAutomationResponse(row));
+}
+var MISSING_PROMPT_OPERATION = {
+  run: "it can run",
+  pause: "it can be paused",
+  resume: "it can be resumed",
+  update: "other fields can be updated"
+};
+var INVALID_DATA_OPERATION = {
+  run: "run",
+  pause: "paused",
+  resume: "resumed",
+  update: "updated"
+};
+function automationWriteError(row, operation, problem) {
+  return problem === "missing-agent-prompt" ? new Error(
+    `Automation "${row.name}" requires a prompt before ${MISSING_PROMPT_OPERATION[operation]}. Edit it and add a prompt first.`
+  ) : new Error(
+    `Automation "${row.name}" has invalid stored data and cannot be ${INVALID_DATA_OPERATION[operation]}. Delete it and recreate it.`
+  );
+}
+function requireCanonicalAutomationForWrite(pluginDataDir, row, operation) {
+  const decoded = decodeAutomationRow(row);
+  if ("error" in decoded) {
+    throw automationWriteError(row, operation, decoded.automation.problem);
+  }
+  return withStoredScriptPath(pluginDataDir, decoded.automation);
+}
+function toStoredAutomationReadResult(bb, pluginDataDir, row) {
+  const decoded = decodeAutomationRow(row);
+  if (!("error" in decoded)) {
+    return withStoredScriptPath(pluginDataDir, decoded.automation);
+  }
+  if (decoded.automation.problem === "invalid-stored-data") {
+    bb.log.warn(
+      `Malformed stored automation ${row.id}: ${decoded.error.message}`
+    );
+  }
+  return decoded.automation;
+}
+async function resolveWorkingDirectoryForDisplay(args) {
+  try {
+    const resolve3 = createScriptWorkingDirectoryResolver({
+      sdk: args.bb.sdk,
+      pluginDataDir: args.pluginDataDir,
+      serverHostId: (await args.bb.sdk.system.config()).primaryHostId
+    });
+    return await resolve3(args.automation.projectId, args.workingDirectory);
+  } catch (error48) {
+    args.bb.log.warn(
+      `Failed to resolve working directory for automation ${args.automation.id}: ${errorMessage(error48)}`
+    );
+    return null;
+  }
+}
+async function withResolvedWorkingDirectory(args) {
+  const { automation } = args;
+  const { execution } = automation;
+  if (execution.mode !== "script") return { ...automation, execution };
+  return {
+    ...automation,
+    execution: {
+      ...execution,
+      resolvedWorkingDirectory: await resolveWorkingDirectoryForDisplay({
+        bb: args.bb,
+        pluginDataDir: args.pluginDataDir,
+        automation,
+        workingDirectory: execution.workingDirectory
+      })
+    }
+  };
+}
+async function toEditableAutomationResponse(args) {
+  const detail = await withResolvedWorkingDirectory(args);
+  const { execution } = detail;
+  if (execution.mode !== "script" || execution.scriptFile === void 0) {
+    return detail;
+  }
+  const { scriptFile, ...rest } = execution;
+  return {
+    ...detail,
+    execution: {
+      ...rest,
+      script: await readAutomationScript({
+        dataDir: args.pluginDataDir,
+        automationId: detail.id,
+        scriptFile
+      })
+    }
+  };
+}
+async function toEditableAutomationReadResult(args) {
+  const automation = toStoredAutomationReadResult(
+    args.bb,
+    args.pluginDataDir,
+    args.row
+  );
+  if ("problem" in automation) return automation;
+  return toEditableAutomationResponse({
+    bb: args.bb,
+    pluginDataDir: args.pluginDataDir,
+    automation
+  });
+}
+async function cleanupSupersededScript(args) {
+  if (args.previous.mode !== "script") return;
+  try {
+    if (args.next.mode !== "script") {
+      await deleteAutomationScriptDir({
+        dataDir: args.pluginDataDir,
+        automationId: args.automationId
+      });
+      return;
+    }
+    if (args.previous.scriptFile !== void 0 && args.next.scriptFile !== void 0 && args.previous.scriptFile !== args.next.scriptFile) {
+      await deleteAutomationScriptFile({
+        dataDir: args.pluginDataDir,
+        automationId: args.automationId,
+        scriptFile: args.previous.scriptFile
+      });
+    }
+  } catch (error48) {
+    args.bb.log.warn(
+      `Failed to remove superseded script for automation ${args.automationId}: ${errorMessage(error48)}`
+    );
+  }
+}
+function encodeRunCursor(startedAt, id) {
+  return Buffer.from(`${startedAt}:${id}`, "utf8").toString("base64url");
+}
+function applyAgentExecutionUpdate(execution, update) {
+  if (execution.mode !== "agent") {
+    throw new Error(
+      "Agent execution options can only update agent automations"
+    );
+  }
+  const next = {
+    ...execution,
+    ...update.prompt !== void 0 ? { prompt: update.prompt } : {},
+    ...update.providerId !== void 0 ? { providerId: update.providerId } : {},
+    ...update.model !== void 0 ? { model: update.model } : {},
+    ...update.reasoningLevel !== void 0 ? { reasoningLevel: update.reasoningLevel } : {},
+    ...update.permissionMode !== void 0 ? { permissionMode: update.permissionMode } : {}
+  };
+  if (update.serviceTier === null) {
+    delete next.serviceTier;
+  } else if (update.serviceTier !== void 0) {
+    next.serviceTier = update.serviceTier;
+  }
+  if (update.target === void 0) return next;
+  if (update.target.type === "target-thread") {
+    return { ...next, targetThreadId: update.target.threadId };
+  }
+  const { targetThreadId: _targetThreadId, ...withoutTargetThread } = next;
+  return {
+    ...withoutTargetThread,
+    environment: update.target.environment
+  };
+}
+function parseRunCursor(cursor) {
+  if (cursor === void 0) return null;
+  const decoded = Buffer.from(cursor, "base64url").toString("utf8");
+  const separator = decoded.indexOf(":");
+  if (separator <= 0) throw new Error("Invalid runs cursor");
+  const startedAt = Number(decoded.slice(0, separator));
+  const id = decoded.slice(separator + 1);
+  if (!Number.isFinite(startedAt) || id.length === 0) {
+    throw new Error("Invalid runs cursor");
+  }
+  return { startedAt, id };
+}
+async function projectNameById(bb) {
+  try {
+    const projects = projectSummaryListSchema.parse(
+      await bb.sdk.projects.list({ includePersonal: true })
+    );
+    return new Map(
+      projects.filter(
+        (project) => project.deletedAt === void 0 || project.deletedAt === null
+      ).map((project) => [project.id, project.name ?? project.id])
+    );
+  } catch (error48) {
+    bb.log.warn(
+      `Failed to list projects for automations overview: ${errorMessage(error48)}`
+    );
+    return /* @__PURE__ */ new Map();
+  }
+}
+var projectAvailableSchema = external_exports.object({
+  id: external_exports.string(),
+  kind: external_exports.enum(["standard", "personal"]),
+  sources: external_exports.array(external_exports.unknown())
+}).passthrough();
+var projectSummarySchema = external_exports.object({
+  id: external_exports.string(),
+  name: external_exports.string().optional(),
+  deletedAt: external_exports.number().nullable().optional()
+}).passthrough();
+var projectSummaryListSchema = external_exports.array(projectSummarySchema);
+async function requireProjectAvailable(bb, projectId) {
+  try {
+    return projectAvailableSchema.parse(
+      await bb.sdk.projects.get({ projectId })
+    );
+  } catch (error48) {
+    throw new Error(
+      `Project ${projectId} is not available: ${errorMessage(error48)}`
+    );
+  }
+}
+function defaultScriptWorkingDirectory(project, serverHostId) {
+  if (project.kind === "personal" || serverHostId === null || projectPathForHost(project, serverHostId) === null) {
+    return AUTOMATION_STORAGE_WORKING_DIRECTORY;
+  }
+  return PROJECT_WORKING_DIRECTORY;
+}
+function createAutomationService(args) {
+  const { bb, db, pluginDataDir, serverUrl } = args;
+  return {
+    async overview() {
+      const projects = await projectNameById(bb);
+      const automations = [];
+      for (const row of listAllAutomations(db)) {
+        const projectName = projects.get(row.projectId);
+        if (projects.size > 0 && projectName === void 0) continue;
+        automations.push({
+          automation: toStoredAutomationReadResult(bb, pluginDataDir, row),
+          project: {
+            id: row.projectId,
+            name: projectName ?? row.projectId
+          }
+        });
+      }
+      return automationsOverviewResponseSchema.parse({ automations });
+    },
+    list(input) {
+      return listAutomationsForProject(db, input.projectId).map(
+        (row) => toStoredAutomationReadResult(bb, pluginDataDir, row)
+      );
+    },
+    get(input) {
+      return toEditableAutomationReadResult({
+        bb,
+        pluginDataDir,
+        row: requireProjectAutomation(db, input)
+      });
+    },
+    async create(payload) {
+      const project = await requireProjectAvailable(bb, payload.projectId);
+      const now = Date.now();
+      validateTrigger(payload.trigger, now);
+      assertNotRecursiveCreation(db, payload.createdByThreadId);
+      if (payload.execution.mode === "agent") {
+        await resolveRequestedPermissionMode(
+          bb,
+          payload.execution.providerId,
+          payload.execution.permissionMode,
+          providerRoutingForEnvironment(payload.execution.environment)
         );
       }
-    }
-    await chmod2(stagedExecutable, 493);
-    const probe = await probeArcRuntimeVersion({
-      executablePath: stagedExecutable
-    });
-    if (probe.kind === "failed" || probe.version !== release.expectedExecutableVersion) {
-      await rm2(stagingDir, { recursive: true, force: true });
-      return recordFailure(
-        probe.kind === "failed" ? `downloaded Claude version probe failed: ${probe.reason}` : `downloaded Claude reports ${probe.version}, expected ${release.expectedExecutableVersion}; not activating`
-      );
-    }
-    const doctorOutput = await runDoctor(stagedExecutable);
-    if (doctorOutput === null) {
-      diagnose2(args, "claude doctor did not complete; continuing without it");
-    } else {
-      diagnose2(
-        args,
-        `claude doctor: ${doctorOutput.split("\n").filter(
-          (line) => line.includes("Running:") || line.includes("No installation issues") || line.includes("Auto-updates")
-        ).join(" | ")}`
-      );
-    }
-    const versionRoot = args.runtimePaths.versionRoot(
-      "claude-code",
-      release.version
-    );
-    await mkdir3(dirname4(versionRoot), { recursive: true });
-    await rm2(versionRoot, { recursive: true, force: true });
-    await rename3(stagingDir, versionRoot);
-    const outcome = {
-      current: {
-        kind: "activated",
-        executablePath: join5(versionRoot, "claude")
+      const automationId = createAutomationId();
+      if (payload.execution.mode === "script" && payload.allowVoiceOutput === true) {
+        throw new Error(
+          "Allow voice output applies only to agent automations; a script automation speaks only when its script explicitly runs `bb voice speak`."
+        );
       }
-    };
-    await mutateArcRuntimeManifest({
-      createdByArcVersion: args.createdByArcVersion,
-      manifestPath,
-      platform: args.platform,
-      mutate: async (freshManifest) => {
-        const freshEntry = freshManifest.runtimes["claude-code"];
-        if (freshEntry.activeVersion !== null) {
-          const freshExecutablePath = args.runtimePaths.executablePath(
-            "claude-code",
-            freshEntry.activeVersion
+      const stored = await resolveStoredExecution({
+        pluginDataDir,
+        automationId,
+        execution: payload.execution,
+        defaultWorkingDirectory: payload.execution.mode === "script" && payload.execution.workingDirectory === void 0 ? defaultScriptWorkingDirectory(
+          project,
+          (await bb.sdk.system.config()).primaryHostId
+        ) : AUTOMATION_STORAGE_WORKING_DIRECTORY
+      });
+      let created;
+      try {
+        created = createAutomation(db, {
+          id: automationId,
+          projectId: payload.projectId,
+          name: payload.name,
+          enabled: payload.enabled,
+          trigger: payload.trigger,
+          runMode: stored.execution.mode,
+          execution: stored.execution,
+          origin: payload.origin,
+          createdByThreadId: payload.createdByThreadId ?? null,
+          allowVoiceOutput: payload.execution.mode === "agent" ? payload.allowVoiceOutput : false,
+          nextRunAt: computeInitialNextRunAt({
+            trigger: payload.trigger,
+            enabled: payload.enabled,
+            now
+          })
+        });
+      } catch (error48) {
+        await discardUncommittedScript({
+          bb,
+          pluginDataDir,
+          automationId,
+          scriptFile: stored.writtenScriptFile
+        });
+        throw error48;
+      }
+      publishAutomationChange(bb, payload.projectId, "automations-changed");
+      return withResolvedWorkingDirectory({
+        bb,
+        pluginDataDir,
+        automation: toStoredAutomationResponse(pluginDataDir, created)
+      });
+    },
+    async update(input) {
+      const project = await requireProjectAvailable(bb, input.projectId);
+      const current = requireProjectAutomation(db, input);
+      const currentAutomation = decodeAutomationRow(current).automation;
+      if ("problem" in currentAutomation && currentAutomation.problem === "invalid-stored-data") {
+        throw automationWriteError(
+          current,
+          "update",
+          currentAutomation.problem
+        );
+      }
+      if ([input.execution, input.agent, input.script].filter(
+        (entry) => entry !== void 0
+      ).length > 1) {
+        throw new Error(
+          "execution, agent, and script updates cannot be combined"
+        );
+      }
+      const now = Date.now();
+      const currentExecution = currentAutomation.execution;
+      let stagedScriptFile;
+      const patch = {};
+      if (input.name !== void 0) patch.name = input.name;
+      if (input.allowVoiceOutput !== void 0 || input.execution !== void 0) {
+        const effectiveMode = input.execution?.mode ?? currentExecution.mode;
+        if (input.allowVoiceOutput === true && effectiveMode !== "agent") {
+          throw new Error(
+            "Allow voice output applies only to agent automations; a script automation speaks only when its script explicitly runs `bb voice speak`."
           );
-          if (await isRunnableFile(freshExecutablePath)) {
-            outcome.current = freshEntry.activeVersion === release.version ? { kind: "already-active", executablePath: freshExecutablePath } : { kind: "kept-existing", executablePath: freshExecutablePath };
-            return freshManifest;
-          }
         }
-        return {
-          ...freshManifest,
-          runtimes: {
-            ...freshManifest.runtimes,
-            "claude-code": {
-              activeVersion: release.version,
-              previousVersion: freshEntry.activeVersion,
-              source: "official-managed-install",
-              digest: stagedDigest,
-              installedAt: now()
-            }
-          }
+        if (effectiveMode !== "agent") {
+          patch.allowVoiceOutput = false;
+        } else if (input.allowVoiceOutput !== void 0) {
+          patch.allowVoiceOutput = input.allowVoiceOutput;
+        }
+      }
+      if (input.trigger !== void 0) {
+        validateTrigger(input.trigger, now);
+        patch.trigger = input.trigger;
+        patch.nextRunAt = current.enabled ? computeNextRunAt(input.trigger, now) : null;
+      }
+      if (input.execution !== void 0) {
+        if (input.execution.mode === "agent") {
+          await resolveRequestedPermissionMode(
+            bb,
+            input.execution.providerId,
+            input.execution.permissionMode,
+            providerRoutingForEnvironment(input.execution.environment)
+          );
+        }
+        const stored = await resolveStoredExecution({
+          pluginDataDir,
+          automationId: current.id,
+          execution: input.execution,
+          defaultWorkingDirectory: currentExecution.mode === "script" ? currentExecution.workingDirectory : input.execution.mode === "script" && input.execution.workingDirectory === void 0 ? defaultScriptWorkingDirectory(
+            project,
+            (await bb.sdk.system.config()).primaryHostId
+          ) : AUTOMATION_STORAGE_WORKING_DIRECTORY
+        });
+        patch.execution = stored.execution;
+        stagedScriptFile = stored.writtenScriptFile;
+      }
+      if (input.agent !== void 0) {
+        const updatedExecution = applyAgentExecutionUpdate(
+          currentExecution,
+          input.agent
+        );
+        if (input.agent.providerId !== void 0 || input.agent.permissionMode !== void 0 || input.agent.target?.type === "environment") {
+          await resolveRequestedPermissionMode(
+            bb,
+            updatedExecution.providerId,
+            updatedExecution.permissionMode,
+            providerRoutingForEnvironment(updatedExecution.environment)
+          );
+        }
+        patch.execution = updatedExecution;
+      }
+      if (input.script !== void 0) {
+        if (currentExecution.mode !== "script") {
+          throw new Error(
+            "Script execution options can only update script automations"
+          );
+        }
+        validateScriptWorkingDirectory(input.script.workingDirectory);
+        patch.execution = {
+          ...currentExecution,
+          workingDirectory: input.script.workingDirectory
         };
       }
-    });
-    await rm2(statePath, { force: true });
-    if (outcome.current.kind === "already-active") {
-      return {
-        state: "ready",
-        detail: `claude-code ${release.version} already active; reusing verified copy`,
-        executablePath: outcome.current.executablePath
-      };
+      if ("problem" in currentAutomation && currentAutomation.problem === "missing-agent-prompt" && (patch.execution === void 0 || patch.execution.mode === "agent" && patch.execution.prompt === "")) {
+        throw automationWriteError(
+          current,
+          "update",
+          currentAutomation.problem
+        );
+      }
+      let updated;
+      try {
+        updated = updateAutomation(db, {
+          projectId: input.projectId,
+          automationId: input.automationId,
+          patch
+        });
+      } catch (error48) {
+        await discardUncommittedScript({
+          bb,
+          pluginDataDir,
+          automationId: current.id,
+          scriptFile: stagedScriptFile
+        });
+        throw error48;
+      }
+      if (!updated) {
+        await discardUncommittedScript({
+          bb,
+          pluginDataDir,
+          automationId: current.id,
+          scriptFile: stagedScriptFile
+        });
+        throw new Error("Automation not found");
+      }
+      if (patch.execution !== void 0) {
+        await cleanupSupersededScript({
+          bb,
+          pluginDataDir,
+          automationId: current.id,
+          previous: currentExecution,
+          next: patch.execution
+        });
+      }
+      publishAutomationChange(bb, input.projectId, "automations-changed");
+      return withResolvedWorkingDirectory({
+        bb,
+        pluginDataDir,
+        automation: toStoredAutomationResponse(pluginDataDir, updated)
+      });
+    },
+    async delete(input) {
+      const automation = requireProjectAutomation(db, input);
+      deleteAutomation(db, input);
+      await deleteAutomationScriptDir({
+        dataDir: pluginDataDir,
+        automationId: automation.id
+      });
+      publishAutomationChange(bb, input.projectId, [
+        "automations-changed",
+        "automation-runs-changed"
+      ]);
+      return { ok: true };
+    },
+    pause(input) {
+      const current = requireProjectAutomation(db, input);
+      requireCanonicalAutomationForWrite(pluginDataDir, current, "pause");
+      const updated = setAutomationEnabled(db, {
+        projectId: input.projectId,
+        automationId: current.id,
+        enabled: false,
+        nextRunAt: null
+      });
+      if (!updated) throw new Error("Automation not found");
+      publishAutomationChange(bb, input.projectId, "automations-changed");
+      return toStoredAutomationResponse(pluginDataDir, updated);
+    },
+    resume(input) {
+      const current = requireProjectAutomation(db, input);
+      const canonical = requireCanonicalAutomationForWrite(
+        pluginDataDir,
+        current,
+        "resume"
+      );
+      const { trigger } = canonical;
+      const now = Date.now();
+      validateTrigger(trigger, now);
+      const updated = setAutomationEnabled(db, {
+        projectId: input.projectId,
+        automationId: current.id,
+        enabled: true,
+        nextRunAt: computeNextRunAt(trigger, now),
+        lastError: null,
+        resetConsecutiveFailures: true
+      });
+      if (!updated) throw new Error("Automation not found");
+      publishAutomationChange(bb, input.projectId, "automations-changed");
+      return toStoredAutomationResponse(pluginDataDir, updated);
+    },
+    async run(input) {
+      const automation = requireProjectAutomation(db, input);
+      const { execution } = requireCanonicalAutomationForWrite(
+        pluginDataDir,
+        automation,
+        "run"
+      );
+      const now = Date.now();
+      const { run, deduped } = createManualRun(db, {
+        automationId: automation.id,
+        runMode: automation.runMode,
+        idempotencyKey: input.idempotencyKey ?? null,
+        now
+      });
+      if (!deduped) {
+        publishAutomationChange(bb, input.projectId, "automation-runs-changed");
+        const closeFailedRun = (error48) => {
+          closeAutomationRun(db, {
+            runId: run.id,
+            status: "failed",
+            error: errorMessage(error48),
+            now: Date.now()
+          });
+        };
+        void (async () => {
+          try {
+            if (execution.mode === "agent") {
+              await executeAgentRun(bb, db, {
+                automation,
+                run,
+                execution,
+                onFailure: closeFailedRun
+              });
+            } else {
+              await executeScriptRun(bb, db, {
+                pluginDataDir,
+                automation,
+                run,
+                execution,
+                onFailure: closeFailedRun,
+                serverUrl,
+                resolveWorkingDirectory: createScriptWorkingDirectoryResolver({
+                  sdk: bb.sdk,
+                  pluginDataDir,
+                  serverHostId: (await bb.sdk.system.config()).primaryHostId
+                })
+              });
+            }
+          } catch (error48) {
+            closeFailedRun(error48);
+            bb.log.error(
+              `Manual automation run ${run.id} failed unexpectedly: ${errorMessage(error48)}`
+            );
+            publishAutomationChange(bb, input.projectId, [
+              "automations-changed",
+              "automation-runs-changed"
+            ]);
+          }
+        })();
+      }
+      return { run: toAutomationRunResponse(run) };
+    },
+    runs(input) {
+      requireProjectAutomation(db, input);
+      const limit = Math.min(input.limit, AUTOMATION_RUNS_LIMIT_MAX);
+      const runs = listAutomationRuns(db, {
+        automationId: input.automationId,
+        limit: limit + 1,
+        cursor: parseRunCursor(input.cursor)
+      });
+      const hasMore = runs.length > limit;
+      const page = hasMore ? runs.slice(0, limit) : runs;
+      const last = page[page.length - 1];
+      return automationRunListResponseSchema.parse({
+        runs: page.map(toAutomationRunResponse),
+        nextCursor: hasMore && last ? encodeRunCursor(last.startedAt, last.id) : null
+      });
     }
-    if (outcome.current.kind === "kept-existing") {
-      return {
-        state: "ready",
-        detail: `claude-code already active from another operation; reusing verified copy`,
-        executablePath: outcome.current.executablePath
-      };
-    }
-    return {
-      state: "ready",
-      detail: `claude-code ${release.version} installed from Anthropic official distribution (digest ${stagedDigest})`,
-      executablePath: outcome.current.executablePath
-    };
-  } catch (error48) {
-    await rm2(stagingDir, { recursive: true, force: true });
-    const detail = error48 instanceof Error ? error48.message : String(error48);
-    return recordFailure(`claude setup failed: ${detail}`);
-  }
-}
-
-// ../../packages/arc-domains/src/arc-runtime/compatibility.ts
-var import_semver3 = __toESM(require_semver2(), 1);
-var openaiCodexMinimumVersion = "0.136.0";
-var arcCodexTestedMaximumVersion = "0.155.1";
-var arcOmpFirstTestedVersion = "18.2.6";
-var arcClaudeCodeTestedVersion = "2.1.276";
-var ARC_RUNTIME_COMPATIBILITY_POLICY = {
-  codex: {
-    minimum: openaiCodexMinimumVersion,
-    maximumTested: arcCodexTestedMaximumVersion
-  },
-  omp: {
-    minimum: arcOmpFirstTestedVersion,
-    maximumTested: arcOmpFirstTestedVersion
-  },
-  "claude-code": {
-    maximumTested: arcClaudeCodeTestedVersion,
-    untestedBelow: arcClaudeCodeTestedVersion
-  }
-};
-function evaluateArcRuntimeCompatibility(args) {
-  const parsedVersion = (0, import_semver3.valid)(args.version);
-  if (parsedVersion === null) {
-    return {
-      compatibility: "untested",
-      reason: `version "${args.version}" is not valid semver`
-    };
-  }
-  const rule = args.policy[args.runtimeId];
-  if (rule === void 0) {
-    return {
-      compatibility: "untested",
-      reason: "no compatibility policy recorded for this runtime"
-    };
-  }
-  if (rule.blockedVersions?.some(
-    (blocked) => (0, import_semver3.valid)(blocked) === parsedVersion
-  ) === true) {
-    return {
-      compatibility: "blocked",
-      reason: `version ${parsedVersion} is a known-bad release`
-    };
-  }
-  if (rule.minimum !== void 0) {
-    const minimum = (0, import_semver3.valid)(rule.minimum);
-    if (minimum !== null && (0, import_semver3.compare)(parsedVersion, minimum) < 0) {
-      return {
-        compatibility: "blocked",
-        reason: `version ${parsedVersion} is below the minimum supported version ${minimum}`
-      };
-    }
-  }
-  if (rule.maximumTested === void 0) {
-    return {
-      compatibility: "untested",
-      reason: "this Arc release has not recorded a tested maximum for this runtime"
-    };
-  }
-  const maximumTested = (0, import_semver3.valid)(rule.maximumTested);
-  if (maximumTested === null) {
-    return {
-      compatibility: "untested",
-      reason: "recorded tested maximum is not valid semver"
-    };
-  }
-  if ((0, import_semver3.compare)(parsedVersion, maximumTested) > 0) {
-    return {
-      compatibility: "untested",
-      reason: `version ${parsedVersion} is newer than the tested maximum ${maximumTested}`
-    };
-  }
-  if (rule.untestedBelow !== void 0) {
-    const untestedBelow = (0, import_semver3.valid)(rule.untestedBelow);
-    if (untestedBelow !== null && (0, import_semver3.compare)(parsedVersion, untestedBelow) < 0) {
-      return {
-        compatibility: "untested",
-        reason: `version ${parsedVersion} is older than the first tested version ${untestedBelow}`
-      };
-    }
-  }
-  return {
-    compatibility: "supported",
-    reason: `version ${parsedVersion} is within the tested range for this Arc release`
   };
 }
 
-// ../../packages/arc-domains/src/arc-runtime/claude-discovery.ts
-import { constants as constants3 } from "node:fs";
-import {
-  access as access3,
-  lstat,
-  readFile as readFile3,
-  readlink,
-  realpath,
-  stat as stat4
-} from "node:fs/promises";
-async function isExecutableFile(path) {
+// ../.bundled-stage-7tjiRO/src/sweep.ts
+var DUE_AUTOMATION_BATCH_SIZE = 100;
+var SWEEP_INTERVAL_MS = 1e4;
+var hostListSchema2 = external_exports.array(
+  external_exports.object({ status: external_exports.enum(["connected", "disconnected"]) }).passthrough()
+);
+function buildScheduleFailureHandler(db, args) {
+  return (error48) => {
+    closeAutomationRun(db, {
+      runId: args.run.id,
+      status: "failed",
+      error: errorMessage(error48),
+      now: Date.now()
+    });
+  };
+}
+async function processDueAutomation(bb, db, args) {
+  if (args.automation.nextRunAt === null) return;
+  const expectedNextRunAt = args.automation.nextRunAt;
+  let newNextRunAt;
+  let execution;
   try {
-    const fileStat = await stat4(path);
-    if (!fileStat.isFile()) {
-      return false;
-    }
-    await access3(path, constants3.X_OK);
-    return true;
-  } catch {
+    const trigger = parseAutomationTrigger(args.automation.triggerConfig);
+    execution = parseAutomationExecution(args.automation.execution);
+    newNextRunAt = trigger.triggerType === "once" ? null : computeNextScheduledTime({
+      cron: trigger.cron,
+      now: args.now,
+      timezone: trigger.timezone
+    });
+  } catch (error48) {
+    bb.log.error(
+      `Skipping due automation ${args.automation.id} with invalid stored configuration: ${errorMessage(error48)}`
+    );
+    return;
+  }
+  if (execution.mode === "agent" && !args.agentHostsAvailable) {
+    return;
+  }
+  const claim = claimAutomationScheduledRun(db, {
+    automationId: args.automation.id,
+    expectedNextRunAt,
+    newNextRunAt,
+    now: args.now
+  });
+  if (!claim.advanced) return;
+  publishAutomationChange(bb, args.automation.projectId, [
+    "automations-changed",
+    "automation-runs-changed"
+  ]);
+  const onFailure = buildScheduleFailureHandler(db, {
+    run: claim.run
+  });
+  if (execution.mode === "agent") {
+    await executeAgentRun(bb, db, {
+      automation: args.automation,
+      run: claim.run,
+      execution,
+      onFailure
+    });
+  } else {
+    void executeScriptRun(bb, db, {
+      pluginDataDir: args.pluginDataDir,
+      automation: args.automation,
+      run: claim.run,
+      execution,
+      onFailure,
+      serverUrl: args.serverUrl,
+      resolveWorkingDirectory: args.resolveWorkingDirectory
+    }).catch((error48) => {
+      bb.log.error(
+        `Detached script automation ${args.automation.id} failed unexpectedly: ${errorMessage(error48)}`
+      );
+    });
+  }
+}
+async function hasConnectedHost(bb) {
+  try {
+    return hostListSchema2.parse(await bb.sdk.hosts.list()).some((host) => host.status === "connected");
+  } catch (error48) {
+    bb.log.warn(
+      `Failed to list hosts for automation sweep: ${errorMessage(error48)}`
+    );
     return false;
   }
 }
-
-// ../../packages/arc-domains/src/arc-agent/manager.ts
-var UnknownArcProviderStatusSource = class {
-  async getProviderStatus() {
-    return "unknown";
-  }
-};
-var UnknownArcAccountStatusSource = class {
-  async getAccountState() {
-    return "unknown";
-  }
-};
-var ArcAgentManager = class {
-  createdByArcVersion;
-  platform;
-  runtimePaths;
-  seedRoot;
-  providerStatusSource;
-  accountStatusSource;
-  onDiagnostic;
-  now;
-  releases;
-  download;
-  runDoctor;
-  verifyCodeSignature;
-  inFlight = /* @__PURE__ */ new Map();
-  constructor(args) {
-    this.createdByArcVersion = args.createdByArcVersion;
-    this.platform = args.platform;
-    this.runtimePaths = args.runtimePaths;
-    this.seedRoot = args.seedRoot;
-    this.providerStatusSource = args.providerStatusSource ?? new UnknownArcProviderStatusSource();
-    this.accountStatusSource = args.accountStatusSource ?? new UnknownArcAccountStatusSource();
-    this.onDiagnostic = args.onDiagnostic;
-    this.now = args.now ?? Date.now;
-    this.releases = args.releases;
-    this.download = args.download;
-    this.runDoctor = args.runDoctor;
-    this.verifyCodeSignature = args.verifyCodeSignature;
-  }
-  // Side-effect-free: never downloads, repairs, or writes. Status reads may
-  // race with an in-flight operation; the atomic manifest write means they
-  // observe the manifest before or after, never a torn state.
-  async listArcAgents() {
-    return Promise.all(
-      ARC_AGENT_CATALOG.map((descriptor) => this.getArcAgent(descriptor.id))
-    );
-  }
-  async getArcAgent(id) {
-    const descriptor = getArcAgentDescriptor(id);
-    if (descriptor === void 0) {
-      throw new ArcAgentError("unsupported-agent", `unknown Arc agent "${id}"`);
-    }
-    const preparing = this.inFlight.has(id);
-    const runtime = await this.resolveRuntimeStatus(
-      descriptor.runtimeId,
-      preparing
-    );
-    const providerState = await this.providerStatusSource.getProviderStatus(
-      descriptor.providerId
-    );
-    const accountState = await this.accountStatusSource.getAccountState(
-      descriptor.id
-    );
-    const overallState = resolveOverallState(
-      runtime.state,
-      accountState
-    );
-    return {
-      id: descriptor.id,
-      displayName: descriptor.displayName,
-      runtimeId: descriptor.runtimeId,
-      providerId: descriptor.providerId,
-      runtime,
-      provider: { state: providerState },
-      account: { state: accountState },
-      overallState,
-      actions: resolveActions(descriptor.id, runtime.state, accountState),
-      observedAt: this.now()
-    };
-  }
-  // Restores an Arc-managed runtime for the agent. Idempotent: a healthy
-  // runtime is reused, never re-downloaded or reinstalled. Resolves with the
-  // refreshed status observed after the operation completes.
-  async prepareAgent(id) {
-    await this.runExclusive(id, async () => {
-      if (id === "claude-code") {
-        const result = await prepareManagedClaudeCode({
-          createdByArcVersion: this.createdByArcVersion,
-          download: this.download,
-          onDiagnostic: this.onDiagnostic,
-          platform: this.platform,
-          release: this.releases?.["claude-code"] ?? ARC_CLAUDE_CODE_RELEASE,
-          runDoctor: this.runDoctor,
-          runtimePaths: this.runtimePaths,
-          verifyCodeSignature: this.verifyCodeSignature
-        });
-        if (result.state !== "ready") {
-          throw new ArcAgentError("runtime-prepare-failed", result.detail);
-        }
-      } else {
-        await this.prepareBundledManagedRuntime(
-          id,
-          "runtime-prepare-failed"
-        );
-      }
-    });
-    return this.getArcAgent(id);
-  }
-  // Repairs the currently intended managed runtime in place: same-version
-  // restoration from the trusted seed (Codex/OMP) or the official setup flow
-  // (Claude). Repair never changes the active version and never touches
-  // credentials or account data.
-  async repairAgent(id) {
-    const current = await this.getArcAgent(id);
-    if (current.runtime.state === "not-prepared") {
-      throw new ArcAgentError(
-        "runtime-repair-failed",
-        `${id} has no managed runtime recorded; use prepare instead`
-      );
-    }
-    await this.runExclusive(id, async () => {
-      if (id === "claude-code") {
-        const result = await prepareManagedClaudeCode({
-          createdByArcVersion: this.createdByArcVersion,
-          download: this.download,
-          onDiagnostic: this.onDiagnostic,
-          platform: this.platform,
-          release: this.releases?.["claude-code"] ?? ARC_CLAUDE_CODE_RELEASE,
-          runDoctor: this.runDoctor,
-          runtimePaths: this.runtimePaths,
-          verifyCodeSignature: this.verifyCodeSignature
-        });
-        if (result.state !== "ready") {
-          throw new ArcAgentError("runtime-repair-failed", result.detail);
-        }
-      } else {
-        await this.prepareBundledManagedRuntime(id, "runtime-repair-failed");
-      }
-    });
-    return this.getArcAgent(id);
-  }
-  // Single-flight per agent: a duplicate prepare/repair for the same agent
-  // joins the in-flight operation instead of racing it (two Claude setup
-  // clicks must not start two downloads). Operations for different agents
-  // run concurrently; the serialized manifest mutation is their only shared
-  // critical section.
-  async runExclusive(id, operation) {
-    const existing = this.inFlight.get(id);
-    if (existing !== void 0) {
-      return existing;
-    }
-    const pending = operation().then(() => void 0).finally(() => {
-      if (this.inFlight.get(id) === pending) {
-        this.inFlight.delete(id);
-      }
-    });
-    this.inFlight.set(id, pending);
-    return pending;
-  }
-  async prepareBundledManagedRuntime(id, errorCode) {
-    if (this.seedRoot === void 0) {
-      throw new ArcAgentError(
-        errorCode,
-        `${id} uses a bundled-managed runtime but no seed root is configured`
-      );
-    }
-    const pinned = this.releases?.[id] ?? (id === "codex" ? ARC_CODEX_RELEASE : ARC_OMP_RELEASE);
-    const results = await prepareArcManagedRuntimes({
-      createdByArcVersion: this.createdByArcVersion,
-      onDiagnostic: this.onDiagnostic,
-      platform: this.platform,
-      releases: [pinned],
-      runtimePaths: this.runtimePaths,
-      seedRoot: this.seedRoot
-    });
-    const result = results[0];
-    if (result === void 0 || result.action !== "installed" && result.action !== "already-active" && result.action !== "repaired" && result.action !== "kept-existing") {
-      throw new ArcAgentError(
-        errorCode,
-        result?.detail ?? "bundled runtime bootstrap produced no result"
-      );
-    }
-  }
-  async resolveRuntimeStatus(runtimeId, preparing) {
-    const manifestResult = await readArcRuntimeManifest({
-      createdByArcVersion: this.createdByArcVersion,
-      manifestPath: this.runtimePaths.manifestPath,
-      platform: this.platform
-    });
-    if (manifestResult.kind === "unsupported-version") {
-      return {
-        state: "unavailable",
-        version: null,
-        compatibility: null,
-        compatibilityReason: `manifest declares unsupported schema version ${manifestResult.schemaVersion}`,
-        source: null
-      };
-    }
-    if (manifestResult.kind === "invalid") {
-      return {
-        state: "unavailable",
-        version: null,
-        compatibility: null,
-        compatibilityReason: manifestResult.problem,
-        source: null
-      };
-    }
-    const entry = manifestResult.manifest.runtimes[runtimeId];
-    if (entry.activeVersion === null) {
-      return {
-        state: preparing ? "preparing" : "not-prepared",
-        version: null,
-        compatibility: null,
-        compatibilityReason: null,
-        source: null
-      };
-    }
-    const version2 = entry.activeVersion;
-    const evaluation = evaluateArcRuntimeCompatibility({
-      policy: ARC_RUNTIME_COMPATIBILITY_POLICY,
-      runtimeId,
-      version: version2
-    });
-    const runnable = await isExecutableFile(
-      this.runtimePaths.executablePath(runtimeId, version2)
-    );
-    let state;
-    if (!runnable) {
-      state = "broken";
-    } else if (evaluation.compatibility === "blocked") {
-      state = "unsupported";
-    } else if (evaluation.compatibility === "untested") {
-      state = "ready-with-warning";
-    } else {
-      state = "ready";
-    }
-    if (preparing) {
-      state = "preparing";
-    }
-    return {
-      state,
-      version: version2,
-      compatibility: evaluation.compatibility,
-      compatibilityReason: evaluation.reason,
-      source: entry.source
-    };
-  }
-};
-function resolveOverallState(runtimeState, accountState) {
-  switch (runtimeState) {
-    case "unavailable":
-      return "unavailable";
-    case "broken":
-      return "broken";
-    case "unsupported":
-      return "unsupported";
-    case "not-prepared":
-      return "not-prepared";
-    case "preparing":
-      return "preparing";
-    case "ready":
-    case "ready-with-warning":
-      if (accountState === "connected") return "ready";
-      if (accountState === "not-connected") return "account-required";
-      return "runtime-ready";
-  }
-}
-function resolveActions(agentId, runtimeState, accountState) {
-  const prepareAvailable = runtimeState === "not-prepared";
-  const repairAvailable = runtimeState === "broken";
-  const runtimeReady = runtimeState === "ready" || runtimeState === "ready-with-warning";
-  const supportsAccount = true;
-  const accountActionable = accountState === "not-connected" || accountState === "expired" || accountState === "error";
-  const connectAvailable = supportsAccount && runtimeReady && accountActionable;
-  return [
-    {
-      id: "prepare",
-      available: prepareAvailable,
-      ...prepareAvailable ? {} : {
-        reason: runtimeState === "broken" ? "runtime is prepared but broken; use repair" : "runtime is already prepared"
-      }
-    },
-    {
-      id: "repair",
-      available: repairAvailable,
-      ...repairAvailable ? {} : {
-        reason: runtimeState === "not-prepared" ? "nothing recorded to repair; use prepare" : runtimeState === "unsupported" ? "compatibility is blocked; repair cannot change the version" : "runtime is not broken"
-      }
-    },
-    {
-      id: "connect-account",
-      available: connectAvailable,
-      ...connectAvailable ? {} : {
-        reason: !supportsAccount ? "agent does not support account connection yet" : !runtimeReady ? "runtime is not ready" : accountState === "connected" ? "an account is already connected" : "account state is unknown"
-      }
-    },
-    {
-      id: "update",
-      available: false,
-      reason: "Runtime updates arrive in a later Arc release"
-    },
-    {
-      id: "rollback",
-      available: false,
-      reason: "Runtime rollback arrives in a later Arc release"
-    },
-    {
-      id: "open-settings",
-      available: false,
-      reason: "No agent settings surface exists yet"
-    }
-  ];
-}
-
-// ../../packages/arc-domains/src/arc-usage/types.ts
-var ArcUsageError = class extends Error {
-  code;
-  constructor(code, message) {
-    super(message);
-    this.name = "ArcUsageError";
-    this.code = code;
-  }
-};
-
-// ../../packages/arc-domains/src/arc-usage/omp-source.ts
-var usageWindowSchema = external_exports.object({
-  id: external_exports.string(),
-  label: external_exports.string(),
-  durationMs: external_exports.number().optional(),
-  resetsAt: external_exports.number().optional()
-});
-var usageAmountSchema = external_exports.object({
-  used: external_exports.number().optional(),
-  limit: external_exports.number().optional(),
-  remaining: external_exports.number().optional(),
-  usedFraction: external_exports.number().optional(),
-  remainingFraction: external_exports.number().optional(),
-  unit: external_exports.enum([
-    "percent",
-    "tokens",
-    "requests",
-    "credits",
-    "usd",
-    "minutes",
-    "bytes",
-    "unknown"
-  ])
-});
-var usageLimitSchema = external_exports.object({
-  id: external_exports.string(),
-  label: external_exports.string(),
-  scope: external_exports.object({
-    provider: external_exports.string(),
-    accountId: external_exports.string().optional(),
-    orgId: external_exports.string().optional(),
-    projectId: external_exports.string().optional(),
-    modelId: external_exports.string().optional(),
-    tier: external_exports.string().optional()
-  }),
-  window: usageWindowSchema.optional(),
-  amount: usageAmountSchema,
-  status: external_exports.enum(["ok", "warning", "exhausted", "unknown"]).optional(),
-  notes: external_exports.array(external_exports.string()).optional()
-});
-var reportMetadataSchema = external_exports.object({
-  email: external_exports.string().optional(),
-  accountId: external_exports.string().optional(),
-  orgId: external_exports.string().optional(),
-  orgName: external_exports.string().optional(),
-  planType: external_exports.string().optional()
-}).partial();
-var usageReportSchema = external_exports.object({
-  provider: external_exports.string().min(1),
-  fetchedAt: external_exports.number(),
-  limits: external_exports.array(usageLimitSchema),
-  notes: external_exports.array(external_exports.string()).optional(),
-  metadata: reportMetadataSchema.optional()
-});
-var usageResponseSchema = external_exports.object({
-  generatedAt: external_exports.number(),
-  reports: external_exports.array(usageReportSchema)
-});
-var disabledEntrySchema = external_exports.object({
-  id: external_exports.number().optional(),
-  provider: external_exports.string(),
-  type: external_exports.string().optional(),
-  email: external_exports.string().optional(),
-  accountId: external_exports.string().optional(),
-  orgId: external_exports.string().optional(),
-  orgName: external_exports.string().optional(),
-  cause: external_exports.string().optional(),
-  disabledAtMs: external_exports.number().optional()
-});
-var disabledResponseSchema = external_exports.object({
-  generatedAt: external_exports.number(),
-  disabled: external_exports.array(disabledEntrySchema).optional()
-});
-var FIVE_HOURS_MS = 5 * 60 * 60 * 1e3;
-var DAY_MS = 24 * 60 * 60 * 1e3;
-var WEEK_MS = 7 * DAY_MS;
-function windowKind(window) {
-  if (window === void 0) return "custom";
-  const id = window.id.toLowerCase();
-  const label = window.label.toLowerCase();
-  if (id === "5h" || id === "five-hour" || id === "5_hour" || label.includes("5 hour") || label.includes("five-hour") || label.includes("5-hour") || window.durationMs === FIVE_HOURS_MS) {
-    return "five-hour";
-  }
-  if (id === "24h" || id === "1d" || id === "daily" || label.includes("daily") || label.includes("24 hour") || window.durationMs === DAY_MS) {
-    return "daily";
-  }
-  if (id === "7d" || id === "weekly" || label.includes("weekly") || label.includes("7 day") || window.durationMs === WEEK_MS) {
-    return "weekly";
-  }
-  if (id === "monthly" || id === "30d" || label.includes("monthly") || window.durationMs === 30 * DAY_MS) {
-    return "monthly";
-  }
-  return "custom";
-}
-function mapAmount(amount) {
-  const asPercent = (fraction) => fraction * 100;
-  if (amount.unit === "percent") {
-    if (amount.usedFraction !== void 0) {
-      return {
-        usedPercent: asPercent(amount.usedFraction),
-        remainingPercent: amount.remainingFraction !== void 0 ? asPercent(amount.remainingFraction) : 100 - asPercent(amount.usedFraction),
-        usedAmount: amount.used ?? null,
-        limitAmount: amount.limit ?? null,
-        remainingAmount: amount.remaining ?? null
-      };
-    }
-    if (amount.used !== void 0 && amount.limit !== void 0 && amount.limit > 0) {
-      const usedPercent = amount.used / amount.limit * 100;
-      return {
-        usedPercent,
-        remainingPercent: 100 - usedPercent,
-        usedAmount: amount.used,
-        limitAmount: amount.limit,
-        remainingAmount: amount.remaining ?? null
-      };
-    }
-    if (amount.remainingFraction !== void 0) {
-      return {
-        usedPercent: 100 - asPercent(amount.remainingFraction),
-        remainingPercent: asPercent(amount.remainingFraction),
-        usedAmount: amount.used ?? null,
-        limitAmount: amount.limit ?? null,
-        remainingAmount: amount.remaining ?? null
-      };
-    }
-    if (amount.used !== void 0) {
-      return {
-        usedPercent: amount.used,
-        remainingPercent: amount.remaining ?? null,
-        usedAmount: amount.used,
-        limitAmount: amount.limit ?? null,
-        remainingAmount: amount.remaining ?? null
-      };
-    }
-    return {
-      usedPercent: null,
-      remainingPercent: null,
-      usedAmount: null,
-      limitAmount: amount.limit ?? null,
-      remainingAmount: amount.remaining ?? null
-    };
-  }
-  return {
-    usedPercent: null,
-    remainingPercent: null,
-    usedAmount: amount.used ?? null,
-    limitAmount: amount.limit ?? null,
-    remainingAmount: amount.remaining ?? null
-  };
-}
-function mapLimit(limit, observedAt) {
-  const amounts = mapAmount(limit.amount);
-  return {
-    id: limit.id,
-    label: limit.label,
-    kind: windowKind(limit.window),
-    status: limit.status ?? null,
-    ...amounts,
-    unit: limit.amount.unit,
-    resetsAt: limit.window?.resetsAt ?? null,
-    observedAt,
-    source: null
-  };
-}
-function parseWire(payload) {
-  const usage = usageResponseSchema.safeParse(payload.usage);
-  if (!usage.success) {
-    throw new ArcUsageError(
-      "usage-contract-invalid",
-      `OMP broker /v1/usage returned an invalid payload: ${usage.error.issues.slice(0, 3).map((issue2) => `${issue2.path.join(".")} ${issue2.message}`).join("; ")}`
-    );
-  }
-  let disabled = [];
-  if (payload.disabled !== null) {
-    const parsed = disabledResponseSchema.safeParse(payload.disabled);
-    disabled = parsed.success ? parsed.data.disabled ?? [] : [];
-  }
-  return { usage: usage.data, disabled };
-}
-function accountIdentity(account) {
-  if (account.accountKey === null) {
-    return { provider: account.providerFamily ?? "", accountId: null };
-  }
-  const parts = account.accountKey.split(":");
-  return {
-    provider: account.providerFamily ?? parts[1] ?? "",
-    accountId: parts.length >= 3 ? parts.slice(2).join(":") : null
-  };
-}
-function isCovered(account, reports) {
-  const identity = accountIdentity(account);
-  for (const report of reports) {
-    if (report.provider !== identity.provider) continue;
-    const scopeIds = report.limits.map((limit) => limit.scope).filter(
-      (scope) => scope.accountId !== void 0 || scope.orgId !== void 0 || scope.projectId !== void 0
-    );
-    const identityFields = [
-      ...scopeIds.flatMap((scope) => [scope.accountId, scope.orgId, scope.projectId]),
-      report.metadata?.accountId
-    ].filter((value) => value !== void 0);
-    if (identity.accountId !== null) {
-      if (identityFields.includes(identity.accountId)) return true;
-      continue;
-    }
-    if (identityFields.length === 0 && report.limits.length > 0) return true;
-  }
-  return false;
-}
-var ArcOmpUsageSource = class {
-  kind = "omp";
-  gateway;
-  now;
-  constructor(args) {
-    this.gateway = args.gateway;
-    this.now = args.now ?? Date.now;
-  }
-  // Resource inventory comes from the account inventory correlation plus
-  // the last cached usage fetch; a cold list with no cache reports account
-  // resources as "unknown" usage without contacting the broker.
-  async list() {
-    const accounts = await this.gateway.listOmpAccounts();
-    return accounts.map((account) => ({
-      id: `omp:${account.providerFamily ?? "unknown"}:${account.id}`,
-      sourceKind: "omp",
-      accountKey: account.accountKey,
-      accountSourceId: account.id,
-      providerFamily: account.providerFamily,
-      providerLabel: account.providerLabel,
-      accountEmail: account.email,
-      planLabel: account.planLabel,
-      modelLabel: null,
-      agentIds: ["omp"],
-      windows: [],
-      observedAt: null,
-      fetchedAt: null,
-      stale: false,
-      status: "unknown",
-      unavailableReason: null,
-      credentialDisabled: account.authState === "disabled",
-      message: null,
-      sources: ["omp"]
-    }));
-  }
-  // Fetches fresh usage for every OMP resource. The broker has no
-  // per-resource refresh flag, so refresh applies to the whole snapshot;
-  // per-resource fetch returns the cached snapshot's matching resource.
-  async fetch(resourceId, refresh) {
-    void refresh;
-    const [{ usage, disabled }, accounts] = await Promise.all([
-      this.gateway.fetchUsageSnapshot().catch((error48) => {
-        throw new ArcUsageError(
-          "usage-fetch-failed",
-          `OMP usage fetch failed: ${error48 instanceof Error ? error48.message : String(error48)}`
-        );
-      }),
-      this.gateway.listOmpAccounts()
-    ]);
-    const wire = parseWire({ usage, disabled });
-    const resources = this.mapResources(wire.usage, wire.disabled, accounts);
-    const resource = resources.find((entry) => entry.id === resourceId);
-    if (resource === void 0) {
-      throw new ArcUsageError(
-        "usage-resource-not-found",
-        `OMP usage resource ${resourceId} was not reported by the broker`
-      );
-    }
-    return resource;
-  }
-  mapResources(usage, disabled, accounts) {
-    const resources = [];
-    const disabledKeys = new Set(
-      disabled.map(
-        (entry) => `${entry.provider}:${entry.accountId ?? entry.email ?? ""}`
-      )
-    );
-    for (const report of usage.reports) {
-      const metadata = report.metadata ?? {};
-      const scopeIds = report.limits.map((limit) => limit.scope.accountId).filter((id) => id !== void 0);
-      const accountId = scopeIds[0] ?? metadata.accountId ?? null;
-      const account = accounts.find(
-        (entry) => entry.providerFamily === report.provider && (accountId === null || accountIdentity(entry).accountId === accountId)
-      );
-      const disabledKey = `${report.provider}:${accountId ?? metadata.email ?? ""}`;
-      resources.push({
-        id: `omp:${report.provider}:${account?.id ?? accountId ?? "report"}`,
-        sourceKind: "omp",
-        accountKey: account?.accountKey ?? null,
-        accountSourceId: account?.id ?? null,
-        providerFamily: report.provider,
-        providerLabel: account?.providerLabel ?? report.provider,
-        accountEmail: metadata.email ?? account?.email ?? null,
-        planLabel: metadata.planType ?? account?.planLabel ?? null,
-        modelLabel: null,
-        agentIds: ["omp"],
-        windows: report.limits.map(
-          (limit) => mapLimit(limit, report.fetchedAt)
-        ),
-        observedAt: report.fetchedAt,
-        fetchedAt: this.now(),
-        stale: false,
-        status: "available",
-        unavailableReason: null,
-        credentialDisabled: disabledKeys.has(disabledKey),
-        message: null,
-        sources: ["omp"]
-      });
-    }
-    for (const account of accounts) {
-      if (isCovered(account, usage.reports)) continue;
-      const identity = accountIdentity(account);
-      const disabledKey = `${identity.provider}:${identity.accountId ?? account.email ?? ""}`;
-      const credentialDisabled = account.authState === "disabled" || disabledKeys.has(disabledKey);
-      resources.push({
-        id: `omp:${account.providerFamily ?? "unknown"}:${account.id}`,
-        sourceKind: "omp",
-        accountKey: account.accountKey,
-        accountSourceId: account.id,
-        providerFamily: account.providerFamily,
-        providerLabel: account.providerLabel,
-        accountEmail: account.email,
-        planLabel: account.planLabel,
-        modelLabel: null,
-        agentIds: ["omp"],
-        windows: [],
-        observedAt: null,
-        fetchedAt: this.now(),
-        stale: false,
-        status: "unavailable",
-        unavailableReason: credentialDisabled ? "disabled" : "not-exposed",
-        credentialDisabled,
-        message: null,
-        sources: ["omp"]
-      });
-    }
-    return resources;
-  }
-};
-
-// ../../packages/arc-domains/src/arc-usage/pool-source.ts
-var LIST_METHOD = "provider-usage.v1.listResources";
-var FETCH_METHOD = "provider-usage.v1.getResource";
-var usagePlanSchema = external_exports.object({
-  id: external_exports.string().min(1),
-  multiplier: external_exports.number().int().positive().nullable()
-});
-var usageWindowSchema2 = external_exports.object({
-  kind: external_exports.enum(["five-hour", "daily", "weekly", "custom"]),
-  id: external_exports.string().min(1),
-  label: external_exports.string().min(1),
-  usedPercent: external_exports.number().nonnegative(),
-  resetsAt: external_exports.string().nullable(),
-  model: external_exports.string().nullable(),
-  cost: external_exports.object({
-    usedUsdCents: external_exports.number().nonnegative(),
-    limitUsdCents: external_exports.number().positive()
-  }).nullable()
-});
-var usageStatusSchema = external_exports.discriminatedUnion("status", [
-  external_exports.object({
-    status: external_exports.literal("ok"),
-    plan: usagePlanSchema.nullable(),
-    accountEmail: external_exports.string().nullable(),
-    planLabel: external_exports.string().nullable(),
-    windows: external_exports.array(usageWindowSchema2)
-  }),
-  external_exports.object({
-    status: external_exports.literal("not_installed"),
-    plan: usagePlanSchema.nullable(),
-    accountEmail: external_exports.string().nullable(),
-    planLabel: external_exports.string().nullable()
-  }),
-  external_exports.object({
-    status: external_exports.literal("unauthenticated"),
-    plan: usagePlanSchema.nullable(),
-    accountEmail: external_exports.string().nullable(),
-    planLabel: external_exports.string().nullable()
-  }),
-  external_exports.object({
-    status: external_exports.literal("expired"),
-    plan: usagePlanSchema.nullable(),
-    accountEmail: external_exports.string().nullable(),
-    planLabel: external_exports.string().nullable()
-  }),
-  external_exports.object({
-    status: external_exports.literal("error"),
-    plan: usagePlanSchema.nullable(),
-    accountEmail: external_exports.string().nullable(),
-    planLabel: external_exports.string().nullable(),
-    message: external_exports.string()
-  })
-]);
-var listOutputSchema = external_exports.object({
-  label: external_exports.string().min(1).optional(),
-  resources: external_exports.array(
-    external_exports.object({
-      accountKey: external_exports.string().min(1).nullable(),
-      id: external_exports.string().min(1),
-      providerId: external_exports.string().min(1),
-      label: external_exports.string().min(1),
-      scope: external_exports.object({
-        kind: external_exports.enum(["shared", "host"]),
-        hostId: external_exports.string().optional(),
-        hostName: external_exports.string().optional()
-      })
-    })
-  )
-});
-var fetchOutputSchema = external_exports.object({
-  accountKey: external_exports.string().min(1).nullable(),
-  observedAt: external_exports.number().int().nonnegative().nullable(),
-  usage: usageStatusSchema
-});
-function parse3(schema, value, what) {
-  const result = schema.safeParse(value);
-  if (!result.success) {
-    throw new ArcUsageError(
-      "usage-contract-invalid",
-      `account pool ${what} returned an invalid payload: ${result.error.issues.slice(0, 3).map((issue2) => `${issue2.path.join(".")} ${issue2.message}`).join("; ")}`
-    );
-  }
-  return result.data;
-}
-var AGENT_BY_PROVIDER = {
-  codex: "codex",
-  "claude-code": "claude-code"
-};
-var FAMILY_BY_PROVIDER = {
-  codex: "openai",
-  "claude-code": "anthropic"
-};
-var LABEL_BY_PROVIDER = {
-  codex: "ChatGPT",
-  "claude-code": "Claude"
-};
-function mapWindows(windows) {
-  return windows.map((window) => {
-    const resetsAt = window.resetsAt === null ? null : Date.parse(window.resetsAt);
-    return {
-      id: window.id,
-      label: window.label,
-      kind: window.kind,
-      status: null,
-      usedPercent: window.usedPercent,
-      remainingPercent: 100 - window.usedPercent,
-      usedAmount: window.cost?.usedUsdCents ?? null,
-      limitAmount: window.cost?.limitUsdCents ?? null,
-      remainingAmount: null,
-      unit: window.cost !== null ? "usd" : "percent",
-      resetsAt: resetsAt !== null && Number.isFinite(resetsAt) ? resetsAt : null,
-      observedAt: null,
-      source: null
-    };
+async function sweepDueAutomations(bb, db, args) {
+  const now = args.now ?? Date.now();
+  const due = listDueAutomations(db, { now, limit: DUE_AUTOMATION_BATCH_SIZE });
+  const agentHostsAvailable = await hasConnectedHost(bb);
+  const resolveWorkingDirectory = createScriptWorkingDirectoryResolver({
+    sdk: bb.sdk,
+    pluginDataDir: args.pluginDataDir,
+    serverHostId: args.serverHostId
   });
-}
-function baseResource(listed) {
-  const agentId = AGENT_BY_PROVIDER[listed.providerId] ?? null;
-  return {
-    id: `pool:${FAMILY_BY_PROVIDER[listed.providerId] ?? listed.providerId}:${listed.id}`,
-    sourceKind: "pool",
-    accountKey: listed.accountKey,
-    accountSourceId: listed.id,
-    providerFamily: FAMILY_BY_PROVIDER[listed.providerId] ?? null,
-    providerLabel: LABEL_BY_PROVIDER[listed.providerId] ?? listed.providerId,
-    accountEmail: null,
-    planLabel: null,
-    modelLabel: null,
-    agentIds: agentId === null ? [] : [agentId],
-    windows: [],
-    observedAt: null,
-    fetchedAt: null,
-    stale: false,
-    status: "unknown",
-    unavailableReason: null,
-    credentialDisabled: false,
-    message: null,
-    sources: ["pool"]
-  };
-}
-var ArcPoolUsageSource = class {
-  kind = "pool";
-  rpc;
-  now;
-  constructor(args) {
-    this.rpc = args.rpc;
-    this.now = args.now ?? Date.now;
-  }
-  // Cheap metadata-only inventory; never refreshes quota.
-  async list() {
-    const output = parse3(
-      listOutputSchema,
-      await this.rpc.call(LIST_METHOD, {}),
-      "listResources"
-    );
-    return output.resources.map(baseResource);
-  }
-  async fetch(resourceId, refresh) {
-    const listed = parse3(
-      listOutputSchema,
-      await this.rpc.call(LIST_METHOD, {}),
-      "listResources"
-    );
-    const localId = resourceId.startsWith("pool:") ? resourceId.slice(resourceId.indexOf(":", 5) + 1) : resourceId;
-    const resource = listed.resources.find((entry) => entry.id === localId);
-    if (resource === void 0) {
-      throw new ArcUsageError(
-        "usage-resource-not-found",
-        `account pool usage resource ${resourceId} no longer exists`
-      );
-    }
-    const measurement = parse3(
-      fetchOutputSchema,
-      await this.rpc.call(FETCH_METHOD, {
-        resourceId: resource.id,
-        refresh
-      }),
-      "getResource"
-    );
-    const base = baseResource(resource);
-    const usage = measurement.usage;
-    const unavailableReason = usage.status === "ok" || usage.status === "error" ? null : usage.status === "not_installed" ? "not-exposed" : "not-connected";
-    const message = usage.status === "error" ? "Usage could not be collected for this account. Try refreshing usage." : usage.status === "ok" ? null : usage.status === "not_installed" ? "Usage limits not exposed by provider (the provider CLI is not installed)." : usage.status === "expired" ? "Account session expired. Reconnect the account to see usage." : "Usage requires a connected, authenticated account.";
-    return {
-      ...base,
-      accountEmail: usage.accountEmail,
-      planLabel: usage.planLabel,
-      modelLabel: usage.status === "ok" ? null : null,
-      windows: usage.status === "ok" ? mapWindows(usage.windows) : [],
-      observedAt: measurement.observedAt,
-      fetchedAt: this.now(),
-      status: usage.status === "ok" ? "available" : usage.status === "error" ? "error" : "unavailable",
-      unavailableReason,
-      message
-    };
-  }
-};
-
-// ../../packages/arc-domains/src/arc-usage/thread-source.ts
-var ArcThreadUsageSource = class {
-  kind = "thread";
-  gateway;
-  now;
-  cache = null;
-  constructor(args) {
-    this.gateway = args.gateway;
-    this.now = args.now ?? Date.now;
-  }
-  async list() {
-    const current = await this.gateway.getCurrentThreadContext();
-    if (current === null) {
-      if (this.cache !== null) return [this.cache.resource];
-      return [];
-    }
-    const resource = this.map(current);
-    this.cache = { resource, at: this.now() };
-    return [resource];
-  }
-  async fetch(resourceId, refresh) {
-    void refresh;
-    void resourceId;
-    const current = await this.gateway.getCurrentThreadContext();
-    if (current === null) {
-      if (this.cache !== null) return this.cache.resource;
-      throw new Error("no current thread context is available");
-    }
-    const resource = this.map(current);
-    this.cache = { resource, at: this.now() };
-    return resource;
-  }
-  map(current) {
-    const usedPercent = current.usedTokens / current.modelContextWindow * 100;
-    return {
-      id: `thread:${current.threadId}`,
-      sourceKind: "thread",
-      accountKey: null,
-      accountSourceId: null,
-      providerFamily: null,
-      providerLabel: "Context",
-      accountEmail: null,
-      planLabel: null,
-      modelLabel: current.modelLabel,
-      agentIds: [],
-      windows: [
-        {
-          id: "context",
-          label: "Context window",
-          kind: "custom",
-          status: null,
-          // A real denominator exists (the model's context window), so the
-          // percentage is a true measurement, not a fabrication.
-          usedPercent,
-          remainingPercent: 100 - usedPercent,
-          usedAmount: current.usedTokens,
-          limitAmount: current.modelContextWindow,
-          remainingAmount: current.modelContextWindow - current.usedTokens,
-          unit: "tokens",
-          resetsAt: null,
-          observedAt: this.now(),
-          source: null
-        }
-      ],
-      observedAt: this.now(),
-      fetchedAt: this.now(),
-      stale: false,
-      status: "available",
-      unavailableReason: null,
-      credentialDisabled: false,
-      message: current.estimated ? "Context usage is estimated." : null,
-      sources: ["thread"]
-    };
-  }
-};
-
-// ../../packages/arc-domains/src/arc-usage/service.ts
-var SOURCE_KIND_ORDER = ["pool", "omp", "thread"];
-function agentOrderIndex(agentId) {
-  const index = ["omp", "codex", "claude-code"].indexOf(agentId);
-  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
-}
-var ArcUsageService = class {
-  sources;
-  now;
-  onDiagnostic;
-  cache = /* @__PURE__ */ new Map();
-  constructor(args) {
-    this.sources = args.sources;
-    this.now = args.now ?? Date.now;
-    this.onDiagnostic = args.onDiagnostic;
-  }
-  // Cheap read: fresh source inventories plus cached measurements. Never
-  // contacts providers and never refreshes quota (§ refresh APIs).
-  async listUsageResources() {
-    const results = await Promise.all(
-      this.sources.map(async (source) => {
-        try {
-          return { ok: true, source, resources: await source.list() };
-        } catch (error48) {
-          return { ok: false, source, error: error48 };
-        }
-      })
-    );
-    const listed = [];
-    const statuses = [];
-    let failures = 0;
-    for (const result of results) {
-      const checkedAt = this.now();
-      if (result.ok) {
-        listed.push(...result.resources);
-        statuses.push({ kind: result.source.kind, state: "ready", detail: null, checkedAt });
-        continue;
-      }
-      failures += 1;
-      const message = result.error instanceof Error ? result.error.message : String(result.error);
-      this.onDiagnostic?.(
-        `usage source ${result.source.kind} failed: ${message}`
-      );
-      statuses.push({
-        kind: result.source.kind,
-        state: "unavailable",
-        detail: message,
-        checkedAt
-      });
-    }
-    if (this.sources.length > 0 && failures === this.sources.length) {
-      throw new ArcUsageError(
-        "usage-source-unavailable",
-        `every usage source failed: ${statuses.map((status) => `${status.kind}: ${status.detail}`).join("; ")}`
-      );
-    }
-    const merged = this.associate(listed.map((resource) => this.withCache(resource)));
-    return { generatedAt: this.now(), resources: merged, sources: statuses };
-  }
-  async getUsageResource(id) {
-    const snapshot = await this.listUsageResources();
-    return snapshot.resources.find((resource) => resource.id === id) ?? null;
-  }
-  // Force a fresh provider attempt for exactly one resource. A failure with
-  // prior good data yields that data marked stale; a failure with no prior
-  // data yields an error-state resource (never fabricated zeros).
-  async refreshUsageResource(id) {
-    const snapshot = await this.listUsageResources();
-    const target = snapshot.resources.find((resource) => resource.id === id);
-    if (target === void 0) {
-      throw new ArcUsageError(
-        "usage-resource-not-found",
-        `usage resource ${id} is not listed by any source`
-      );
-    }
-    const primary = target.sources[0];
-    const source = this.sources.find((entry) => entry.kind === primary);
-    if (source === void 0) {
-      throw new ArcUsageError(
-        "usage-resource-not-found",
-        `no source backs usage resource ${id}`
-      );
-    }
+  for (const automation of due) {
     try {
-      const fresh = await source.fetch(id, true);
-      const resource = this.associate([this.withCache({ ...fresh, stale: false })])[0];
-      this.cache.set(id, { resource, fetchedAt: this.now() });
-      return resource;
-    } catch (error48) {
-      const prior = this.cache.get(id);
-      if (prior !== void 0) {
-        const staleResource = { ...prior.resource, stale: true };
-        this.cache.set(id, { resource: staleResource, fetchedAt: prior.fetchedAt });
-        return staleResource;
-      }
-      const failed = {
-        ...target,
-        status: "error",
-        message: error48 instanceof ArcUsageError ? error48.message : "Usage refresh failed.",
-        windows: target.windows,
-        stale: false
-      };
-      this.cache.set(id, { resource: failed, fetchedAt: this.now() });
-      return failed;
-    }
-  }
-  // Refreshes every listed resource; per-resource failures degrade only that
-  // resource (stale last-good or error state) and never fail the batch.
-  async refreshAllUsage() {
-    const snapshot = await this.listUsageResources();
-    const refreshed = await Promise.all(
-      snapshot.resources.map(async (resource) => {
-        try {
-          return await this.refreshUsageResource(resource.id);
-        } catch {
-          return resource;
-        }
-      })
-    );
-    return {
-      generatedAt: this.now(),
-      resources: this.associate(refreshed),
-      sources: snapshot.sources
-    };
-  }
-  // Resolves what Phase 10's popup needs first: the current thread's
-  // context plus every usage resource for the active agent. Active-account
-  // identity is not invented: when the caller cannot supply it, all of the
-  // agent's resources are returned and activeAccountUnknown is true.
-  async getCurrentAgentUsage(args) {
-    const snapshot = await this.listUsageResources();
-    const thread = snapshot.resources.find((resource) => resource.sourceKind === "thread") ?? null;
-    const resources = snapshot.resources.filter(
-      (resource) => resource.sourceKind !== "thread" && resource.agentIds.includes(args.agentId)
-    );
-    const activeAccountUnknown = args.activeAccountKey === void 0;
-    const focused = args.activeAccountKey != null ? resources.filter(
-      (resource) => resource.accountKey === null || resource.accountKey === args.activeAccountKey
-    ) : resources;
-    return {
-      agentId: args.agentId,
-      thread,
-      resources: focused,
-      activeAccountUnknown
-    };
-  }
-  // Cross-source association: identical non-null canonical accountKey means
-  // one logical account; resources merge with full provenance. Windows with
-  // the same semantic key (kind + label) from different sources keep the
-  // newer observation (by observedAt, then fetchedAt); distinct windows are
-  // preserved side by side with per-window provenance. Email is never used,
-  // and null accountKeys are always distinct.
-  associate(resources) {
-    const groups = /* @__PURE__ */ new Map();
-    const passthrough = [];
-    for (const resource of resources) {
-      if (resource.accountKey === null) {
-        passthrough.push(resource);
-        continue;
-      }
-      const group = groups.get(resource.accountKey);
-      if (group === void 0) groups.set(resource.accountKey, [resource]);
-      else group.push(resource);
-    }
-    const merged = [...passthrough];
-    for (const group of groups.values()) {
-      if (group.length === 1) {
-        merged.push(group[0]);
-        continue;
-      }
-      const sorted = [...group].sort(
-        (a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0
-      );
-      const primary = sorted[0];
-      const windows = /* @__PURE__ */ new Map();
-      for (const resource of sorted) {
-        for (const window of resource.windows) {
-          const key = `${window.kind}:${window.label}`;
-          const existing = windows.get(key);
-          const stamp = window.observedAt ?? resource.fetchedAt ?? 0;
-          const candidate = { window: { ...window, source: resource.sourceKind }, stamp };
-          if (existing === void 0 || stamp >= existing.stamp) {
-            windows.set(key, candidate);
-          }
-        }
-      }
-      merged.push({
-        ...primary,
-        agentIds: [
-          ...new Set(sorted.flatMap((resource) => resource.agentIds))
-        ].sort(
-          (a, b) => agentOrderIndex(a) - agentOrderIndex(b)
-        ),
-        sources: sorted.map((resource) => resource.sourceKind).sort(
-          (a, b) => SOURCE_KIND_ORDER.indexOf(a) - SOURCE_KIND_ORDER.indexOf(b)
-        ),
-        windows: [...windows.values()].map((entry) => entry.window),
-        stale: sorted.some((resource) => resource.stale)
+      await processDueAutomation(bb, db, {
+        pluginDataDir: args.pluginDataDir,
+        automation,
+        now,
+        agentHostsAvailable,
+        serverUrl: args.serverUrl,
+        resolveWorkingDirectory
       });
+    } catch (error48) {
+      bb.log.error(
+        `Failed to process due automation ${automation.id}: ${errorMessage(error48)}`
+      );
     }
-    return merged;
   }
-  withCache(resource) {
-    if (resource.status !== "available" && resource.status !== "unavailable") {
-      return resource;
+}
+function sleep(ms, signal) {
+  return new Promise((resolve3) => {
+    if (signal.aborted) {
+      resolve3();
+      return;
     }
-    const prior = this.cache.get(resource.id);
-    if (resource.status === "available") {
-      const entry = { resource, fetchedAt: this.now() };
-      this.cache.set(resource.id, entry);
-      return resource;
-    }
-    if (prior !== void 0 && prior.resource.windows.length > 0) {
-      return { ...prior.resource, fetchedAt: resource.fetchedAt };
-    }
-    return resource;
-  }
-};
-
-// ../.bundled-stage-iyajRG/src/node-spawn.ts
-import { spawn as spawnNodeChild } from "node:child_process";
-function createNodeOmpSpawn() {
-  return ({ executablePath, env, argv }) => {
-    const child = spawnNodeChild(executablePath, argv, {
-      env,
-      stdio: ["pipe", "pipe", "pipe"]
-    });
-    child.stdin.setDefaultEncoding("utf8");
-    const stdoutListeners = /* @__PURE__ */ new Set();
-    const stderrListeners = /* @__PURE__ */ new Set();
-    child.stdout.on("data", (chunk) => {
-      const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
-      for (const listener of stdoutListeners) listener(text);
-    });
-    child.stderr.on("data", (chunk) => {
-      const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
-      for (const listener of stderrListeners) listener(text);
-    });
-    const process3 = {
-      writeLine(line) {
-        child.stdin.write(`${line}
-`);
-      },
-      kill(signal) {
-        child.kill(signal);
-      },
-      onStdoutData(listener) {
-        stdoutListeners.add(listener);
-      },
-      onStderrData(listener) {
-        stderrListeners.add(listener);
-      },
-      wait() {
-        return new Promise((resolve2) => {
-          child.once("exit", (code, signal) => {
-            resolve2({ code, signal });
-          });
-          child.once("error", () => {
-            resolve2({ code: null, signal: "SIGTERM" });
-          });
-        });
-      }
+    const settle = () => {
+      clearTimeout(timeout);
+      signal.removeEventListener("abort", settle);
+      resolve3();
     };
-    return process3;
-  };
+    const timeout = setTimeout(settle, ms);
+    signal.addEventListener("abort", settle, { once: true });
+  });
 }
 
-// ../.bundled-stage-iyajRG/src/host.ts
-function resolveArcHostConfig(env) {
-  const runtimeRoot = env.BB_ARC_RUNTIME_ROOT;
-  if (runtimeRoot === void 0 || runtimeRoot.length === 0) return null;
-  return {
-    runtimeRoot,
-    appVersion: env.BB_ARC_APP_VERSION ?? "0.0.0",
-    seedRoot: env.BB_ARC_SEED_ROOT !== void 0 && env.BB_ARC_SEED_ROOT.length > 0 ? env.BB_ARC_SEED_ROOT : null
-  };
+// ../.bundled-stage-7tjiRO/src/server.ts
+function resolveServerUrl() {
+  return process.env.BB_SERVER_URL?.trim() || "http://127.0.0.1:38886";
 }
-function createArcServiceHost(args) {
-  const platform = args.platform ?? process.platform;
-  const runtimePaths = createArcRuntimePaths({
-    userDataPath: args.config.runtimeRoot
-  });
-  const poolRpc = createAccountPoolHttpRpcClient({
-    serverUrl: args.serverOrigin
-  });
-  const poolSource = new AccountPoolSource({ rpc: poolRpc });
-  const ompSource = new OmpAccountSource({
-    resolveRuntime: createArcOmpRuntimeResolver({
-      createdByArcVersion: args.config.appVersion,
-      homeDirectory: args.config.runtimeRoot,
-      platform,
-      runtimePaths,
-      env: args.env
-    }),
-    spawn: createNodeOmpSpawn()
-  });
-  const accounts = new ArcAccountService({
-    sources: [poolSource, ompSource]
-  });
-  const agents = new ArcAgentManager({
-    createdByArcVersion: args.config.appVersion,
-    platform,
-    runtimePaths,
-    seedRoot: args.config.seedRoot ?? void 0,
-    accountStatusSource: new ServiceArcAccountStatusSource(accounts)
-  });
-  const usage = new ArcUsageService({
-    sources: [
-      new ArcPoolUsageSource({ rpc: poolRpc }),
-      new ArcOmpUsageSource({ gateway: ompSource }),
-      // Current-thread context is a renderer concept; the service-side
-      // thread source has no current thread to report. The popup renders
-      // context from the thread timeline it already holds.
-      new ArcThreadUsageSource({
-        gateway: { getCurrentThreadContext: async () => null }
-      })
-    ]
-  });
-  return { agents, accounts, usage };
-}
-var ArcUnavailableError = class extends Error {
-  constructor(reason) {
-    super(`arc-unavailable: ${reason}`);
-    this.name = "ArcUnavailableError";
-  }
-};
-
-// ../.bundled-stage-iyajRG/src/realtime.ts
-var ARC_CHANGED_CHANNEL = "arc-changed";
-
-// ../.bundled-stage-iyajRG/src/server.ts
 async function plugin(bb) {
-  const config2 = resolveArcHostConfig(process.env);
-  let host = null;
-  const requireHost = () => {
-    if (config2 === null) {
-      throw new ArcUnavailableError(
-        "Arc services are unavailable: this server was not started by the Arc app"
-      );
-    }
-    host ??= createArcServiceHost({
-      config: config2,
-      serverOrigin: bb.server.loopbackBaseUrl
+  const db = bb.storage.database();
+  bb.storage.migrate(db, migrations);
+  const pluginDataDir = pluginDataDirFromDb(db);
+  await ingestLegacyImport({ bb, db, pluginDataDir });
+  const service = createAutomationService({
+    bb,
+    db,
+    pluginDataDir,
+    serverUrl: resolveServerUrl()
+  });
+  bb.rpc.register(automationRpcContract, createRpcHandlers(service));
+  registerAutomationCli({ bb, service });
+  bb.events.on("thread.idle", ({ thread }) => {
+    closeAutomationRunForSettledThread(bb, db, {
+      threadId: thread.id,
+      status: "idle"
     });
-    return host;
-  };
-  const publish = (kind) => {
-    void Promise.resolve(
-      bb.realtime.publish(ARC_CHANGED_CHANNEL, { kind })
-    ).catch(() => {
+  });
+  bb.events.on("thread.failed", ({ thread, error: error48 }) => {
+    closeAutomationRunForSettledThread(bb, db, {
+      threadId: thread.id,
+      status: "failed",
+      error: error48
     });
-  };
-  bb.rpc.register(arcRpcContract, {
-    "arc.status": () => ({
-      arcAvailable: config2 !== null,
-      reason: config2 === null ? "This server was not started by the Arc app." : null
-    }),
-    "arc.agents.list": async () => ({
-      agents: await requireHost().agents.listArcAgents()
-    }),
-    "arc.agents.get": async ({ id }) => ({
-      agent: await requireHost().agents.getArcAgent(id)
-    }),
-    "arc.agents.prepare": async ({ id }) => {
-      const agent = await requireHost().agents.prepareAgent(id);
-      publish("agents");
-      publish("accounts");
-      return { agent };
-    },
-    "arc.agents.repair": async ({ id }) => {
-      const agent = await requireHost().agents.repairAgent(id);
-      publish("agents");
-      publish("accounts");
-      return { agent };
-    },
-    "arc.accounts.list": async () => {
-      const detailed = await requireHost().accounts.listArcAccountsDetailed();
-      return { accounts: detailed.accounts, sources: detailed.sources };
-    },
-    "arc.accounts.setEnabled": async ({ id, enabled }) => {
-      const account = await requireHost().accounts.setAccountEnabled(id, enabled);
-      publish("accounts");
-      return { account };
-    },
-    "arc.accounts.remove": async ({ id }) => {
-      await requireHost().accounts.removeAccount(id);
-      publish("accounts");
-      return { ok: true };
-    },
-    "arc.accounts.reorder": async ({ family, orderedIds }) => {
-      await requireHost().accounts.reorderAccounts(family, orderedIds);
-      publish("accounts");
-      return { ok: true };
-    },
-    "arc.login.openai.start": async () => ({
-      challenge: await requireHost().accounts.startOpenAiLogin()
-    }),
-    "arc.login.openai.poll": async ({ sessionId }) => ({
-      poll: await requireHost().accounts.pollOpenAiLogin(sessionId),
-      state: requireHost().accounts.getLoginState("openai")
-    }),
-    "arc.login.openai.cancel": async ({ sessionId }) => {
-      await requireHost().accounts.cancelOpenAiLogin(sessionId);
-      publish("accounts");
-      return { ok: true };
-    },
-    "arc.login.claude.start": async () => ({
-      challenge: await requireHost().accounts.startClaudeLogin()
-    }),
-    "arc.login.claude.complete": async ({ sessionId, code }) => {
-      const account = await requireHost().accounts.completeClaudeLogin(
-        sessionId,
-        code
-      );
-      publish("accounts");
-      return { account };
-    },
-    "arc.omp.providers": async () => ({
-      providers: await requireHost().accounts.listOmpProviders()
-    }),
-    "arc.omp.login.start": async ({ provider }) => ({
-      challenge: await requireHost().accounts.startOmpProviderLogin(provider)
-    }),
-    "arc.omp.login.poll": async ({ sessionId }) => ({
-      poll: await requireHost().accounts.pollOmpProviderLogin(sessionId)
-    }),
-    "arc.omp.login.cancel": async ({ sessionId }) => {
-      await requireHost().accounts.cancelOmpProviderLogin(sessionId);
-      publish("accounts");
-      return { ok: true };
-    },
-    "arc.omp.login.submitKey": ({ sessionId, key }) => {
-      requireHost().accounts.submitOmpProviderLoginKey(sessionId, key);
-      return { ok: true };
-    },
-    "arc.usage.snapshot": async () => requireHost().usage.listUsageResources(),
-    "arc.usage.current": async ({ agentId, activeAccountKey }) => requireHost().usage.getCurrentAgentUsage({ agentId, activeAccountKey }),
-    "arc.usage.refresh": async ({ resourceId }) => {
-      const host2 = requireHost();
-      const snapshot = resourceId === void 0 ? await host2.usage.refreshAllUsage() : {
-        ...await host2.usage.listUsageResources(),
-        resources: [
-          await host2.usage.refreshUsageResource(resourceId)
-        ]
-      };
-      publish("usage");
-      return snapshot;
+  });
+  bb.events.on("thread.deleted", ({ thread }) => {
+    disableAutomationsForDeletedThreadEvent(bb, db, thread.id);
+  });
+  bb.background.service("automation-sweep", {
+    async start(signal) {
+      try {
+        await reconcileRunningAutomationRuns(bb, db);
+      } catch (error48) {
+        bb.log.error(
+          `Automation startup reconciliation failed: ${errorMessage(error48)}`
+        );
+      }
+      while (!signal.aborted) {
+        try {
+          await sweepDueAutomations(bb, db, {
+            pluginDataDir,
+            serverUrl: resolveServerUrl(),
+            serverHostId: (await bb.sdk.system.config()).primaryHostId
+          });
+        } catch (error48) {
+          bb.log.error(`Automation sweep failed: ${errorMessage(error48)}`);
+        }
+        await sleep(SWEEP_INTERVAL_MS, signal);
+      }
     }
   });
 }

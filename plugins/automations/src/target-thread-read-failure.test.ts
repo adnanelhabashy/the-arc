@@ -84,6 +84,7 @@ async function createTargetAutomation(
   name: string,
 ) {
   return service.create({
+    allowVoiceOutput: false,
     projectId: PROJECT_ID,
     name,
     enabled: true,

@@ -77,6 +77,7 @@ export interface ThreadTimelineSurfaceProps {
   timelineNavigationTargetRowId?: string | null;
   threadId: string;
   threadRuntimeDisplayStatus: ThreadRuntimeDisplayStatus;
+  autoSpeakRepliesOverride?: boolean;
   unreadDividerAutoScroll?: boolean;
   unreadDividerPlacement?: ThreadTimelineUnreadDividerPlacement | null;
   workspaceRootPath: string | undefined;
@@ -179,6 +180,7 @@ export function ThreadTimelineSurface({
   timelineNavigationTargetRowId,
   threadId,
   threadRuntimeDisplayStatus,
+  autoSpeakRepliesOverride,
   unreadDividerAutoScroll,
   unreadDividerPlacement,
   workspaceRootPath,
@@ -190,8 +192,10 @@ export function ThreadTimelineSurface({
     systemConfigQuery.data?.generalSettings?.voice?.enabled ?? true;
   const autoSpeakReplies =
     voiceEnabled &&
-    (systemConfigQuery.data?.generalSettings?.voice?.behavior?.autoSpeakReplies ??
-      false);
+    (autoSpeakRepliesOverride ??
+      (systemConfigQuery.data?.generalSettings?.voice?.behavior
+        ?.autoSpeakReplies ??
+        false));
   const showActiveThinking =
     activeThinking !== null && ongoingIndicatorLabel === undefined;
   const activeThinkingText = activeThinking?.text.trim() ?? "";

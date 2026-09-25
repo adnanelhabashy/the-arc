@@ -677,6 +677,9 @@ export function registerSystemRoutes(
       ...(body.agentId === undefined || body.agentId === null
         ? {}
         : { agentId: body.agentId }),
+      ...(body.detail === undefined || body.detail === null
+        ? {}
+        : { detail: body.detail }),
     });
     return context.body(new Uint8Array(audio), 200, {
       "content-type": contentType,

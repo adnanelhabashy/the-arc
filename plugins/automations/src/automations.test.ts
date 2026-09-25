@@ -221,6 +221,9 @@ function createAutomationServiceBb() {
         spawn: async () => {
           throw new Error("not expected");
         },
+        updatePluginMetadata: async () => {
+          throw new Error("not expected");
+        },
       },
     },
     realtime: { publish: () => undefined },
@@ -354,6 +357,9 @@ describe("startup reconciliation", () => {
               throw new Error("not expected");
             },
             spawn: async () => {
+              throw new Error("not expected");
+            },
+            updatePluginMetadata: async () => {
               throw new Error("not expected");
             },
           },
@@ -878,6 +884,9 @@ describe("automation data access", () => {
           spawn: async () => {
             throw new Error("not expected");
           },
+          updatePluginMetadata: async () => {
+            throw new Error("not expected");
+          },
         },
       },
       realtime: { publish: () => undefined },
@@ -1044,6 +1053,7 @@ describe("automation service", () => {
     });
     try {
       const created = await service.create({
+        allowVoiceOutput: false,
         projectId: "proj_test",
         name: "New project script",
         enabled: true,
@@ -1060,6 +1070,7 @@ describe("automation service", () => {
       });
 
       const personal = await service.create({
+        allowVoiceOutput: false,
         projectId: "proj_personal",
         name: "Personal script",
         enabled: true,
@@ -1076,6 +1087,7 @@ describe("automation service", () => {
       });
 
       const remoteOnly = await service.create({
+        allowVoiceOutput: false,
         projectId: "proj_remote",
         name: "Remote-only project script",
         enabled: true,
@@ -1163,6 +1175,7 @@ describe("automation service", () => {
     serverHostId = "host_server";
     try {
       const created = await service.create({
+        allowVoiceOutput: false,
         projectId: "proj_test",
         name: "Post-startup script",
         enabled: true,
@@ -1193,6 +1206,7 @@ describe("automation service", () => {
     });
     try {
       const created = await service.create({
+        allowVoiceOutput: false,
         projectId: "proj_test",
         name: "Selected directory",
         enabled: true,
@@ -1262,6 +1276,7 @@ describe("automation service", () => {
       ).rejects.toThrow("must not contain control characters");
       await expect(
         service.create({
+          allowVoiceOutput: false,
           projectId: "proj_test",
           name: "Control characters",
           enabled: true,
@@ -1310,6 +1325,9 @@ describe("automation service", () => {
           spawn: async () => {
             throw new Error("not expected");
           },
+          updatePluginMetadata: async () => {
+            throw new Error("not expected");
+          },
         },
       },
       realtime: { publish: () => undefined },
@@ -1329,6 +1347,7 @@ describe("automation service", () => {
 
     await expect(
       service.create({
+        allowVoiceOutput: false,
         projectId: "proj_missing",
         name: "Missing project",
         enabled: true,
@@ -1766,6 +1785,88 @@ describe("automation CLI --script-file", () => {
       await expect(readFile(refreshedPath, "utf8")).resolves.toContain(
         "VERSION 2",
       );
+    } finally {
+      await t.cleanup();
+    }
+  });
+
+  it("sets and patches allowVoiceOutput through --voice-output", async () => {
+    const t = await setup();
+    try {
+      const created = await t.cli.run(
+        [
+          "create",
+          "--project",
+          "proj_test",
+          "--name",
+          "voice-alerts",
+          "--in",
+          "30m",
+          "--prompt",
+          "summarize",
+          "--provider",
+          "codex",
+          "--model",
+          "gpt-5",
+          "--voice-output",
+          "on",
+          "--json",
+        ],
+        {},
+      );
+      expect(created.exitCode).toBe(0);
+      const createdJson: { id: string; allowVoiceOutput: boolean } = JSON.parse(
+        created.stdout ?? "",
+      );
+      const automationId = createdJson.id;
+      expect(createdJson.allowVoiceOutput).toBe(true);
+
+      const turnedOff = await t.cli.run(
+        [
+          "update",
+          automationId,
+          "--project",
+          "proj_test",
+          "--voice-output",
+          "off",
+          "--json",
+        ],
+        {},
+      );
+      expect(JSON.parse(turnedOff.stdout ?? "").allowVoiceOutput).toBe(false);
+
+      const renamed = await t.cli.run(
+        [
+          "update",
+          automationId,
+          "--project",
+          "proj_test",
+          "--name",
+          "voice-alerts-renamed",
+          "--json",
+        ],
+        {},
+      );
+      expect(JSON.parse(renamed.stdout ?? "").allowVoiceOutput).toBe(false);
+
+      const scriptVoice = await t.cli.run(
+        [
+          "create",
+          "--project",
+          "proj_test",
+          "--name",
+          "script-voice",
+          "--in",
+          "30m",
+          "--script",
+          "pwd",
+          "--voice-output",
+          "on",
+        ],
+        {},
+      );
+      expect(scriptVoice.exitCode).toBe(1);
+      expect(scriptVoice.stderr).toMatch(/applies only to agent automations/u);
     } finally {
       await t.cleanup();
     }

@@ -342,6 +342,7 @@ export const automationResponseSchema = z
     nextRunAt: z.number().nullable(),
     lastRunAt: z.number().nullable(),
     runCount: z.number().int().min(0),
+    allowVoiceOutput: z.boolean(),
     lastRunStatus: automationRunStatusSchema.nullable(),
     lastRunThreadId: z.string().min(1).nullable(),
     lastError: z.string().nullable(),
@@ -431,6 +432,7 @@ export const createAutomationInputSchema = z
     projectId: z.string().min(1),
     name: z.string().min(1).max(AUTOMATION_NAME_MAX_LENGTH),
     enabled: z.boolean().default(true),
+    allowVoiceOutput: z.boolean().default(false),
     trigger: automationTriggerSchema,
     execution: automationExecutionRequestSchema,
     origin: automationOriginSchema,
@@ -447,6 +449,7 @@ export const updateAutomationInputSchema = z
     projectId: z.string().min(1),
     automationId: z.string().min(1),
     name: z.string().min(1).max(AUTOMATION_NAME_MAX_LENGTH).optional(),
+    allowVoiceOutput: z.boolean().optional(),
     trigger: automationTriggerSchema.optional(),
     execution: automationExecutionRequestSchema.optional(),
     agent: agentExecutionUpdateSchema.optional(),
@@ -456,6 +459,7 @@ export const updateAutomationInputSchema = z
   .refine(
     (value) =>
       value.name !== undefined ||
+      value.allowVoiceOutput !== undefined ||
       value.trigger !== undefined ||
       value.execution !== undefined ||
       value.agent !== undefined ||

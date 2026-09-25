@@ -23,6 +23,7 @@ const AUTOMATION_COLUMNS = `id, project_id AS projectId, target_thread_id AS tar
   name, enabled, trigger_type AS triggerType,
   trigger_config AS triggerConfig, run_mode AS runMode, execution, origin,
   created_by_thread_id AS createdByThreadId,
+  allow_voice_output AS allowVoiceOutput,
   next_run_at AS nextRunAt, last_run_at AS lastRunAt,
   run_count AS runCount, consecutive_failures AS consecutiveFailures,
   last_run_status AS lastRunStatus,
@@ -52,6 +53,7 @@ export interface AutomationRow {
   execution: string;
   origin: AutomationOrigin;
   createdByThreadId: string | null;
+  allowVoiceOutput: boolean;
   nextRunAt: number | null;
   lastRunAt: number | null;
   runCount: number;
@@ -84,8 +86,10 @@ type DecodedAutomationRow =
   | { automation: AutomationResponse }
   | { automation: AutomationReadProblem; error: Error };
 
-interface RawAutomationRow extends Omit<AutomationRow, "enabled"> {
+interface RawAutomationRow
+  extends Omit<AutomationRow, "enabled" | "allowVoiceOutput"> {
   enabled: 0 | 1;
+  allowVoiceOutput: 0 | 1;
 }
 
 function boolToInt(value: boolean): 0 | 1 {
@@ -96,6 +100,7 @@ function automationRow(raw: RawAutomationRow): AutomationRow {
   return {
     ...raw,
     enabled: raw.enabled === 1,
+    allowVoiceOutput: raw.allowVoiceOutput === 1,
   };
 }
 
@@ -217,6 +222,8 @@ export const migrations = [
    CREATE UNIQUE INDEX IF NOT EXISTS automation_runs_single_flight_idx
      ON automation_runs(automation_id)
      WHERE status = 'running';`,
+  `ALTER TABLE automations
+     ADD COLUMN allow_voice_output INTEGER NOT NULL DEFAULT 0;`,
 ];
 
 function automationRetryDelayMs(consecutiveFailures: number): number {
@@ -234,11 +241,13 @@ export interface CreateAutomationInput {
   execution: AutomationExecution;
   origin: AutomationOrigin;
   createdByThreadId: string | null;
+  allowVoiceOutput?: boolean;
   nextRunAt: number | null;
 }
 
 export interface UpdateAutomationInput {
   name?: string;
+  allowVoiceOutput?: boolean;
   trigger?: AutomationTrigger;
   execution?: AutomationExecution;
   targetThreadId?: string | null;
@@ -263,6 +272,7 @@ function resolveAutomationUpdate(
     patch.execution ?? parseAutomationExecution(existing.execution);
   return {
     name: patch.name ?? existing.name,
+    allowVoiceOutput: patch.allowVoiceOutput ?? existing.allowVoiceOutput,
     trigger,
     execution,
     targetThreadId:
@@ -308,6 +318,7 @@ function automationResponseValue(
     execution,
     origin: row.origin,
     createdByThreadId: row.createdByThreadId,
+    allowVoiceOutput: row.allowVoiceOutput,
     nextRunAt: row.nextRunAt,
     lastRunAt: row.lastRunAt,
     runCount: row.runCount,
@@ -419,12 +430,14 @@ export function createAutomation(
     `INSERT INTO automations (
        id, project_id, target_thread_id, name, enabled, trigger_type,
        trigger_config, run_mode, execution, origin,
-       created_by_thread_id, next_run_at, last_run_at, run_count,
-       last_run_status, last_run_thread_id, last_error, created_at, updated_at
+       created_by_thread_id, allow_voice_output, next_run_at, last_run_at,
+       run_count, last_run_status, last_run_thread_id, last_error,
+       created_at, updated_at
      ) VALUES (
        @id, @projectId, @targetThreadId, @name, @enabled, @triggerType,
        @triggerConfig, @runMode, @execution, @origin,
-       @createdByThreadId, @nextRunAt, NULL, 0, NULL, NULL, NULL, @now, @now
+       @createdByThreadId, @allowVoiceOutput, @nextRunAt, NULL, 0, NULL,
+       NULL, NULL, @now, @now
      )`,
   ).run({
     id,
@@ -441,6 +454,7 @@ export function createAutomation(
     execution: serializeExecution(input.execution),
     origin: input.origin,
     createdByThreadId: input.createdByThreadId,
+    allowVoiceOutput: boolToInt(input.allowVoiceOutput ?? false),
     nextRunAt: input.nextRunAt,
     now,
   });
@@ -512,6 +526,7 @@ export function updateAutomation(
   const updated: AutomationRow = {
     ...existing,
     name: next.name,
+    allowVoiceOutput: next.allowVoiceOutput,
     triggerType: next.trigger.triggerType,
     triggerConfig: serializeTrigger(next.trigger),
     runMode: next.execution.mode,
@@ -524,6 +539,7 @@ export function updateAutomation(
   db.prepare(
     `UPDATE automations SET
        name = @name,
+       allow_voice_output = @allowVoiceOutput,
        trigger_type = @triggerType,
        trigger_config = @triggerConfig,
        run_mode = @runMode,
@@ -536,6 +552,7 @@ export function updateAutomation(
     automationId: updated.id,
     projectId: updated.projectId,
     name: updated.name,
+    allowVoiceOutput: boolToInt(updated.allowVoiceOutput),
     triggerType: updated.triggerType,
     triggerConfig: updated.triggerConfig,
     runMode: updated.runMode,

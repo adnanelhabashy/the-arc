@@ -1,8 +1,44 @@
 import { describe, expect, it } from "vitest";
 import {
+  BRIEF_SPEAK_TEXT_CHARS,
   deriveSpeakableText,
+  FULL_SPEAK_TEXT_CHARS,
   MAX_SPEAK_TEXT_CHARS,
 } from "../../src/services/ai/voice-speakable-text.js";
+
+describe("deriveSpeakableText detail modes", () => {
+  const prose = (words: number) =>
+    Array.from({ length: words }, (_, i) => `Sentence ${i + 1} here.`).join(" ");
+
+  it("brief caps at the sentence boundary within 400 characters", () => {
+    const result = deriveSpeakableText(prose(80), "brief");
+    expect(result.text.length).toBeLessThanOrEqual(BRIEF_SPEAK_TEXT_CHARS);
+    expect(result.truncated).toBe(true);
+    expect(result.text.endsWith(".")).toBe(true);
+  });
+
+  it("balanced keeps the 1200-character behavior", () => {
+    const result = deriveSpeakableText(prose(300), "balanced");
+    expect(result.text.length).toBeLessThanOrEqual(MAX_SPEAK_TEXT_CHARS);
+    expect(result.truncated).toBe(true);
+  });
+
+  it("full extends the cap to 4000 characters", () => {
+    const result = deriveSpeakableText(prose(200), "full");
+    expect(result.text.length).toBeGreaterThan(MAX_SPEAK_TEXT_CHARS);
+    expect(result.text.length).toBeLessThanOrEqual(FULL_SPEAK_TEXT_CHARS);
+    expect(result.truncated).toBe(false);
+  });
+
+  it("detail modes never change the stripping invariants", () => {
+    const withCode = "Here is the fix.\n\n```ts\nconst x = 1;\n```\n\nPlease review it.";
+    for (const detail of ["brief", "balanced", "full"] as const) {
+      expect(deriveSpeakableText(withCode, detail).text).toBe(
+        "Here is the fix. Please review it.",
+      );
+    }
+  });
+});
 
 describe("deriveSpeakableText", () => {
   it("keeps plain prose", () => {

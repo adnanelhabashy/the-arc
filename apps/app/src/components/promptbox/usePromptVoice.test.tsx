@@ -29,6 +29,7 @@ const voiceInput = {
   state: "transcribing" as const,
   isSupported: true,
   unsupportedReason: null,
+  errorMessage: null,
   stream: null,
   start: vi.fn(),
   stop: vi.fn(),

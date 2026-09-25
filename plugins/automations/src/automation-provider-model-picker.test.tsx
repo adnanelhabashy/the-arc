@@ -88,6 +88,7 @@ const automation: AutomationDetailResponse = {
     environment: { type: "reuse", environmentId: "env_test" },
   },
   origin: "human",
+  allowVoiceOutput: false,
   createdByThreadId: null,
   nextRunAt: Date.now() + 60_000,
   lastRunAt: null,
@@ -127,6 +128,7 @@ describe("automation provider and model picker", () => {
         onEdit={vi.fn()}
         onCancelEdit={vi.fn()}
         onUpdateAgent={onUpdate}
+        onAllowVoiceOutputChange={vi.fn()}
         onRunNow={vi.fn()}
         onDelete={vi.fn()}
         onOpenThread={vi.fn()}
@@ -180,6 +182,7 @@ describe("automation provider and model picker", () => {
         onEdit={vi.fn()}
         onCancelEdit={vi.fn()}
         onUpdateAgent={onUpdate}
+        onAllowVoiceOutputChange={vi.fn()}
         onRunNow={vi.fn()}
         onDelete={vi.fn()}
         onOpenThread={vi.fn()}

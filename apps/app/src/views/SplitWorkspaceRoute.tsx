@@ -3,6 +3,8 @@ import { disableGlobalCursorStyles } from "react-resizable-panels";
 import { matchPath, Navigate, useLocation } from "react-router-dom";
 import { useAtomValue } from "jotai";
 import { splitLayoutAtom } from "@/lib/split-layout/atoms";
+import { useVoiceModeOpen, useVoiceModeOpenControl } from "@/components/voice-mode/voice-mode-atoms";
+import { VoiceModeView } from "@/components/voice-mode/VoiceModeView";
 import { holdsPluginDetailPane } from "@/lib/split-layout/openPaneContentInSplit";
 import "@bb/shared-ui/icon-extended";
 import {
@@ -27,6 +29,8 @@ const PluginsView = lazy(() =>
 export default function SplitWorkspaceRoute() {
   const location = useLocation();
   const { projectId, threadId, isThreadView } = useRouteState();
+  const voiceModeOpen = useVoiceModeOpen();
+  const { close: closeVoiceMode } = useVoiceModeOpenControl();
   const pluginMatch = matchPath(PLUGIN_PANEL_ROUTE_PATH, location.pathname);
   const pluginDetailMatch = matchPath(
     PLUGIN_DETAIL_ROUTE_PATH,
@@ -86,5 +90,17 @@ export default function SplitWorkspaceRoute() {
   ) {
     return <PluginsView pluginId={routeContent.pluginId} />;
   }
-  return <SplitThreadArea routeContent={routeContent} />;
+  return (
+    <>
+      <SplitThreadArea routeContent={routeContent} />
+      {voiceModeOpen && routeContent.kind === "thread" ? (
+        <VoiceModeView
+          key={routeContent.threadId}
+          threadId={routeContent.threadId}
+          projectId={routeContent.projectId}
+          onExit={closeVoiceMode}
+        />
+      ) : null}
+    </>
+  );
 }

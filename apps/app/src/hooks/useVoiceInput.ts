@@ -140,9 +140,11 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
   const [isSupported, setIsSupported] = useState(false);
   const [unsupportedReason, setUnsupportedReason] =
     useState<VoiceUnsupportedReason | null>("unsupported-browser");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
 
   const showError = useCallback((message: string) => {
+    setErrorMessage(message);
     setState("error");
     appToast.error("Voice input failed", { description: message });
   }, []);
@@ -293,8 +295,15 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
     if (!voiceEnabled) {
       return;
     }
-    if (!isSupported) {
-      showError(voiceUnsupportedMessage(unsupportedReason));
+    // Re-read the environment at start instead of trusting the mount-time
+    // latch: the first render can happen before mediaDevices is available
+    // (e.g. while the app is still loading its origin), which would
+    // otherwise leave the hook permanently "unsupported".
+    const support = resolveVoiceSupport(readVoiceSupportEnvironment());
+    setIsSupported(support.isSupported);
+    setUnsupportedReason(support.reason);
+    if (!support.isSupported) {
+      showError(voiceUnsupportedMessage(support.reason));
       return;
     }
     if (state === "recording" || state === "transcribing" || state === "preparing") {
@@ -302,6 +311,7 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
     }
 
     try {
+      setErrorMessage(null);
       const stream = await navigator.mediaDevices.getUserMedia(
         buildAudioInputConstraints(preferredAudioInputDeviceId, {
           reduceBackgroundNoise,
@@ -332,8 +342,14 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
         }
       };
 
-      recorder.onerror = () => {
-        showError("Voice recording failed");
+      recorder.onerror = (event: Event) => {
+        const error =
+          (event as { error?: DOMException | null }).error ?? null;
+        showError(
+          error
+            ? resolveRecordingErrorMessage(error)
+            : "Voice recording failed",
+        );
       };
 
       recorder.onstop = async () => {
@@ -487,10 +503,7 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
             return;
           }
           stopStatusPolling();
-          setState("error");
-          appToast.error("Voice input failed", {
-            description: resolveRecordingErrorMessage(error),
-          });
+          showError(resolveRecordingErrorMessage(error));
         } finally {
           if (transcriptionAbortRef.current === abortController) {
             transcriptionAbortRef.current = null;
@@ -516,9 +529,7 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
       );
     }
   }, [
-    isSupported,
     options,
-    unsupportedReason,
     preferredAudioInputDeviceId,
     reduceBackgroundNoise,
     releaseRecordingWakeLock,
@@ -582,6 +593,7 @@ export function useVoiceInput(options: UseVoiceInputOptions) {
     state,
     isSupported,
     unsupportedReason,
+    errorMessage,
     stream,
     isRecording: state === "recording",
     isProcessing: state === "preparing" || state === "transcribing",

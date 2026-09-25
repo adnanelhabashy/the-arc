@@ -9,6 +9,10 @@ import {
 } from "react";
 import { Button } from "@bb/shared-ui/button";
 import { useAtomValue } from "jotai";
+import { useSystemConfig } from "@/hooks/queries/system-queries";
+import { useThread } from "@/hooks/queries/thread-queries";
+import { providerIdToAgentId } from "@/components/thread/timeline/ProviderUsageSection";
+import { useVoiceModeOpenControl } from "@/components/voice-mode/voice-mode-atoms";
 import { COARSE_POINTER_TOOLBAR_ACTION_BUTTON_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
 import { Icon } from "@bb/shared-ui/icon";
 import { Pill } from "@bb/shared-ui/pill";
@@ -80,6 +84,12 @@ export function ThreadDetailHeader({
   const isCompactViewport = useIsCompactViewport();
   const [primaryAction, ...secondaryActions] = threadHeaderGitActions;
   const { renameThread } = useThreadActions();
+  const voiceEnabled =
+    useSystemConfig().data?.generalSettings?.voice?.enabled ?? true;
+  const voiceAgentId = providerIdToAgentId(
+    useThread(threadId).data?.providerId,
+  );
+  const { open: openVoiceMode } = useVoiceModeOpenControl();
   const handleRename = useCallback(
     (nextTitle: string) => {
       renameThread(threadId, nextTitle);
@@ -274,6 +284,21 @@ export function ThreadDetailHeader({
           </span>
         ) : null}
         <PaneMaximizeButton />
+        {voiceEnabled && voiceAgentId !== null ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              HEADER_ICON_BUTTON_CLASS,
+              CHROME_SUBTLE_ICON_BUTTON_FOREGROUND_CLASS,
+            )}
+            aria-label="Enter voice mode"
+            onClick={openVoiceMode}
+          >
+            <Icon name="Mic" className="size-4" aria-hidden />
+          </Button>
+        ) : null}
         {onClosePane ? (
           <Button
             type="button"

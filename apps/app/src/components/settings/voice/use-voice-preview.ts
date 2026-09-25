@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { useSystemConfig } from "@/hooks/queries/system-queries";
 import { speakVoiceText } from "@/lib/api";
+import {
+  registerSpeechPlaybackOwner,
+  releaseSpeechPlayback,
+  requestSpeechPlayback,
+} from "@/lib/speech-playback-coordinator";
 
 export const VOICE_PREVIEW_PHRASE =
   "This is how I will sound when I read Arc's replies.";
@@ -83,6 +88,7 @@ function settle(): void {
   revokeCurrentUrl();
   activeKey = null;
   phase = "idle";
+  releaseSpeechPlayback("voice-preview");
   emit();
 }
 
@@ -95,6 +101,7 @@ export function startVoicePreview(
   speed: number,
 ): void {
   settle();
+  requestSpeechPlayback("voice-preview");
 
   activeKey = request.key;
   playbackSpeed = speed;
@@ -176,3 +183,5 @@ export function useVoicePreview(): VoicePreviewApi {
   }, [voiceEnabled, state.phase]);
   return { phase: state.phase, activeKey: state.activeKey, start, stop };
 }
+
+registerSpeechPlaybackOwner("voice-preview", settle);

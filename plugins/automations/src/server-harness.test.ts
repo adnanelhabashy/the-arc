@@ -1423,6 +1423,148 @@ describe("automations server plugin harness", () => {
     await harness.dispose();
   });
 
+  it("round-trips allowVoiceOutput over RPC and rejects it for script automations", async () => {
+    const host = await bootAutomationsPlugin();
+    const { harness } = host;
+
+    const created = await createAgentAutomation(harness, {
+      name: "Voice default off",
+    });
+    expect(created.allowVoiceOutput).toBe(false);
+
+    const enabled = automationDetailResponseSchema.parse(
+      await harness.callRpc("automations_update", {
+        projectId: PROJECT_ID,
+        automationId: created.id,
+        allowVoiceOutput: true,
+      }),
+    );
+    expect(enabled.allowVoiceOutput).toBe(true);
+
+    const switchedToScript = automationDetailResponseSchema.parse(
+      await harness.callRpc("automations_update", {
+        projectId: PROJECT_ID,
+        automationId: created.id,
+        execution: { mode: "script", script: "pwd\n", timeoutMs: 120_000 },
+      }),
+    );
+    expect(switchedToScript.execution.mode).toBe("script");
+    expect(switchedToScript.allowVoiceOutput).toBe(false);
+
+    const switchedBack = automationDetailResponseSchema.parse(
+      await harness.callRpc("automations_update", {
+        projectId: PROJECT_ID,
+        automationId: created.id,
+        execution: agentExecution(),
+      }),
+    );
+    expect(switchedBack.allowVoiceOutput).toBe(false);
+
+    const reenabled = automationDetailResponseSchema.parse(
+      await harness.callRpc("automations_update", {
+        projectId: PROJECT_ID,
+        automationId: created.id,
+        allowVoiceOutput: true,
+      }),
+    );
+    expect(reenabled.allowVoiceOutput).toBe(true);
+
+    const disabled = automationDetailResponseSchema.parse(
+      await harness.callRpc("automations_update", {
+        projectId: PROJECT_ID,
+        automationId: created.id,
+        allowVoiceOutput: false,
+      }),
+    );
+    expect(disabled.allowVoiceOutput).toBe(false);
+
+    await expect(
+      harness.callRpc("automations_create", {
+        projectId: PROJECT_ID,
+        name: "Script voice",
+        enabled: true,
+        allowVoiceOutput: true,
+        trigger: oneShotTrigger(),
+        execution: { mode: "script", script: "pwd\n", timeoutMs: 120_000 },
+        origin: "human",
+      }),
+    ).rejects.toThrow(/applies only to agent automations/u);
+
+    await harness.dispose();
+  });
+
+  it("stamps the Arc voice slot on dispatch and keeps voice off by default", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    const host = await bootAutomationsPlugin();
+    const { harness } = host;
+    const schedule = {
+      triggerType: "schedule",
+      cron: "* * * * *",
+      timezone: "UTC",
+    } as const;
+    const quiet = await createAgentAutomation(harness, {
+      name: "Quiet",
+      trigger: schedule,
+    });
+    const vocal = await createAgentAutomation(harness, {
+      name: "Vocal",
+      trigger: schedule,
+    });
+    await harness.callRpc("automations_update", {
+      projectId: PROJECT_ID,
+      automationId: vocal.id,
+      allowVoiceOutput: true,
+    });
+
+    vi.setSystemTime(new Date("2026-01-01T00:01:05.000Z"));
+    const service = harness.runService("automation-sweep");
+    await vi.waitFor(() =>
+      expect(harness.sdk.callsTo("threads.spawn")).toHaveLength(2),
+    );
+    service.controller.abort();
+    await service.done;
+
+    const stamps = harness.sdk
+      .callsTo("threads.updatePluginMetadata")
+      .map((call) => call[0]);
+    expect(stamps).toHaveLength(2);
+    const stampByAutomation: Record<string, unknown> = {};
+    for (const stamp of stamps) {
+      if (
+        typeof stamp === "object" &&
+        stamp !== null &&
+        "set" in stamp &&
+        typeof stamp.set === "object" &&
+        stamp.set !== null &&
+        "automationId" in stamp.set &&
+        typeof stamp.set.automationId === "string"
+      ) {
+        stampByAutomation[stamp.set.automationId] = stamp;
+      }
+    }
+    expect(stampByAutomation[quiet.id]).toEqual({
+      threadId: "thr_spawned",
+      pluginId: "arc-core",
+      set: {
+        automationId: quiet.id,
+        allowVoiceOutput: false,
+        providerId: "codex",
+      },
+    });
+    expect(stampByAutomation[vocal.id]).toEqual({
+      threadId: "thr_spawned",
+      pluginId: "arc-core",
+      set: {
+        automationId: vocal.id,
+        allowVoiceOutput: true,
+        providerId: "codex",
+      },
+    });
+
+    await harness.dispose();
+  });
+
   it("disables automations targeting a deleted thread", async () => {
     const { harness } = await bootAutomationsPlugin();
     const automation = await createAgentAutomation(harness, {

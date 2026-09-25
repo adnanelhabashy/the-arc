@@ -1,4 +1,19 @@
 export const MAX_SPEAK_TEXT_CHARS = 1200;
+export const BRIEF_SPEAK_TEXT_CHARS = 400;
+export const FULL_SPEAK_TEXT_CHARS = 4000;
+
+export type VoiceSpeakDetail = "brief" | "balanced" | "full";
+
+export function speakDetailCap(detail: VoiceSpeakDetail): number {
+  switch (detail) {
+    case "brief":
+      return BRIEF_SPEAK_TEXT_CHARS;
+    case "full":
+      return FULL_SPEAK_TEXT_CHARS;
+    case "balanced":
+      return MAX_SPEAK_TEXT_CHARS;
+  }
+}
 
 export interface SpeakableText {
   text: string;
@@ -48,11 +63,11 @@ function mostlyPunctuation(line: string): boolean {
   return !/[\p{L}\p{N}]/u.test(line);
 }
 
-function truncateSpeakable(text: string): SpeakableText {
-  if (text.length <= MAX_SPEAK_TEXT_CHARS) {
+function truncateSpeakable(text: string, cap: number): SpeakableText {
+  if (text.length <= cap) {
     return { text, truncated: false };
   }
-  const head = text.slice(0, MAX_SPEAK_TEXT_CHARS);
+  const head = text.slice(0, cap);
   const sentence = /^[\s\S]*[.!?](?=\s|$)/u.exec(head);
   const cut =
     sentence === null ? head.replace(/\S+\s*$/u, "") : sentence[0];
@@ -63,7 +78,10 @@ function truncateSpeakable(text: string): SpeakableText {
   };
 }
 
-export function deriveSpeakableText(input: string): SpeakableText {
+export function deriveSpeakableText(
+  input: string,
+  detail: VoiceSpeakDetail = "balanced",
+): SpeakableText {
   const withoutInternal = input
     .replace(INTERNAL_TAG_REGION, " ")
     .replace(TOOL_BRACKET, " ");
@@ -135,5 +153,6 @@ export function deriveSpeakableText(input: string): SpeakableText {
     collapseWhitespace(
       joined.replace(HTML_TAG, " ").replace(INLINE_INTERNAL, " "),
     ),
+    speakDetailCap(detail),
   );
 }

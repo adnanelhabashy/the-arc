@@ -170,10 +170,28 @@ it("reports denied microphone permission without a download affordance", async (
   await act(() => result.current.start());
 
   expect(result.current.state).toBe("error");
+  expect(result.current.errorMessage).toBe("Microphone permission denied");
   expect(lastToastOptions()?.description).toBe("Microphone permission denied");
   expect(lastToastOptions()?.action).toBeUndefined();
   expect(lastToastOptions()?.duration).toBeUndefined();
   expect(createObjectURL).not.toHaveBeenCalled();
+  expect(transcript).not.toHaveBeenCalled();
+});
+
+it("re-checks support at start instead of trusting a stale mount-time latch", async () => {
+  vi.stubGlobal("navigator", { mediaDevices: undefined });
+  const transcript = vi.fn();
+  const { result } = renderHook(() =>
+    useVoiceInput({ onTranscribe: vi.fn(), onTranscript: transcript }),
+  );
+  expect(result.current.isSupported).toBe(false);
+
+  stubMicrophone();
+  await act(() => result.current.start());
+
+  expect(result.current.state).toBe("recording");
+  expect(result.current.isSupported).toBe(true);
+  expect(appToast.error).not.toHaveBeenCalled();
   expect(transcript).not.toHaveBeenCalled();
 });
 

@@ -20,6 +20,11 @@ Agent mode flags:
 --environment <id-or-path>     Existing environment ID or unmanaged workspace path
 --new-environment <kind>       Create a new environment (worktree)
 --base-branch <branch>         Base branch for new managed worktrees
+--voice-output <on|off>        Allow (on) or disallow (off) the agent's short
+                               spoken voice alerts through Arc Voice (agent
+                               mode only; default off; requires Arc Voice
+                               enabled; absent means "leave unchanged" on
+                               update)
 ```
 
 When `--permission-mode` is omitted, the plugin chooses Approve for me

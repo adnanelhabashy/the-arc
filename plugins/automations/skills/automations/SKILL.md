@@ -41,7 +41,7 @@ Managing:
 ```bash
 bb automation list --project <id>
 bb automation show <automationId> --project <id>
-bb automation update <automationId> --project <id> [--name <name>] [schedule flags] [complete execution flags | partial agent update flags]
+bb automation update <automationId> --project <id> [--name <name>] [--voice-output on|off] [schedule flags] [complete execution flags | partial agent update flags]
 bb automation pause <automationId> --project <id>
 bb automation resume <automationId> --project <id>
 bb automation run <automationId> --project <id> [--idempotency-key <key>]

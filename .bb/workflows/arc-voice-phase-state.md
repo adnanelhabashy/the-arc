@@ -756,3 +756,188 @@ unresolved:
   self-resolves on daemon update)
 - a speak that follows a cancelled cold start still pays the model load (V3-known)
 ```
+
+## V6 (PASS — closed 2026-09-25; automation voice output via arc_voice_speak)
+```
+phase: V6
+result: PASS
+sdd: .bb/workflows/arc-voice-v6-sdd.md (design artifact; DESIGN AMENDMENT
+  embedded: configure always selects the tool, the execute-time fresh metadata
+  read is the sole authoritative gate — spawn-time pluginMetadata lands in the
+  origin plugin's slot, so a configure-time slot gate would miss spawned
+  threads' only turn)
+interfaces_created:
+- plugins/arc-core/src/voice-announce.ts: agent tool arc_voice_speak
+  ({text: 1..1200}, instructions ban logs/code/secrets/bodies; execute =
+  fresh bb.sdk.threads.getPluginMetadata(pluginId "arc-core") read → strict
+  boolean-true allowVoiceOutput gate → bb.realtime.publish("arc-voice-announce",
+  {text,threadId,automationId,providerId}) → "Voice alert announced."; refuses
+  "Voice output is not enabled for this automation; nothing was spoken." on
+  missing/false/malformed metadata; catches EVERYTHING, never throws, never
+  isError — voice cannot fail a run); configure returns the tool unconditionally
+- plugins/automations: allow_voice_output column (+migration, default 0);
+  create/update RPC (+script-mode true rejected, script effective-mode clears
+  stored true); detail-view "Allow voice output" toggle (agent mode only);
+  run.ts stamps the arc-core thread plugin-metadata slot at dispatch
+  (post-spawn / pre-send on reuse, best-effort warn); CLI --voice-output on|off
+  (enum, not boolean — boolean options are always-present in parsed values and
+  would clobber; absent = unchanged on update)
+- apps/app/src/lib/speech-playback-coordinator.ts: sole-slot playback
+  coordinator (register/request/release; multi-instance per owner; a steal
+  stops every registered instance of the displaced owner)
+- apps/app/src/components/automation-voice/: arc-voice-announce payload schema
+  + AutomationVoiceHost (App-root; ws plugin-signal → drop when voice disabled
+  or malformed → providerIdToAgentId → speakVoiceText(agentId) → one Audio
+  element, FIFO queue, interruption cancels queued + current, errors swallowed,
+  object URLs revoked, master-OFF mid-play stops and clears)
+- message-speech.tsx + use-voice-preview.ts: coordinator participation
+contracts_for_next_phase:
+- HOST_DAEMON_PROTOCOL_VERSION unchanged (no new host RPC; reuses ai.voice.speak);
+  server-contract unchanged (announcement is a plugin signal; automations RPC
+  types are plugin-local)
+- thread plugin-metadata slot "arc-core" is the cross-plugin automation↔voice
+  contract: {automationId, allowVoiceOutput, providerId}; providerId is OPAQUE
+  (non-Arc providers map to the global default voice renderer-side, never refused)
+- arc_voice_speak is advertised in EVERY agent session but authorizes per-call;
+  refusal is a normal (non-error) result so models are not steered onto a failure path
+- script-mode automations speak only via an explicit `bb voice speak` in the script
+evidence:
+- focused: bb-plugin-arc-core 18 (voice-announce); bb-plugin-automations 108
+  (+RPC round-trip/mode-switch/CLI-flag/dispatch-stamp tests); @bb/app 21 new
+  (coordinator 5, payload 9, host 7) + regressions (message-speech+settings 35,
+  promptbox 466, tools 49); typecheck clean across bb-plugin-arc-core,
+  bb-plugin-automations, @bb/app
+- REVIEW cycle 1 (independent, 4 axes PASS): 1 medium + 2 lows — SDD providerId
+  text corrected (opaque by design), steal cancels queue, script-switch clears
+  stale true; cycle 2 re-review: overall PASS, all RESOLVED, no new defects
+- installed app (/Applications/Arc Agent.app, fresh build carrying the fix
+  cycle, backups kept; plugin bundles in app.asar.unpacked verified to contain
+  arc_voice_speak/arc-voice-announce/allowVoiceOutput; renderer chunk contains
+  arc-voice-announce): session tool inventory lists functions.arc_voice_speak;
+  ON automation → tool completed "Voice alert announced." → renderer speak →
+  lazy Voicebox start → completed generation (exact text); per-agent voice —
+  codex→kokoro/af_heart flipped the generation engine qwen→kokoro on the same
+  automation; OFF automation → truthful refusal, run succeeded, generations
+  61→61; master-OFF window → announcement dropped, zero generations, run
+  succeeded; releaseModelsAfterUse → speechModelLoaded false after settle
+  (process warm per V5); clean quit → zero voicebox processes, port 47873 free;
+  smoke automations deleted, agent voice restored to null
+review: PASS (cycle 2)
+unresolved:
+- for ~10 min after a fresh relaunch, voice-status reported voiceEnabled:false
+  and speak 403'd voice_disabled while the persisted settings row said
+  enabled:true (unchanged since the prior evening); self-resolved without a
+  write and V6 behavior was correct in both states — suspected startup-state
+  ghost in config propagation, not V6-caused
+- pre-fix legacy script rows can carry a stale allowVoiceOutput:true until any
+  execution/voice update (never stamped, never printed, agent-mode-only UI)
+- pre-existing V1–V5 carry-overs unchanged (kill() TOCTOU ceiling, CUDA/ROCm
+  unverifiable, sha256File duplication, speak-after-cancelled-cold-start model
+  load, transient 503 voice_speak_unavailable mid-boot)
+```
+
+## V7 (IMPLEMENTED — installed-app conversational smoke pending final human audio confirmation)
+```
+phase: V7
+result: IMPLEMENTED (PASS pending user audio confirmation)
+interfaces_created:
+- apps/app/src/components/voice-mode/: VoiceModeSession state machine
+  (idle/listening/transcribing/thinking/speaking/interrupted/error, generation
+  guards, AUTO_LOOP_AFTER_SPEAK), use-voice-mode-session (effects: capture via
+  shared useVoiceInput, thread send + assistant-reply poll, speak w/ chunked
+  TTS + prefetch + abort, barge-in detection, mic+TTS level feeds),
+  VoiceModeView (route-level overlay: chrome-row header w/ macOS traffic-light
+  reserve + drag region, canvas VoiceRingAnimator w/ rAF + prefers-reduced-motion,
+  error panel, detail select, answers panel = ThreadTimelineSurface), barge-in
+  detector, utterance-end detector, voice-mode atoms
+- SDD: .bb/workflows/arc-voice-v7-sdd.md
+fix cycle during installed-app validation (all rebuilt into the app):
+- VoiceModeView overlay + disabled surfaces bg-canvas -> bg-background
+  (bg-canvas is not a registered utility -> transparent overlay)
+- useVoiceInput: support environment RE-CHECKED at start() (mount-time latch
+  could pin isSupported=false from a pre-origin load, surfacing a bogus
+  "Voice input is not supported in this browser" toast); errorMessage state
+  added + returned; recorder.onerror / transcribe-failure now record real
+  message (was swallowed) -> voice-mode error panel shows the real cause
+- use-voice-mode-session: ensureAudioGraph creates the MediaElementSource +
+  analyser whenever missing (mic effect may create the shared AudioContext
+  first; previously the analyser was only wired on context creation -> every
+  first turn threw "TTS analyser unavailable" and no reply ever spoke);
+  ttsAnalyserRef reset with context on unmount
+- VoiceModeView: response-detail select hidden (a11y `hidden`) in error state;
+  answers panel overflow-y-auto (was overflow-hidden -> never scrolled)
+- server settings (not code): TTS engine qwen/Vivian -> kokoro (qwen speak
+  502'd "Voice speech failed" at the server and took ~19s/clip when it did
+  work; plan note: Qwen must not be assumed usable); keepWarm=true,
+  releaseModelsAfterUse=false (cold models made the loop unusable: 37s STT,
+  17-19s TTS; warm: STT ~3.3s, TTS ~0.5s); autoSpeakReplies preserved false
+contracts_for_next_phase:
+- voice mode reuses the normal thread (sendThreadMessage queue-if-active +
+  timeline/assistant-reply poll over the existing queries; no parallel
+  conversation system); per-agent voice mapping passes agentId to speak
+- TTS graph invariant: ttsAnalyserRef non-null iff audioCtxRef non-null;
+  createMediaElementSource runs once per (ctx, element) pair
+- settings UI route for the above: PUT /api/v1/settings/general (full
+  AppSettings body); voice runtime pre-warm: POST /api/v1/system/voice-prepare
+evidence:
+- unit/focused: @bb/app 88 passed (voice-mode dir, useVoiceInput + new
+  support-latch regression test, usePromptVoice, transcript-guard,
+  speech-chunks); tsc clean
+- installed app (/Applications/Arc Agent.app, rebuilds backup-preserved):
+  real user speech -> real transcripts (EN + AR) -> real Codex replies in the
+  thread; machine cycle observed live: Listening->Transcribing->Thinking->
+  voice-speak POST (200) -> Speaking -> Listening; playback chain verified in
+  the renderer: element->MediaElementSource->analyser->destination carried a
+  2.25s kokoro clip at peak analyser RMS 0.24; STT endpoint 5/5 healthy warm;
+  error recovery: 502/error panel -> Dismiss -> Listening; header reserves
+  104px for traffic lights (computed pl=104px, h=48px); answers panel
+  overflow-y=auto, scrollable=true
+review: fix cycle 1 (this session's installed-app validation found the 6
+  defects above; each fixed, tested, rebuilt; max-2-cycles convention treated
+  as one cycle with incremental re-reviews)
+unresolved:
+- final human confirmation of audible speech + barge-in interruption in one
+  clean warm turn (mechanically proven: speak 200 + Speaking state + signal
+  path to destination; awaiting user ears)
+- intermittent STT 502 ("voice transcription failed: fetch failed", fast-fail)
+  cluster observed around runtime restarts/config changes; 5/5 clean when
+  warm and undisturbed — suspected restart-window flake in the arc-voice
+  host-plugin -> Voicebox path, not client-caused
+- "No clear speech detected" toasts during the cold/flaky window: same
+  NO_CLEAR_SPEECH_MESSAGE toast serves near-silence and pathological-repetition
+  guards; mic levels verified passing (peakRms 0.035 vs 0.01 gate)
+- autoSpeakReplies briefly observed true after a settings PUT round-trip
+  (server-side merge) — restored false; worth auditing the general-settings
+  merge for voice behavior keys
+- ROOT-CAUSE (installed-app validation, 09:45-10:00): the intermittent STT
+  502s/"no clear speech"/silent-speech cluster traces to the arc-voice
+  INFRASTRUCTURE, not the V7 renderer: (1) arc-core host plugin worker was
+  SIGKILLed repeatedly (09:46:21 et al, "host plugin worker exited (SIGKILL)";
+  NOT macOS jetsam — 81% memory free; NOT daemon-supervised — logged
+  "exited unexpectedly"; unexplained) killing in-flight voice RPCs; (2) after
+  each app restart the boot-time keep-warm prepare FAILS with "Host is not
+  connected" (start-server.ts races the host WebSocket connect; warn-only, no
+  retry) and nothing re-warms; (3) Voicebox then self-unloads the STT model
+  after EVERY /transcribe (direct runtime probes bypassing all app code show
+  model_loaded:false immediately after each call; steady-state 16s/call vs the
+  3.3s warm era earlier the same day) and reports backend_variant "cpu"
+  despite gpu_available MPS. prepareVoiceRuntime does NOT hold the STT model.
+  Fix surface (out of V7 renderer scope): host-connect readiness gate before
+  boot prepare + retry; Voicebox model retention/hold; backend-variant
+  selection; arc-core worker SIGKILL root cause
+infra fix cycle (same session, approved):
+- FIXED boot keep-warm race: start-server.ts now retries
+  prepareVoiceSpeechRuntime up to 6x at 5s intervals (was single attempt,
+  warn-only; the host WebSocket connects asynchronously so the first attempt
+  almost always failed, disabling keep-warm for the whole session). Verified
+  on the installed app: fresh boot shows no keep-warm failure and the runtime
+  is ready without the 503 boot transient. Server tsc clean.
+- STT per-call latency (~9-15s: Voicebox loads the whisper model per
+  /transcribe and exposes no STT hold — /models/load is TTS-only, confirmed
+  via its OpenAPI schema) documented as a Voicebox-runtime limitation; not
+  fixable from this repo. TTS kokoro warm at 0.27s.
+- arc-core worker SIGKILL root cause NOT found (not jetsam — 81% memory free;
+  not the daemon supervisor — it logs the exits as unexpected; no daemon RSS
+  limit hit). Left as an open infrastructure defect with log evidence.
+```
+

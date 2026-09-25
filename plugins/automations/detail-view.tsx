@@ -76,6 +76,7 @@ interface AutomationDetailViewProps {
   onEdit: () => void;
   onCancelEdit: () => void;
   onUpdateAgent: (update: AgentExecutionUpdate) => Promise<void>;
+  onAllowVoiceOutputChange: (allowVoiceOutput: boolean) => Promise<void>;
   onRunNow: () => void;
   onDelete: () => void;
   onOpenThread: (threadId: string) => void;
@@ -746,6 +747,7 @@ export function AutomationDetailView({
   onEdit,
   onCancelEdit,
   onUpdateAgent,
+  onAllowVoiceOutputChange,
   onRunNow,
   onDelete,
   onOpenThread,
@@ -877,6 +879,30 @@ export function AutomationDetailView({
           ) : (
             <ScriptAutomationDefinition execution={execution} />
           )}
+          {execution.mode === "agent" ? (
+            <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-background px-3.5 py-2.5">
+              <div className="min-w-0 space-y-0.5">
+                <div className="text-sm">Allow voice output</div>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Let the agent speak short alerts through Arc Voice when a run
+                  produces something worth announcing. Off by default; requires
+                  Arc Voice in Settings.
+                </p>
+              </div>
+              <AutomationLifecycleControl
+                checked={automation.allowVoiceOutput}
+                disabled={actionPending}
+                label={
+                  automation.allowVoiceOutput
+                    ? "Disable voice output"
+                    : "Allow voice output"
+                }
+                onCheckedChange={(checked) => {
+                  void onAllowVoiceOutputChange(checked);
+                }}
+              />
+            </div>
+          ) : null}
         </ResourceDefinitionSection>
 
         <ResourceActivitySection label="Runs">

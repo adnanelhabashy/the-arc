@@ -163,6 +163,12 @@ const AGENT_OPTIONS = {
     placeholder: "branch",
     description: "Base branch for --new-environment worktree",
   },
+  "voice-output": {
+    type: "enum",
+    values: ["on", "off"],
+    description:
+      "Allow (on) or disallow (off) the agent's short spoken voice alerts through Arc Voice (agent mode only; default off; requires Arc Voice enabled)",
+  },
 } as const;
 
 const SCRIPT_OPTIONS = {
@@ -228,6 +234,7 @@ interface AgentOptionValues {
   environment: string | undefined;
   "new-environment": "worktree" | undefined;
   "base-branch": string | undefined;
+  "voice-output": "on" | "off" | undefined;
 }
 
 interface ScriptOptionValues {
@@ -785,6 +792,9 @@ async function buildUpdateRequest(
   const projectId = requireProjectId(options.project, ctx);
   const request: UpdateAutomationInput = { projectId, automationId };
   if (options.name !== undefined) request.name = options.name;
+  if (options["voice-output"] !== undefined) {
+    request.allowVoiceOutput = options["voice-output"] === "on";
+  }
   if (
     options.cron !== undefined ||
     options.timezone !== undefined ||
@@ -829,13 +839,14 @@ async function buildUpdateRequest(
   }
   if (
     request.name === undefined &&
+    request.allowVoiceOutput === undefined &&
     request.trigger === undefined &&
     request.execution === undefined &&
     request.agent === undefined &&
     request.script === undefined
   ) {
     throw cliError(
-      "No changes requested. Provide --name, schedule flags, a complete agent/script execution, or partial agent/script update flags.",
+      "No changes requested. Provide --name, --voice-output, schedule flags, a complete agent/script execution, or partial agent/script update flags.",
       "missing_required",
     );
   }
@@ -893,6 +904,9 @@ function printAutomation(
       `  Tier:      ${automation.execution.serviceTier ?? "-"}`,
       `  Permission: ${automation.execution.permissionMode}`,
     );
+    if (automation.allowVoiceOutput) {
+      lines.push("  Voice:     alerts allowed");
+    }
   }
   if (automation.lastError) lines.push(`  Error:     ${automation.lastError}`);
   lines.push("");
@@ -1110,6 +1124,7 @@ export function registerAutomationCli(args: {
                 projectId,
                 name: input.options.name,
                 enabled: !input.options.disabled,
+                allowVoiceOutput: input.options["voice-output"] === "on",
                 trigger: buildTrigger(input.options),
                 execution,
                 origin: ctx.threadId ? "agent" : "human",

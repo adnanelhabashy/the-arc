@@ -282,10 +282,11 @@ export async function speakVoiceText(
     voiceId?: string;
     language?: string;
     agentId?: VoiceSpeakAgentId;
+    detail?: "brief" | "balanced" | "full";
   },
 ): Promise<{ audio: Uint8Array; contentType: string }> {
   assertVoiceEnabled(deps);
-  const spoken = deriveSpeakableText(args.text);
+  const spoken = deriveSpeakableText(args.text, args.detail ?? "balanced");
   if (spoken.text.length === 0) {
     throw new ApiError(
       400,

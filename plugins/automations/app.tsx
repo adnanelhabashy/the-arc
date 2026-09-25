@@ -327,6 +327,8 @@ function useMutations() {
     delete: (route: DetailRoute) => call("automations_delete", route),
     update: (route: DetailRoute, agent: AgentExecutionUpdate) =>
       rpc.call("automations_update", { ...route, agent }),
+    updateVoiceOutput: (route: DetailRoute, allowVoiceOutput: boolean) =>
+      rpc.call("automations_update", { ...route, allowVoiceOutput }),
   };
 }
 
@@ -514,6 +516,23 @@ function DetailView({
     [mutations, refetch, route],
   );
 
+  const updateVoiceOutput = useCallback(
+    async (allowVoiceOutput: boolean) => {
+      setActionPending(true);
+      try {
+        await mutations.updateVoiceOutput(route, allowVoiceOutput);
+        toast.success("Automation updated");
+        refetch();
+      } catch (rpcError: unknown) {
+        toast.error(`Failed to update automation: ${errorText(rpcError)}`);
+        throw rpcError;
+      } finally {
+        setActionPending(false);
+      }
+    },
+    [mutations, refetch, route],
+  );
+
   const confirmDelete = useCallback(() => {
     setDeleting(true);
     mutations
@@ -618,6 +637,7 @@ function DetailView({
       onEdit={openEdit}
       onCancelEdit={requiresPrompt ? onBack : () => setEditingRequested(false)}
       onUpdateAgent={updateAgent}
+      onAllowVoiceOutputChange={updateVoiceOutput}
       onRunNow={() => runAction("run")}
       onDelete={() => setDeleteOpen(true)}
       onOpenThread={openThread}

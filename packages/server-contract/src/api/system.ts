@@ -152,12 +152,13 @@ export type SystemVoiceStatusResponse = z.infer<
 >;
 
 export const systemVoiceSpeakRequestSchema = z.object({
-  text: z.string().min(1).max(1200),
+  text: z.string().min(1).max(8000),
   engine: z.string().min(1).nullable().optional(),
   profile: z.string().min(1).nullable().optional(),
   voiceId: z.string().min(1).nullable().optional(),
   language: z.string().min(1).nullable().optional(),
   agentId: z.enum(["codex", "claude-code", "omp"]).nullable().optional(),
+  detail: z.enum(["brief", "balanced", "full"]).nullable().optional(),
 });
 export type SystemVoiceSpeakRequest = z.infer<
   typeof systemVoiceSpeakRequestSchema

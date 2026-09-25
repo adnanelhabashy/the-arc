@@ -355,17 +355,29 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
         .finally(() => {
           void serverMove.handlePluginsStarted();
         })
-        .then(() => {
+        .then(async () => {
           const voiceSettings = getAppSettings(db).voice;
           if (voiceSettings.enabled && voiceSettings.behavior.keepWarm) {
-            return prepareVoiceSpeechRuntime({ ...sweepDeps }).catch(
-              (error: unknown) => {
-                logger.warn(
-                  { err: error },
-                  "Voice keep-warm prepare failed; the runtime will still start on first use",
-                );
-              },
-            );
+            // The host daemon connects over WebSocket asynchronously; right
+            // after boot it is often not connected yet and the prepare would
+            // fail permanently for the whole session (warn-only). Retry with
+            // bounded backoff so keep-warm actually engages after restart.
+            const maxAttempts = 6;
+            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+              try {
+                await prepareVoiceSpeechRuntime({ ...sweepDeps });
+                return;
+              } catch (error: unknown) {
+                if (attempt === maxAttempts) {
+                  logger.warn(
+                    { err: error },
+                    "Voice keep-warm prepare failed; the runtime will still start on first use",
+                  );
+                  return;
+                }
+                await new Promise((resolve) => setTimeout(resolve, 5_000));
+              }
+            }
           }
           return undefined;
         })

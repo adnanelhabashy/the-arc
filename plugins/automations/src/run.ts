@@ -32,6 +32,11 @@ type AgentThreadsSdk = {
   spawn(
     args: Parameters<BbPluginApi["sdk"]["threads"]["spawn"]>[0],
   ): Promise<unknown>;
+  updatePluginMetadata(
+    args: Parameters<
+      BbPluginApi["sdk"]["threads"]["updatePluginMetadata"]
+    >[0],
+  ): Promise<unknown>;
 };
 export type AgentRunApi = Pick<BbPluginApi, "realtime" | "log"> & {
   sdk: { threads: AgentThreadsSdk };
@@ -89,6 +94,46 @@ function renderAutomationDueMessage(args: {
   return `[bb automation due:${args.automationId}]\n\n${args.prompt}`;
 }
 
+const ARC_VOICE_PLUGIN_ID = "arc-core";
+
+type ArcVoiceMetadataSet = NonNullable<
+  Parameters<AgentThreadsSdk["updatePluginMetadata"]>[0]["set"]
+>;
+
+function arcVoiceMetadata(args: {
+  automation: AutomationRow;
+  execution: Extract<AutomationExecution, { mode: "agent" }>;
+}): ArcVoiceMetadataSet {
+  return {
+    automationId: args.automation.id,
+    allowVoiceOutput: args.automation.allowVoiceOutput,
+    providerId: args.execution.providerId,
+  };
+}
+
+async function stampArcVoiceMetadata(
+  bb: Pick<AgentRunApi, "log" | "sdk">,
+  args: {
+    threadId: string;
+    automation: AutomationRow;
+    execution: Extract<AutomationExecution, { mode: "agent" }>;
+  },
+): Promise<void> {
+  try {
+    await bb.sdk.threads.updatePluginMetadata({
+      threadId: args.threadId,
+      pluginId: ARC_VOICE_PLUGIN_ID,
+      set: arcVoiceMetadata(args),
+    });
+  } catch (error) {
+    bb.log.warn(
+      `Automation ${args.automation.id}: could not stamp Arc voice metadata on thread ${args.threadId} (${
+        error instanceof Error ? error.message : String(error)
+      }); voice alerts are refused for this run.`,
+    );
+  }
+}
+
 function isThreadReusable(thread: SdkThread): boolean {
   return (
     thread.deletedAt === null &&
@@ -132,6 +177,11 @@ export async function executeAgentRun(
         permissionMode: args.execution.permissionMode,
       }),
     );
+    await stampArcVoiceMetadata(bb, {
+      threadId: thread.id,
+      automation: args.automation,
+      execution: args.execution,
+    });
     setAutomationRunThread(db, { runId: args.run.id, threadId: thread.id });
     markAutomationThread(db, {
       automationId: args.automation.id,
@@ -214,6 +264,11 @@ async function reuseTargetThreadForRun(
     runId: args.run.id,
     threadId: args.targetThreadId,
     now: Date.now(),
+  });
+  await stampArcVoiceMetadata(bb, {
+    threadId: args.targetThreadId,
+    automation: args.automation,
+    execution: args.execution,
   });
   await bb.sdk.threads.send({
     threadId: args.targetThreadId,

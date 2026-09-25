@@ -67,6 +67,7 @@ import {
 import { AppCommandProvider } from "./components/commands/AppCommandProvider";
 import { ProviderCliInstallLogDialogHost } from "./components/provider-cli/provider-cli-install";
 import { ServerMoveOverlay } from "./components/machines/ServerMoveOverlay";
+import { AutomationVoiceHost } from "./components/automation-voice/AutomationVoiceHost";
 import { RouteLoadingSkeleton } from "./components/ui/route-loading-skeleton";
 import { OnboardingOverlay } from "./components/onboarding/OnboardingOverlay";
 import { OnboardingProvider } from "./hooks/useOnboarding";
@@ -445,6 +446,7 @@ export function App() {
                 </Routes>
                 <ProviderCliInstallLogDialogHost />
                 <ServerMoveOverlay />
+                <AutomationVoiceHost />
                 <OnboardingOverlay />
               </AppFileExternalNavigationHost>
             </AppNavigationUrlHost>

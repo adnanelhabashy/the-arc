@@ -47,6 +47,7 @@ function automation(
     },
     origin: "human",
     createdByThreadId: null,
+    allowVoiceOutput: false,
     nextRunAt: now + 86_400_000,
     lastRunAt: now - 3_600_000,
     runCount: 12,

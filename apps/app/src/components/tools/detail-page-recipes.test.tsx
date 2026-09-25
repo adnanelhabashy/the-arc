@@ -770,6 +770,7 @@ const AUTOMATION: AutomationDetailResponse = {
   },
   origin: "human",
   createdByThreadId: null,
+  allowVoiceOutput: false,
   nextRunAt: 1_800_000_000_000,
   lastRunAt: null,
   runCount: 0,
@@ -782,12 +783,12 @@ const AUTOMATION: AutomationDetailResponse = {
 
 type TestAutomationDetailProps = Omit<
   ComponentProps<typeof AutomationDetailViewBase>,
-  "editing" | "onCancelEdit" | "onUpdateAgent"
+  "editing" | "onCancelEdit" | "onUpdateAgent" | "onAllowVoiceOutputChange"
 > &
   Partial<
     Pick<
       ComponentProps<typeof AutomationDetailViewBase>,
-      "editing" | "onCancelEdit" | "onUpdateAgent"
+      "editing" | "onCancelEdit" | "onUpdateAgent" | "onAllowVoiceOutputChange"
     >
   >;
 
@@ -795,6 +796,7 @@ function AutomationDetailView({
   editing = false,
   onCancelEdit = () => {},
   onUpdateAgent = async () => {},
+  onAllowVoiceOutputChange = async () => {},
   ...props
 }: TestAutomationDetailProps) {
   return (
@@ -803,6 +805,7 @@ function AutomationDetailView({
       editing={editing}
       onCancelEdit={onCancelEdit}
       onUpdateAgent={onUpdateAgent}
+      onAllowVoiceOutputChange={onAllowVoiceOutputChange}
     />
   );
 }

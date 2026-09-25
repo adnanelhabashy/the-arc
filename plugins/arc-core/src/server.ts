@@ -21,6 +21,11 @@ import {
   resolveArcOmpExecutionEnv,
 } from "./omp-execution-env.js";
 import { ARC_CHANGED_CHANNEL, type ArcChangedKind } from "./realtime.js";
+import {
+  ARC_VOICE_ANNOUNCE_CHANNEL,
+  ARC_VOICE_PLUGIN_ID,
+  registerArcVoiceSpeakTool,
+} from "./voice-announce.js";
 
 // Only the fields the renderer needs to display are forwarded — never
 // runtimeId/artifactKind/expectedExecutableVersion/executableSha256, and
@@ -205,6 +210,21 @@ export default async function plugin(bb: BbPluginApi): Promise<void> {
   const invalidateAccountDependentState = (): void => {
     host?.usage.invalidateUsage();
   };
+
+  registerArcVoiceSpeakTool({
+    agents: bb.agents,
+    deps: {
+      publish: (payload) =>
+        Promise.resolve(
+          bb.realtime.publish(ARC_VOICE_ANNOUNCE_CHANNEL, payload),
+        ),
+      readThreadMetadata: (threadId) =>
+        bb.sdk.threads.getPluginMetadata({
+          threadId,
+          pluginId: ARC_VOICE_PLUGIN_ID,
+        }),
+    },
+  });
 
   bb.rpc.register(arcRpcContract, {
     "arc.status": () => ({

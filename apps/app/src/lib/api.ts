@@ -218,6 +218,7 @@ export async function speakVoiceText(
     voiceId?: string;
     language?: string;
     agentId?: "codex" | "claude-code" | "omp";
+    detail?: "brief" | "balanced" | "full";
   },
 ): Promise<Blob> {
   const response = await requestResponse(
@@ -233,6 +234,7 @@ export async function speakVoiceText(
           voiceId: options?.voiceId ?? null,
           language: options?.language ?? null,
           agentId: options?.agentId ?? null,
+          detail: options?.detail ?? null,
         }),
         signal: options?.signal,
       }),

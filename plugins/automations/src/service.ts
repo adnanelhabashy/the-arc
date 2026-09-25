@@ -72,7 +72,10 @@ type ServiceApi = Pick<BbPluginApi, "realtime" | "log"> & {
     system: { config(): Promise<{ primaryHostId: string | null }> };
     projects: Pick<BbPluginApi["sdk"]["projects"], "get" | "list">;
     providers: Pick<BbPluginApi["sdk"]["providers"], "list">;
-    threads: Pick<BbPluginApi["sdk"]["threads"], "get" | "send" | "spawn">;
+    threads: Pick<
+      BbPluginApi["sdk"]["threads"],
+      "get" | "send" | "spawn" | "updatePluginMetadata"
+    >;
   };
 };
 
@@ -610,6 +613,14 @@ export function createAutomationService(args: {
         );
       }
       const automationId = createAutomationId();
+      if (
+        payload.execution.mode === "script" &&
+        payload.allowVoiceOutput === true
+      ) {
+        throw new Error(
+          "Allow voice output applies only to agent automations; a script automation speaks only when its script explicitly runs `bb voice speak`.",
+        );
+      }
       const stored = await resolveStoredExecution({
         pluginDataDir,
         automationId,
@@ -635,6 +646,8 @@ export function createAutomationService(args: {
           execution: stored.execution,
           origin: payload.origin,
           createdByThreadId: payload.createdByThreadId ?? null,
+          allowVoiceOutput:
+            payload.execution.mode === "agent" ? payload.allowVoiceOutput : false,
           nextRunAt: computeInitialNextRunAt({
             trigger: payload.trigger,
             enabled: payload.enabled,
@@ -686,6 +699,21 @@ export function createAutomationService(args: {
       let stagedScriptFile: string | undefined;
       const patch: Parameters<typeof updateAutomation>[1]["patch"] = {};
       if (input.name !== undefined) patch.name = input.name;
+      if (input.allowVoiceOutput !== undefined || input.execution !== undefined) {
+        const effectiveMode = input.execution?.mode ?? currentExecution.mode;
+        if (input.allowVoiceOutput === true && effectiveMode !== "agent") {
+          throw new Error(
+            "Allow voice output applies only to agent automations; a script automation speaks only when its script explicitly runs `bb voice speak`.",
+          );
+        }
+        if (effectiveMode !== "agent") {
+          // Agent-mode-only policy: switching (or staying) script clears any
+          // stored true so the row never carries a meaningless flag.
+          patch.allowVoiceOutput = false;
+        } else if (input.allowVoiceOutput !== undefined) {
+          patch.allowVoiceOutput = input.allowVoiceOutput;
+        }
+      }
       if (input.trigger !== undefined) {
         validateTrigger(input.trigger, now);
         patch.trigger = input.trigger;
